@@ -134,7 +134,7 @@ class _PedidosPageState extends State<PedidosPage> {
                           (states) => Colors.blue.shade100,
                     ),
                     columns: const [
-                      DataColumn(label: Text("Pedido", style: TextStyle(fontWeight: FontWeight.bold))),
+                      DataColumn(label: Text("N°Pedido", style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text("Cliente", style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text("Serviço", style: TextStyle(fontWeight: FontWeight.bold))),
                       DataColumn(label: Text("Quantidade", style: TextStyle(fontWeight: FontWeight.bold))),

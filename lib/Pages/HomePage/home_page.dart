@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../AlertaPage/alerta_page.dart';
 import '../AtendimentoPage/atendimento_page.dart';
 import '../PedidosPage/pedidos_page.dart';
 import 'Components/sidebar.dart'; // Importando o Sidebar
@@ -16,12 +17,7 @@ class _HomePageState extends State<HomePage> {
   final List<Widget> pages = [
     const PedidosPage(),
     const AtendimentoPage(),
-    Center(
-      child: Text(
-        'Bem-vindo à página Alerta',
-        style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
-      ),
-    ),
+    AlertaPage(),
   ];
 
   @override
