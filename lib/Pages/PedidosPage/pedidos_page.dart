@@ -59,14 +59,15 @@ class _PedidosPageState extends State<PedidosPage> {
       return combinaBusca && combinaEstado;
     }).toList();
 
-    return Padding(
+    return Container(
+      color: const Color(0xFF1C1C2E),
       padding: const EdgeInsets.all(20.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             "Gestão de Pedidos",
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 20),
 
@@ -76,11 +77,13 @@ class _PedidosPageState extends State<PedidosPage> {
               Expanded(
                 child: TextField(
                   controller: _searchController,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     hintText: "Pesquisar por número ou cliente...",
-                    prefixIcon: const Icon(LucideIcons.search),
+                    hintStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: const Icon(LucideIcons.search, color: Colors.white),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: const Color(0xFF2A2A40),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -92,101 +95,122 @@ class _PedidosPageState extends State<PedidosPage> {
               const SizedBox(width: 15),
 
               // Dropdown de estado
-              DropdownButton<EstadoPedido?>(
-                value: filtroEstado,
-                onChanged: (EstadoPedido? newValue) {
-                  setState(() {
-                    filtroEstado = newValue;
-                  });
-                },
-                items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text("Todos"),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2A2A40),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<EstadoPedido?>(
+                    value: filtroEstado,
+                    dropdownColor: const Color(0xFF2A2A40),
+                    iconEnabledColor: Colors.white,
+                    style: const TextStyle(color: Colors.white),
+                    onChanged: (EstadoPedido? newValue) {
+                      setState(() {
+                        filtroEstado = newValue;
+                      });
+                    },
+                    items: [
+                      const DropdownMenuItem(
+                        value: null,
+                        child: Text("Todos"),
+                      ),
+                      ...estadosPedido.map((estado) {
+                        return DropdownMenuItem(
+                          value: estado,
+                          child: Text(estado.label),
+                        );
+                      }).toList(),
+                    ],
                   ),
-                  ...estadosPedido.map((estado) {
-                    return DropdownMenuItem(
-                      value: estado,
-                      child: Text(estado.label),
-                    );
-                  }).toList(),
-                ],
+                ),
               ),
             ],
           ),
 
           const SizedBox(height: 20),
 
-          // Tabela
+          // Tabela de pedidos
           Expanded(
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(15),
               decoration: BoxDecoration(
-                color: Colors.blueGrey.shade50,
+                color: const Color(0xFF2A2A40),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: ListView(
-                children: [
-                  DataTable(
-                    columnSpacing: 12,
-                    headingRowColor: MaterialStateColor.resolveWith(
-                          (states) => Colors.blue.shade100,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: DataTable(
+                      columnSpacing: 24,
+                      headingRowColor: MaterialStateColor.resolveWith(
+                              (states) => Colors.white.withOpacity(0.1)),
+                      dataRowColor: MaterialStateColor.resolveWith(
+                              (states) => Colors.white.withOpacity(0.03)),
+                      columns: const [
+                        DataColumn(label: Text("N°Pedido", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Cliente", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Serviço", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Quantidade", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Valor", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Estado", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                        DataColumn(label: Text("Ações", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
+                      ],
+                      rows: pedidosFiltrados.map((pedido) {
+                        return DataRow(cells: [
+                          DataCell(Text(pedido.numeroPedido, style: const TextStyle(color: Colors.white))),
+                          DataCell(Text(pedido.nomeCliente, style: const TextStyle(color: Colors.white))),
+                          DataCell(Text(pedido.servico, style: const TextStyle(color: Colors.white))),
+                          DataCell(Text(pedido.quantidade.toString(), style: const TextStyle(color: Colors.white))),
+                          DataCell(Text("R\$ ${pedido.valorTotal.toStringAsFixed(2)}", style: const TextStyle(color: Colors.white))),
+                          DataCell(
+                            DropdownButtonHideUnderline(
+                              child: DropdownButton<EstadoPedido>(
+                                value: pedido.estado,
+                                dropdownColor: const Color(0xFF2A2A40),
+                                iconEnabledColor: Colors.white,
+                                style: const TextStyle(color: Colors.white),
+                                onChanged: (EstadoPedido? newValue) {
+                                  setState(() {
+                                    pedido.estado = newValue!;
+                                  });
+                                },
+                                items: estadosPedido.map((estado) {
+                                  return DropdownMenuItem(
+                                    value: estado,
+                                    child: Text(estado.label),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Row(
+                              children: [
+                                IconButton(
+                                  icon: const Icon(LucideIcons.edit, color: Colors.blueAccent),
+                                  onPressed: () {
+                                    // ação de edição
+                                  },
+                                ),
+                                IconButton(
+                                  icon: const Icon(LucideIcons.trash2, color: Colors.redAccent),
+                                  onPressed: () {
+                                    // ação de exclusão
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ]);
+                      }).toList(),
                     ),
-                    columns: const [
-                      DataColumn(label: Text("N°Pedido", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Cliente", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Serviço", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Quantidade", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Valor", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Estado", style: TextStyle(fontWeight: FontWeight.bold))),
-                      DataColumn(label: Text("Ações", style: TextStyle(fontWeight: FontWeight.bold))),
-                    ],
-                    rows: pedidosFiltrados.map((pedido) {
-                      return DataRow(cells: [
-                        DataCell(Text(pedido.numeroPedido)),
-                        DataCell(Text(pedido.nomeCliente)),
-                        DataCell(Text(pedido.servico)),
-                        DataCell(Text(pedido.quantidade.toString())),
-                        DataCell(Text("R\$ ${pedido.valorTotal.toStringAsFixed(2)}")),
-                        DataCell(
-                          DropdownButton<EstadoPedido>(
-                            value: pedido.estado,
-                            onChanged: (EstadoPedido? newValue) {
-                              setState(() {
-                                pedido.estado = newValue!;
-                              });
-                            },
-                            items: estadosPedido.map((estado) {
-                              return DropdownMenuItem(
-                                value: estado,
-                                child: Text(estado.label),
-                              );
-                            }).toList(),
-                          ),
-                        ),
-                        DataCell(
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(LucideIcons.edit, color: Colors.blueAccent),
-                                onPressed: () {
-                                  // Implementar ação de edição
-                                },
-                              ),
-                              IconButton(
-                                icon: const Icon(LucideIcons.trash2, color: Colors.redAccent),
-                                onPressed: () {
-                                  // Implementar ação de exclusão
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                      ]);
-                    }).toList(),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
           ),
