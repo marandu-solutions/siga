@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-
+import 'Pages/Auth/Login/login_page.dart';
+import 'Pages/Auth/Register/register_page.dart'; //
 import 'Pages/HomePage/home_page.dart';
 
 void main() {
@@ -27,8 +28,13 @@ class MyApp extends StatelessWidget {
           iconTheme: IconThemeData(color: Colors.white),
         ),
       ),
-      home: const MainLayout(),
       debugShowCheckedModeBanner: false,
+      initialRoute: '/',
+      routes: {
+        '/': (context) => const LoginScreen(),
+        '/signup': (context) => const SignUpScreen(),
+        '/home': (context) => const MainLayout(),
+      },
     );
   }
 }
