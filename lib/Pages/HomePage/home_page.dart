@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../AlertaPage/alerta_page.dart';
 import '../AtendimentoPage/atendimento_page.dart';
+import '../FeedbackPage/feedback_page.dart';
 import '../PedidosPage/pedidos_page.dart';
 import 'Components/sidebar.dart';
 
@@ -15,9 +16,10 @@ class _HomePageState extends State<HomePage> {
   int selectedIndex = 0;
 
   final List<Widget> pages = [
-    const PedidosPage(),
-    const AtendimentoPage(),
+    PedidosPage(),
+    AtendimentoPage(),
     AlertaPage(),
+    FeedbacksPage(), // nova página
   ];
 
   @override
