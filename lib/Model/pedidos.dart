@@ -70,7 +70,8 @@ enum EstadoPedido {
   emAberto,
   emAndamento,
   entregaRetirada,
-  finalizado;
+  finalizado,
+  cancelado;
 
   String get label {
     switch (this) {
@@ -82,6 +83,8 @@ enum EstadoPedido {
         return "Entrega/Retirada";
       case EstadoPedido.finalizado:
         return "Finalizado";
+      case EstadoPedido.cancelado:
+        return "Cancelado";
     }
   }
 
@@ -95,6 +98,8 @@ enum EstadoPedido {
         return EstadoPedido.entregaRetirada;
       case "Finalizado":
         return EstadoPedido.finalizado;
+      case "Cancelado":
+        return EstadoPedido.cancelado;
       default:
         return EstadoPedido.emAberto;
     }
