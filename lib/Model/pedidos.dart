@@ -11,7 +11,7 @@ class Pedido {
   final String observacoes;
   final double valorTotal;
   final DateTime dataPedido;
-  EstadoPedido estado;
+  final EstadoPedido estado;
 
   Pedido({
     required this.id,
@@ -64,7 +64,40 @@ class Pedido {
       'estado': estado.label,
     };
   }
+
+  Pedido copyWith({
+    int? id,
+    String? numeroPedido,
+    String? nomeCliente,
+    String? telefoneCliente,
+    String? servico,
+    int? quantidade,
+    String? tamanho,
+    String? tipoMalha,
+    String? cor,
+    String? observacoes,
+    double? valorTotal,
+    DateTime? dataPedido,
+    EstadoPedido? estado,
+  }) {
+    return Pedido(
+      id: id ?? this.id,
+      numeroPedido: numeroPedido ?? this.numeroPedido,
+      nomeCliente: nomeCliente ?? this.nomeCliente,
+      telefoneCliente: telefoneCliente ?? this.telefoneCliente,
+      servico: servico ?? this.servico,
+      quantidade: quantidade ?? this.quantidade,
+      tamanho: tamanho ?? this.tamanho,
+      tipoMalha: tipoMalha ?? this.tipoMalha,
+      cor: cor ?? this.cor,
+      observacoes: observacoes ?? this.observacoes,
+      valorTotal: valorTotal ?? this.valorTotal,
+      dataPedido: dataPedido ?? this.dataPedido,
+      estado: estado ?? this.estado,
+    );
+  }
 }
+
 
 enum EstadoPedido {
   emAberto,

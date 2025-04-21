@@ -30,6 +30,27 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
 
   String? colunaDragSource;
 
+  final Map<String, bool> isSearching = {};
+  final Map<String, TextEditingController> searchControllers = {};
+
+  @override
+  void initState() {
+    super.initState();
+    // Inicializar estados de busca
+    for (var coluna in cardsPorColuna.keys) {
+      isSearching[coluna] = false;
+      searchControllers[coluna] = TextEditingController();
+    }
+  }
+
+  @override
+  void dispose() {
+    for (var controller in searchControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colunas = cardsPorColuna.keys.toList();
@@ -41,21 +62,89 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: colunas.map((coluna) {
+            final isColumnSearching = isSearching[coluna]!;
+            final searchText = searchControllers[coluna]!.text.toLowerCase();
+            final cards = cardsPorColuna[coluna]!
+                .where((card) =>
+            card["nome"]!.toLowerCase().contains(searchText) ||
+                card["numero"]!.toLowerCase().contains(searchText))
+                .toList();
+
             return Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      coluna,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    // Barra superior da coluna (com ícones ou campo de busca)
+                    Row(
+                      children: [
+                        Expanded(
+                          child: isColumnSearching
+                              ? TextField(
+                            controller: searchControllers[coluna],
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              hintText: "Pesquisar...",
+                              hintStyle: const TextStyle(color: Colors.grey),
+                              filled: true,
+                              fillColor: const Color(0xFF2A2A40),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide.none,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: const Icon(Icons.close, color: Colors.white),
+                                onPressed: () {
+                                  setState(() {
+                                    isSearching[coluna] = false;
+                                    searchControllers[coluna]!.clear();
+                                  });
+                                },
+                              ),
+                            ),
+                            onChanged: (_) {
+                              setState(() {});
+                            },
+                          )
+                              : Text(
+                            coluna,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        if (!isColumnSearching) ...[
+                          IconButton(
+                            icon: const Icon(Icons.search, color: Colors.white),
+                            onPressed: () {
+                              setState(() {
+                                isSearching[coluna] = true;
+                              });
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.refresh, color: Colors.white),
+                            tooltip: "Atualizar",
+                            onPressed: () {
+                              // Lógica de atualização específica da coluna (se necessário)
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.settings, color: Colors.white),
+                            tooltip: "Configurações",
+                            onPressed: () {
+                              // Futuro: configurações da coluna
+                            },
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 12),
+
+                    // Área dos cards da coluna
                     Expanded(
                       child: DragTarget<Map<String, String>>(
                         onWillAccept: (data) => true,
@@ -68,8 +157,6 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
                           }
                         },
                         builder: (context, candidateData, rejectedData) {
-                          final cards = cardsPorColuna[coluna]!;
-
                           return Container(
                             decoration: BoxDecoration(
                               color: const Color(0xFF1E1E2F),
