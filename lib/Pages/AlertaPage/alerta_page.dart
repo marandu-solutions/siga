@@ -9,100 +9,129 @@ class AlertaPage extends StatefulWidget {
 
 class _AlertaPageState extends State<AlertaPage> {
   final TextEditingController motivoController = TextEditingController();
-  String? pedidoSelecionado;
-
+  final List<String> pedidosSelecionados = [];
+  DateTime? novaData;
   final List<Map<String, String>> pedidos = [
     {'id': '001', 'nome': 'João Silva', 'detalhe': '100 camisas algodão'},
     {'id': '002', 'nome': 'Maria Souza', 'detalhe': '50 camisetas dri-fit'},
     {'id': '003', 'nome': 'Carlos Lima', 'detalhe': '200 camisas promocionais'},
   ];
 
+  Future<void> _selecionarData(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now().add(const Duration(days: 3)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(DateTime.now().year + 1),
+      builder: (context, child) => Theme(
+        data: ThemeData.dark().copyWith(
+          colorScheme: const ColorScheme.dark(
+            primary: Colors.purpleAccent,
+            onPrimary: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null && picked != novaData) {
+      setState(() => novaData = picked);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.colorScheme;
 
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Painel lateral de pedidos
           Container(
-            width: 280,
+            width: 320,
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade800),
+              color: colors.surfaceContainer,
+              borderRadius: BorderRadius.circular(20),
             ),
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  "Pedidos com Atraso",
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.purpleAccent,
-                    fontWeight: FontWeight.bold,
-                  ),
+                Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: colors.error),
+                    const SizedBox(width: 12),
+                    Text(
+                      "Pedidos com Atraso",
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 16),
                 Expanded(
-                  child: ListView.builder(
-                    itemCount: pedidos.length,
-                    itemBuilder: (context, index) {
-                      final pedido = pedidos[index];
-                      final bool isSelecionado = pedidoSelecionado == pedido['id'];
+                  child: Material(
+                    color: colors.surfaceContainerLowest,
+                    borderRadius: BorderRadius.circular(16),
+                    child: ListView.separated(
+                      itemCount: pedidos.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final pedido = pedidos[index];
+                        final isSelecionado =
+                        pedidosSelecionados.contains(pedido['id']);
 
-                      return GestureDetector(
-                        onTap: () => setState(() {
-                          pedidoSelecionado = pedido['id'];
-                        }),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: isSelecionado
-                                ? Colors.purple.shade900.withOpacity(0.5)
-                                : const Color(0xFF2A2A2A),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelecionado
-                                  ? Colors.purpleAccent
-                                  : Colors.grey.shade700,
+                        return ListTile(
+                          onTap: () => setState(() {
+                            if (isSelecionado) {
+                              pedidosSelecionados.remove(pedido['id']);
+                            } else {
+                              pedidosSelecionados.add(pedido['id']!);
+                            }
+                          }),
+                          leading: Checkbox(
+                            value: isSelecionado,
+                            onChanged: (_) => setState(() {
+                              if (isSelecionado) {
+                                pedidosSelecionados.remove(pedido['id']);
+                              } else {
+                                pedidosSelecionados.add(pedido['id']!);
+                              }
+                            }),
+                          ),
+                          title: Text(
+                            pedido['nome']!,
+                            style: TextStyle(
+                              color: colors.onSurface,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
-                          child: Row(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.purpleAccent,
-                                child: Text(
-                                  pedido['id']!,
-                                  style: const TextStyle(
-                                      color: Colors.black, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      pedido['nome']!,
-                                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      pedido['detalhe']!,
-                                      style: TextStyle(color: Colors.grey.shade500),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          subtitle: Text(
+                            pedido['detalhe']!,
+                            style: TextStyle(color: colors.onSurfaceVariant),
                           ),
-                        ),
-                      );
-                    },
+                          trailing: Text(
+                            "#${pedido['id']}",
+                            style: TextStyle(color: colors.outline),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "${pedidosSelecionados.length} pedidos selecionados",
+                  style: TextStyle(
+                    color: colors.onSurfaceVariant,
+                    fontSize: 14,
                   ),
                 ),
               ],
@@ -113,72 +142,121 @@ class _AlertaPageState extends State<AlertaPage> {
 
           // Painel de mensagem
           Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C1C2E),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Justificativa do Atraso",
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    pedidoSelecionado != null
-                        ? "Você está notificando o pedido #$pedidoSelecionado"
-                        : "Selecione um pedido para enviar uma justificativa.",
-                    style: TextStyle(color: Colors.grey.shade400),
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: TextField(
-                      controller: motivoController,
-                      maxLines: null,
-                      expands: true,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        hintText: "Descreva o que aconteceu...",
-                        hintStyle: TextStyle(color: Colors.grey.shade600),
-                        filled: true,
-                        fillColor: const Color(0xFF2E2E3E),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
+            child: Material(
+              color: colors.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      "Notificar Clientes",
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        color: colors.onSurface,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 24),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      onPressed: pedidoSelecionado == null
-                          ? null
-                          : () {
-                        // Enviar alerta
-                      },
-                      icon: const Icon(Icons.send),
-                      label: const Text("Enviar Alerta"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: pedidoSelecionado == null
-                            ? Colors.grey.shade800
-                            : Colors.purpleAccent,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                    const SizedBox(height: 24),
+
+                    // Seletor de data
+                    Row(
+                      children: [
+                        FilledButton.icon(
+                          icon: const Icon(Icons.calendar_today),
+                          label: Text(
+                            novaData == null
+                                ? "Definir Nova Data"
+                                : "Data: ${novaData!.day}/${novaData!.month}/${novaData!.year}",
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: colors.primaryContainer,
+                            foregroundColor: colors.onPrimaryContainer,
+                          ),
+                          onPressed: () => _selecionarData(context),
                         ),
+                        if (novaData != null)
+                          IconButton(
+                            icon: Icon(Icons.edit, color: colors.primary),
+                            onPressed: () => _selecionarData(context),
+                          ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 24),
+
+                    // Campo de mensagem
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Mensagem Personalizada",
+                            style: TextStyle(
+                              color: colors.onSurface,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: motivoController,
+                              maxLines: null,
+                              expands: true,
+                              style: TextStyle(color: colors.onSurface),
+                              decoration: InputDecoration(
+                                hintText: "Exemplo:\nOlá [Nome], informamos que... (use {{data}} para inserir a nova data automaticamente)",
+                                hintStyle: TextStyle(color: colors.onSurfaceVariant),
+                                filled: true,
+                                fillColor: colors.surfaceContainerHighest,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  borderSide: BorderSide.none,
+                                ),
+                                contentPadding: const EdgeInsets.all(16),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ],
+
+                    const SizedBox(height: 24),
+
+                    // Footer
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "A mensagem será enviada via WhatsApp\npara todos os clientes selecionados",
+                          style: TextStyle(
+                            color: colors.onSurfaceVariant,
+                            fontSize: 14,
+                          ),
+                        ),
+                        FilledButton.icon(
+                          icon: const Icon(Icons.send_rounded),
+                          label: const Text("Enviar Notificações"),
+                          onPressed: (pedidosSelecionados.isNotEmpty &&
+                              motivoController.text.isNotEmpty &&
+                              novaData != null)
+                              ? () {
+                            // Implementar envio
+                          }
+                              : null,
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
