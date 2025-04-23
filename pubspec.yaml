@@ -37,6 +37,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   lucide_icons: ^0.257.0
   sidebarx: ^0.17.1
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:

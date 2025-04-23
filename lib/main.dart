@@ -19,7 +19,7 @@ class MaranduApp extends StatelessWidget {
       themeMode: ThemeMode.system, // Segue o tema do dispositivo
       theme: AppThemes.lightTheme, // Tema claro personalizado
       darkTheme: AppThemes.darkTheme, // Tema escuro personalizado
-      initialRoute: '/',
+      initialRoute: '/home',
       routes: {
         '/': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
