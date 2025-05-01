@@ -56,84 +56,43 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     super.dispose();
   }
 
-  void _moveCard(Map<String, String> cardData, String from, String to) {
-    setState(() {
-      cardsPorColuna[from]!.remove(cardData);
-      cardsPorColuna[to]!.add(cardData);
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final colunas = cardsPorColuna.keys.toList();
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: cs.surface,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final width = constraints.maxWidth;
-
-          if (width < 600) {
-            return _buildMobileView(colunas);
+          if (constraints.maxWidth < 600) {
+            return _buildMobileView(cs, colunas);
+          } else {
+            return _buildDesktopView(cs, colunas);
           }
-          if (width < 900) {
-            return _buildIntermediateView(colunas, constraints.maxHeight);
-          }
-          return _buildDesktopView(colunas);
         },
       ),
     );
   }
 
-  Widget _buildMobileView(List<String> colunas) {
+  Widget _buildMobileView(ColorScheme cs, List<String> colunas) {
     return DefaultTabController(
       length: colunas.length,
-      child: Column(
-        children: [
-          TabBar(
-            isScrollable: true,
-            labelColor: Colors.deepPurpleAccent,
-            unselectedLabelColor: Colors.white54,
-            indicatorColor: Colors.deepPurpleAccent,
-            tabs: colunas.map((c) => Tab(text: c)).toList(),
-          ),
-          Expanded(
-            child: TabBarView(
-              children: colunas
-                  .map((c) => Padding(
-                padding: const EdgeInsets.all(12),
-                child: _buildColumnContent(c, colunas),
-              ))
-                  .toList(),
-            ),
-          ),
-        ],
+      child: Scaffold(
+        backgroundColor: cs.surface,
+        body: TabBarView(
+          children: colunas.map((c) {
+            return Padding(
+              padding: const EdgeInsets.all(12),
+              child: _buildColumnContent(cs, c),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
 
-  /// Intermediate between mobile and desktop: horizontal scroll
-  Widget _buildIntermediateView(List<String> colunas, double height) {
-    final colWidth = (MediaQuery.of(context).size.width - 48) / 2;
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: colunas.map((c) {
-          return Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: SizedBox(
-              width: colWidth,
-              height: height - 40,
-              child: _buildColumnContent(c, colunas),
-            ),
-          );
-        }).toList(),
-      ),
-    );
-  }
-
-  Widget _buildDesktopView(List<String> colunas) {
+  Widget _buildDesktopView(ColorScheme cs, List<String> colunas) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
@@ -142,7 +101,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: _buildColumnContent(c, colunas),
+              child: _buildColumnContent(cs, c),
             ),
           );
         }).toList(),
@@ -150,22 +109,21 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  Widget _buildColumnContent(String coluna, List<String> colunas) {
+  Widget _buildColumnContent(ColorScheme cs, String coluna) {
     final searching = isSearching[coluna]!;
     final text = searchControllers[coluna]!.text.toLowerCase();
     final cards = cardsPorColuna[coluna]!
         .where((card) =>
     card['nome']!.toLowerCase().contains(text) ||
-        card['numero']!.toLowerCase().contains(text))
+        card['numero']!.contains(text))
         .toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         Container(
           decoration: BoxDecoration(
-            color: headerColor[coluna]!.withOpacity(0.2),
+            color: headerColor[coluna]!.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -173,107 +131,130 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
             children: [
               Expanded(
                 child: searching
-                    ? _buildSearchField(coluna)
+                    ? _buildSearchField(cs, coluna)
                     : Text(
                   coluna,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: headerColor[coluna]!.withOpacity(1),
+                    color: headerColor[coluna]!,
                   ),
                 ),
               ),
               if (!searching)
                 IconButton(
-                  icon: Icon(Icons.search,
-                      color: headerColor[coluna]!.withOpacity(0.8)),
-                  onPressed: () => setState(() => isSearching[coluna] = true),
+                  icon: Icon(Icons.search, color: headerColor[coluna]!),
+                  onPressed: () => setState(() {
+                    isSearching[coluna] = true;
+                  }),
                 ),
             ],
           ),
         ),
         const SizedBox(height: 10),
         Expanded(
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2F),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            padding: const EdgeInsets.all(8),
-            child: ListView.separated(
-              itemCount: cards.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, i) => _buildCardItem(cards[i], coluna, colunas),
-            ),
+          child: DragTarget<Map<String, String>>(
+            onWillAccept: (_) => true,
+            onAccept: (data) {
+              if (colunaDragSource != null) {
+                setState(() {
+                  cardsPorColuna[colunaDragSource!]!.remove(data);
+                  cardsPorColuna[coluna]!.add(data);
+                });
+              }
+            },
+            builder: (context, candidate, rejected) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: cs.surfaceVariant,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                padding: const EdgeInsets.all(8),
+                child: ListView.separated(
+                  itemCount: cards.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (context, i) =>
+                      _buildDraggableCard(cs, cards[i], coluna),
+                ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _buildSearchField(String coluna) => TextField(
-    controller: searchControllers[coluna],
-    style: const TextStyle(color: Colors.white),
-    decoration: InputDecoration(
-      hintText: 'Pesquisar...',
-      hintStyle: const TextStyle(color: Colors.grey),
-      filled: true,
-      fillColor: const Color(0xFF2A2A40),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: BorderSide.none,
+  Widget _buildSearchField(ColorScheme cs, String coluna) {
+    return TextField(
+      controller: searchControllers[coluna],
+      style: TextStyle(color: cs.onSurface),
+      decoration: InputDecoration(
+        hintText: 'Pesquisar...',
+        hintStyle: TextStyle(color: cs.onSurfaceVariant),
+        filled: true,
+        fillColor: cs.surface,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+        suffixIcon: IconButton(
+          icon: Icon(Icons.close, color: cs.onSurface),
+          onPressed: () => setState(() {
+            isSearching[coluna] = false;
+            searchControllers[coluna]!.clear();
+          }),
+        ),
       ),
-      suffixIcon: IconButton(
-        icon: const Icon(Icons.close, color: Colors.white),
-        onPressed: () => setState(() {
-          isSearching[coluna] = false;
-          searchControllers[coluna]!.clear();
-        }),
-      ),
-    ),
-    onChanged: (_) => setState(() {}),
-  );
+      onChanged: (_) => setState(() {}),
+    );
+  }
 
-  Widget _buildCardItem(Map<String, String> card, String coluna, List<String> colunas) {
-    return Column(
-      children: [
-        GestureDetector(
-          onTap: () {
-            Navigator.of(context).push(
-              PageRouteBuilder(
-                transitionDuration: const Duration(milliseconds: 300),
-                pageBuilder: (_, __, ___) => ChatPage(
-                  nome: card['nome']!,
-                  numero: card['numero']!,
-                  fotoUrl: card['foto']!,
-                ),
-                transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
-              ),
-            );
-          },
-          child: ContatoCard(
-            nome: card['nome']!,
-            numero: card['numero']!,
-            fotoUrl: card['foto']!,
+  Widget _buildDraggableCard(
+      ColorScheme cs, Map<String, String> card, String coluna) {
+    return Draggable<Map<String, String>>(
+      data: card,
+      onDragStarted: () => colunaDragSource = coluna,
+      feedback: Material(
+        color: Colors.transparent,
+        child: Opacity(
+          opacity: 0.85,
+          child: SizedBox(
+            width: 220,
+            child: ContatoCard(
+              nome: card['nome']!,
+              numero: card['numero']!,
+              fotoUrl: card['foto']!,
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            if (colunas.indexOf(coluna) > 0)
-              IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white),
-                onPressed: () => _moveCard(card, coluna, colunas[colunas.indexOf(coluna) - 1]),
-              ),
-            if (colunas.indexOf(coluna) < colunas.length - 1)
-              IconButton(
-                icon: const Icon(Icons.arrow_forward, color: Colors.white),
-                onPressed: () => _moveCard(card, coluna, colunas[colunas.indexOf(coluna) + 1]),
-              ),
-          ],
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.4,
+        child: ContatoCard(
+          nome: card['nome']!,
+          numero: card['numero']!,
+          fotoUrl: card['foto']!,
         ),
-      ],
+      ),
+      child: GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          PageRouteBuilder(
+            transitionDuration: const Duration(milliseconds: 300),
+            pageBuilder: (_, __, ___) => ChatPage(
+              nome: card['nome']!,
+              numero: card['numero']!,
+              fotoUrl: card['foto']!,
+            ),
+            transitionsBuilder: (_, anim, __, child) =>
+                FadeTransition(opacity: anim, child: child),
+          ),
+        ),
+        child: ContatoCard(
+          nome: card['nome']!,
+          numero: card['numero']!,
+          fotoUrl: card['foto']!,
+        ),
+      ),
     );
   }
 }

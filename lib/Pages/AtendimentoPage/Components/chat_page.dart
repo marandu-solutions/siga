@@ -14,22 +14,20 @@ class ChatPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      // Fundo do chat levemente mais claro para contraste
-      backgroundColor: const Color(0xFF18181F),
+      backgroundColor: cs.surfaceVariant,
       appBar: AppBar(
-        // Topo um pouco mais claro (passando de 1E1E2F para 282838)
-        backgroundColor: const Color(0xFF282838),
+        backgroundColor: cs.primaryContainer,
         elevation: 2,
-        leading: const BackButton(color: Colors.white70),
+        leading: BackButton(color: cs.onPrimaryContainer),
         titleSpacing: 0,
         title: Row(
           children: [
-            // Borda branca sutil ao redor da foto
             CircleAvatar(
               backgroundImage: NetworkImage(fotoUrl),
               radius: 20,
-              backgroundColor: Colors.white24,
+              backgroundColor: cs.surface,
             ),
             const SizedBox(width: 12),
             Column(
@@ -37,17 +35,17 @@ class ChatPage extends StatelessWidget {
               children: [
                 Text(
                   nome,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
-                    color: Colors.white,
+                    color: cs.onPrimaryContainer,
                   ),
                 ),
                 Text(
                   numero,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Colors.white54,
+                    color: cs.onPrimaryContainer.withOpacity(0.7),
                   ),
                 ),
               ],
@@ -98,16 +96,15 @@ class ChatBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      // Um pouco de sombra para destacar o bubble
       margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       constraints: BoxConstraints(
-        // 70% da largura da tela
         maxWidth: MediaQuery.of(context).size.width * 0.7,
       ),
       decoration: BoxDecoration(
-        color: isMe ? const Color(0xFF4C6FFF) : const Color(0xFF333347),
+        color: isMe ? cs.primary : cs.surface,
         borderRadius: BorderRadius.only(
           topLeft: const Radius.circular(12),
           topRight: const Radius.circular(12),
@@ -116,16 +113,16 @@ class ChatBubble extends StatelessWidget {
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: cs.shadow.withOpacity(0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
-          )
+          ),
         ],
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          color: Colors.white,
+        style: TextStyle(
+          color: isMe ? cs.onPrimary : cs.onSurface,
           height: 1.4,
         ),
       ),
@@ -138,43 +135,44 @@ class ChatInputBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
-      // Mesma cor do topo para continuidade visual
-      color: const Color(0xFF282838),
+      color: cs.primaryContainer,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           Expanded(
             child: TextField(
-              style: const TextStyle(color: Colors.white),
+              style: TextStyle(color: cs.onSurface),
               decoration: InputDecoration(
                 hintText: "Digite uma mensagem",
-                hintStyle: const TextStyle(color: Colors.white54),
+                hintStyle: TextStyle(color: cs.onSurfaceVariant),
                 filled: true,
-                fillColor: const Color(0xFF333347),
+                fillColor: cs.surface,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
             ),
           ),
           const SizedBox(width: 8),
           Container(
             decoration: BoxDecoration(
-              color: const Color(0xFF4C6FFF),
+              color: cs.primary,
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
+                  color: cs.shadow.withOpacity(0.3),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
-                )
+                ),
               ],
             ),
             child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
+              icon: Icon(Icons.send, color: cs.onPrimary),
               onPressed: () {},
             ),
           ),

@@ -14,40 +14,42 @@ class ContatoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
-      color: const Color(0xFF2A2A3E),
+      color: cs.surface,                // Fundo do card usando surface
       elevation: 4,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
       ),
-      margin: const EdgeInsets.symmetric(vertical: 6), // reduzido de 8 para 6
+      margin: const EdgeInsets.symmetric(vertical: 6),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10), // padding mais compacto
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
         child: Row(
           children: [
             CircleAvatar(
               backgroundImage: NetworkImage(fotoUrl),
-              radius: 20, // reduzido de 24 para 20
+              radius: 20,
+              backgroundColor: cs.surfaceVariant, // Borda sutil no avatar
             ),
-            const SizedBox(width: 8), // reduzido de 12 para 8
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     nome,
-                    style: const TextStyle(
-                      fontSize: 15,           // levemente menor
+                    style: TextStyle(
+                      fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                      color: cs.onSurface,       // Texto usando onSurface
                     ),
                   ),
-                  const SizedBox(height: 4), // mantido em 4dp
+                  const SizedBox(height: 4),
                   Text(
                     numero,
-                    style: const TextStyle(
-                      fontSize: 12,           // reduzido de 13 para 12
-                      color: Colors.white70,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: cs.onSurfaceVariant, // Texto secundário
                     ),
                   ),
                 ],

@@ -24,14 +24,12 @@ class Tabela extends StatefulWidget {
 
 class _TabelaState extends State<Tabela> {
   final TextEditingController _searchController = TextEditingController();
-  // 1) aqui criamos o ScrollController
   final ScrollController _horizontalController = ScrollController();
   EstadoPedido? _filtroEstado;
 
   @override
   void dispose() {
     _searchController.dispose();
-    // 2) descartamos também o controller
     _horizontalController.dispose();
     super.dispose();
   }
@@ -60,7 +58,6 @@ class _TabelaState extends State<Tabela> {
                 ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-          // ... seu TextField e Dropdown aqui (igual antes) ...
           Row(
             children: [
               Expanded(
@@ -90,14 +87,12 @@ class _TabelaState extends State<Tabela> {
                   DropdownMenuItem(
                     value: null,
                     child: Text("Todos",
-                        style:
-                        tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
                   ),
                   ...EstadoPedido.values.map((e) => DropdownMenuItem(
                     value: e,
                     child: Text(e.label,
-                        style:
-                        tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
                   )),
                 ],
                 onChanged: (v) => setState(() => _filtroEstado = v),
@@ -108,7 +103,7 @@ class _TabelaState extends State<Tabela> {
           ),
           const SizedBox(height: 20),
 
-          // 3) aqui começa o container da tabela
+          // Container da Tabela
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -124,8 +119,6 @@ class _TabelaState extends State<Tabela> {
                   )
                 ],
               ),
-
-              // 4) envolvemos o SingleChildScrollView horizontal num Scrollbar
               child: Scrollbar(
                 controller: _horizontalController,
                 thumbVisibility: true,
@@ -139,9 +132,8 @@ class _TabelaState extends State<Tabela> {
                       scrollDirection: Axis.vertical,
                       child: DataTableTheme(
                         data: DataTableThemeData(
-                          // 5) troquei para um rosa suave
                           headingRowColor: MaterialStateProperty.all(
-                              const Color(0xFFE1BEE7)),
+                              cs.primaryContainer), // Rosa suave
                           dataRowColor:
                           MaterialStateProperty.all(cs.surface),
                           dividerThickness: 1.2,

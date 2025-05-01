@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../Model/pedidos.dart';
 import 'Components/kanban.dart';
-import 'Components/tabela.dart';
 import 'Components/pedido_details_page.dart';
+import 'Components/tabela.dart';
+import '../../Themes/themes.dart'; // Adicionando o tema para uso
 
 class PedidosPage extends StatefulWidget {
   const PedidosPage({super.key});
@@ -47,38 +48,44 @@ class _PedidosPageState extends State<PedidosPage> {
   ];
 
   Map<EstadoPedido, Color> _getCorColuna(BuildContext context) => {
-    EstadoPedido.emAberto: const Color(0xFF5A9FCF),
-    EstadoPedido.emAndamento: const Color(0xFF5CAF7C),
-    EstadoPedido.entregaRetirada: const Color(0xFFA87ECF),
-    EstadoPedido.finalizado: const Color(0xFF7ECF9A),
-    EstadoPedido.cancelado: const Color(0xFFCF7E7E),
+    EstadoPedido.emAberto: Theme.of(context).colorScheme.primary,
+    EstadoPedido.emAndamento: Theme.of(context).colorScheme.secondary,
+    EstadoPedido.entregaRetirada: Theme.of(context).colorScheme.tertiary,
+    EstadoPedido.finalizado: Theme.of(context).colorScheme.secondaryContainer,
+    EstadoPedido.cancelado: Theme.of(context).colorScheme.error,
   };
 
-  bool _isKanbanView = true;
+  bool _isKanbanView = false;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final screenWidth = MediaQuery.of(context).size.width;
 
+    final sidebarWidth = 250.0;
+    final availableWidth = screenWidth - sidebarWidth;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F2),
+        backgroundColor: theme.appBarTheme.backgroundColor, // Usando a cor do tema
         elevation: 1,
         title: Padding(
           padding: const EdgeInsets.only(left: 24),
           child: Text(
             'Pedidos',
-            style: theme.textTheme.titleLarge
-                ?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: theme.colorScheme.onSurface, // Usando a cor adequada do tema
+            ),
           ),
         ),
         centerTitle: false,
         automaticallyImplyLeading: false,
         actions: [
-          if (screenWidth >= 600) ...[
+          if (availableWidth >= 600) ...[
             ViewToggleButton(
+              theme: theme, // Passando o tema
               isKanbanView: _isKanbanView,
               onToggle: (v) => setState(() => _isKanbanView = v),
             ),
@@ -90,28 +97,97 @@ class _PedidosPageState extends State<PedidosPage> {
         builder: (context, constraints) {
           final w = constraints.maxWidth;
 
-          if (w < 600) return _buildTabela();
+          if (availableWidth < 600) {
+            return _buildPedidosList();
+          }
 
-          if (!_isKanbanView) return _buildTabela();
+          if (availableWidth >= 600) {
+            if (_isKanbanView) {
+              return _buildKanban();
+            } else {
+              return _buildTabela();
+            }
+          }
 
-          // Kanban em telas >= 600
-          if (w < 900) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
+          if (availableWidth > 1150) {
+            return Padding(
               padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-              child: SizedBox(
-                width: 900,
-                child: _buildKanban(),
-              ),
+              child: _buildKanban(),
             );
           }
 
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-            child: _buildKanban(),
-          );
+          return _buildTabela();
         },
       ),
+    );
+  }
+
+  Widget _buildPedidosList() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      child: ListView.builder(
+        itemCount: pedidos.length,
+        itemBuilder: (context, index) {
+          final pedido = pedidos[index];
+          return _buildPedidoCard(pedido);
+        },
+      ),
+    );
+  }
+
+  Widget _buildPedidoCard(Pedido pedido) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: theme.cardColor, // Usando a cor do tema para o card
+      child: InkWell(
+        onTap: () => _openDetails(pedido),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Pedido #${pedido.numeroPedido}',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface, // Usando a cor adequada
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text('Cliente: ${pedido.nomeCliente}', style: theme.textTheme.bodyMedium),
+              Text('Serviço: ${pedido.servico}', style: theme.textTheme.bodyMedium),
+              Text('Status: ${pedido.estado.name}', style: theme.textTheme.bodyMedium),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Total: R\$ ${pedido.valorTotal.toStringAsFixed(2)}', style: theme.textTheme.bodyMedium),
+                  _buildActionButtons(pedido),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButtons(Pedido pedido) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        IconButton(
+          icon: Icon(LucideIcons.edit, size: 18, color: theme.iconTheme.color), // Usando a cor dos ícones do tema
+          onPressed: () => _showSnackNotImpl(pedido),
+        ),
+        IconButton(
+          icon: Icon(LucideIcons.trash, size: 18, color: theme.iconTheme.color), // Usando a cor dos ícones do tema
+          onPressed: () => _removePedido(pedido),
+        ),
+      ],
     );
   }
 
@@ -165,11 +241,13 @@ class _PedidosPageState extends State<PedidosPage> {
 class ViewToggleButton extends StatelessWidget {
   final bool isKanbanView;
   final ValueChanged<bool> onToggle;
+  final ThemeData theme;  // Recebendo o tema como parâmetro
 
   const ViewToggleButton({
     super.key,
     required this.isKanbanView,
     required this.onToggle,
+    required this.theme,  // Adicionando o tema como parâmetro
   });
 
   @override
@@ -177,7 +255,7 @@ class ViewToggleButton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFF3A3F58),
+        color: theme.colorScheme.secondaryContainer,  // Usando a cor do tema
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
@@ -212,19 +290,20 @@ class _ToggleIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFFE1BEE7) : Colors.transparent,
+          color: selected ? theme.colorScheme.primaryContainer : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Icon(
           icon,
           size: 20,
-          color: selected ? Colors.black87 : Colors.white38,
+          color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

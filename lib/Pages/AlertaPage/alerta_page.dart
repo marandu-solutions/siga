@@ -18,20 +18,21 @@ class _AlertaPageState extends State<AlertaPage> {
   ];
 
   Future<void> _selecionarData(BuildContext context) async {
+    final cs = Theme.of(context).colorScheme;
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: novaData ?? DateTime.now().add(const Duration(days: 3)),
       firstDate: DateTime.now(),
       lastDate: DateTime(DateTime.now().year + 1),
-      builder: (context, child) => Theme(
-        data: ThemeData.dark().copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: Colors.deepPurpleAccent,
-            onPrimary: Colors.white,
-            surface: Color(0xFF1A1A2E),
-            onSurface: Colors.white,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: cs.copyWith(
+            primary: cs.primary,
+            onPrimary: cs.onPrimary,
+            surface: cs.surface,
+            onSurface: cs.onSurface,
           ),
-          dialogBackgroundColor: const Color(0xFF1A1A2E),
+          dialogBackgroundColor: cs.surface,
         ),
         child: child!,
       ),
@@ -50,63 +51,65 @@ class _AlertaPageState extends State<AlertaPage> {
   }
 
   @override
+  void dispose() {
+    motivoController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: const Color(0xFF131225),
+      backgroundColor: cs.background,
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
-
-          // Mobile: empilha painéis
           if (width < 600) {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _buildPedidosPanel(),
+                  _buildPedidosPanel(cs),
                   const SizedBox(height: 24),
-                  _buildNotificarPanel(),
+                  _buildNotificarPanel(cs),
                 ],
               ),
             );
-          }
-
-          // Tablet: lado a lado com scroll horizontal se necessário
-          if (width < 900) {
+          } else if (width < 900) {
             return SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.all(16),
               child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(width: 300, child: _buildPedidosPanel()),
+                  SizedBox(width: 300, child: _buildPedidosPanel(cs)),
                   const SizedBox(width: 24),
-                  SizedBox(width: width - 300 - 56, child: _buildNotificarPanel()),
+                  SizedBox(
+                    width: width - 300 - 56,
+                    child: _buildNotificarPanel(cs),
+                  ),
+                ],
+              ),
+            );
+          } else {
+            return Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  SizedBox(width: 300, child: _buildPedidosPanel(cs)),
+                  const SizedBox(width: 30),
+                  Expanded(child: _buildNotificarPanel(cs)),
                 ],
               ),
             );
           }
-
-          // Desktop: lado a lado fixo
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(width: 300, child: _buildPedidosPanel()),
-                const SizedBox(width: 30),
-                Expanded(child: _buildNotificarPanel()),
-              ],
-            ),
-          );
         },
       ),
     );
   }
 
-  Widget _buildPedidosPanel() {
+  Widget _buildPedidosPanel(ColorScheme cs) {
     return Card(
-      color: const Color(0xFF1E1B2E),
+      color: cs.surface,
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
@@ -116,16 +119,15 @@ class _AlertaPageState extends State<AlertaPage> {
           children: [
             Row(
               children: [
-                Icon(Icons.error_outline, color: Colors.redAccent),
+                Icon(Icons.error_outline, color: cs.error),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     'Pedidos com Atraso',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -139,26 +141,26 @@ class _AlertaPageState extends State<AlertaPage> {
                 final pedido = pedidos[i];
                 final selecionado = pedidosSelecionados.contains(pedido['id']);
                 return Card(
-                  color: selecionado
-                      ? Colors.deepPurple.withOpacity(0.3)
-                      : const Color(0xFF2A273C),
+                  color: selecionado ? cs.primary.withOpacity(0.2) : cs.surfaceVariant,
                   elevation: selecionado ? 4 : 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     leading: Container(
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: selecionado ? Colors.deepPurpleAccent : Colors.transparent,
-                        border: Border.all(color: Colors.deepPurpleAccent),
+                        color: selecionado ? cs.primary : Colors.transparent,
+                        border: Border.all(color: cs.primary),
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    title: Text(pedido['nome']!, style: const TextStyle(color: Colors.white)),
-                    subtitle: Text(pedido['detalhe']!, style: const TextStyle(color: Colors.grey)),
-                    trailing: Text('#\${pedido[id]}', style: const TextStyle(color: Colors.white70)),
+                    title: Text(pedido['nome']!, style: TextStyle(color: cs.onSurface)),
+                    subtitle:
+                    Text(pedido['detalhe']!, style: TextStyle(color: cs.onSurfaceVariant)),
+                    trailing: Text('#${pedido['id']}', style: TextStyle(color: cs.onSurfaceVariant)),
                     onTap: () => setState(() {
                       if (selecionado) {
                         pedidosSelecionados.remove(pedido['id']);
@@ -172,21 +174,22 @@ class _AlertaPageState extends State<AlertaPage> {
             ),
             const SizedBox(height: 16),
             TextButton.icon(
-              icon: const Icon(Icons.clear_all, color: Colors.deepPurpleAccent),
-              label: const Text('Limpar Seleção', style: TextStyle(color: Colors.deepPurpleAccent)),
+              icon: Icon(Icons.clear_all, color: cs.primary),
+              label: Text('Limpar Seleção', style: TextStyle(color: cs.primary)),
               onPressed: pedidosSelecionados.isNotEmpty ? _limparSelecao : null,
             ),
             const SizedBox(height: 8),
-            Text('${pedidosSelecionados.length} selecionados', style: const TextStyle(color: Colors.white70)),
+            Text('${pedidosSelecionados.length} selecionados',
+                style: TextStyle(color: cs.onSurfaceVariant)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNotificarPanel() {
+  Widget _buildNotificarPanel(ColorScheme cs) {
     return Card(
-      color: const Color(0xFF1E1B2E),
+      color: cs.surface,
       elevation: 8,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
@@ -194,20 +197,22 @@ class _AlertaPageState extends State<AlertaPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Notificar Clientes', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            Text('Notificar Clientes',
+                style: Theme.of(context)
+                    .textTheme
+                    .headlineSmall
+                    ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold)),
             const SizedBox(height: 20),
             Row(
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.calendar_today),
-                  label: Text(
-                    novaData == null
-                        ? 'Escolher Data'
-                        : 'Data: ${novaData!.day}/${novaData!.month}/${novaData!.year}',
-                  ),
+                  label: Text(novaData == null
+                      ? 'Escolher Data'
+                      : 'Data: ${novaData!.day}/${novaData!.month}/${novaData!.year}'),
                   style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.deepPurpleAccent,
+                    foregroundColor: cs.onPrimary,
+                    backgroundColor: cs.primary,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
                     elevation: 4,
@@ -216,13 +221,14 @@ class _AlertaPageState extends State<AlertaPage> {
                 ),
                 if (novaData != null)
                   IconButton(
-                    icon: const Icon(Icons.edit, color: Colors.deepPurpleAccent),
+                    icon: Icon(Icons.edit, color: cs.primary),
                     onPressed: () => _selecionarData(context),
                   ),
               ],
             ),
             const SizedBox(height: 24),
-            Text('Mensagem Personalizada', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
+            Text('Mensagem Personalizada',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.onSurface)),
             const SizedBox(height: 12),
             SizedBox(
               height: 200,
@@ -230,27 +236,29 @@ class _AlertaPageState extends State<AlertaPage> {
                 controller: motivoController,
                 expands: true,
                 maxLines: null,
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
+                style: TextStyle(color: cs.onSurface),
+                decoration: InputDecoration(
                   filled: true,
-                  fillColor: Color(0xFF2A273C),
-                  hintText: 'Olá [Nome], informamos que... (use {{data}} para inserir a nova data automaticamente)',
-                  hintStyle: TextStyle(color: Colors.white54),
-                  border: OutlineInputBorder(borderSide: BorderSide.none, borderRadius: BorderRadius.all(Radius.circular(16))),
+                  fillColor: cs.surfaceVariant,
+                  hintText:
+                  'Olá [Nome], informamos que... (use {{data}} para inserir a nova data)',
+                  hintStyle: TextStyle(color: cs.onSurfaceVariant),
+                  border: OutlineInputBorder(
+                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 24),
             LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 600) {
+              builder: (context, cons) {
+                if (cons.maxWidth < 600) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Será enviado via WhatsApp para todos selecionados',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
+                      Text('Será enviado via WhatsApp para todos selecionados',
+                          style: TextStyle(color: cs.onSurfaceVariant)),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -258,51 +266,48 @@ class _AlertaPageState extends State<AlertaPage> {
                           icon: const Icon(Icons.send),
                           label: const Text('Enviar'),
                           style: ElevatedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: podeEnviar ? Colors.deepPurpleAccent : Colors.white12,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            foregroundColor: cs.onPrimary,
+                            backgroundColor:
+                            podeEnviar ? cs.primary : cs.surfaceVariant,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             elevation: podeEnviar ? 6 : 0,
                           ),
-                          onPressed: podeEnviar ? () {/* Implementar envio */} : null,
+                          onPressed: podeEnviar ? () {} : null,
                         ),
-                      ),
+                      )
                     ],
                   );
                 } else {
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Será enviado via WhatsApp para todos selecionados',
-                        style: const TextStyle(color: Colors.white70),
-                      ),
+                      Text('Será enviado via WhatsApp para todos selecionados',
+                          style: TextStyle(color: cs.onSurfaceVariant)),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.send),
                         label: const Text('Enviar'),
                         style: ElevatedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          backgroundColor: podeEnviar ? Colors.deepPurpleAccent : Colors.white12,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 32),
+                          foregroundColor: cs.onPrimary,
+                          backgroundColor:
+                          podeEnviar ? cs.primary : cs.surfaceVariant,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 16, horizontal: 32),
                           elevation: podeEnviar ? 6 : 0,
                         ),
-                        onPressed: podeEnviar ? () {/* Implementar envio */} : null,
-                      ),
+                        onPressed: podeEnviar ? () {} : null,
+                      )
                     ],
                   );
                 }
               },
-            ),
+            )
           ],
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    motivoController.dispose();
-    super.dispose();
   }
 }

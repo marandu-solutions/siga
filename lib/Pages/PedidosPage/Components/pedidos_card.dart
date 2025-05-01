@@ -24,26 +24,37 @@ class _PedidoCardState extends State<PedidoCard> {
     return await showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Confirmar exclusão"),
-        content: Text("Deseja excluir o pedido #${widget.pedido.numeroPedido}?"),
+        title: Text(
+          "Confirmar exclusão",
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
+        content: Text(
+          "Deseja excluir o pedido #${widget.pedido.numeroPedido}?",
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface,
+          ),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancelar"),
+            child: Text("Cancelar"),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text("Excluir"),
+            child: Text("Excluir", style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
-    ) ??
-        false;
+    ) ?? false;
   }
 
   @override
   Widget build(BuildContext context) {
     final minutos = DateTime.now().difference(widget.pedido.dataPedido).inMinutes;
+    final cs = Theme.of(context).colorScheme;
+    final tt = Theme.of(context).textTheme;
 
     return GestureDetector(
       onTap: () {
@@ -54,12 +65,12 @@ class _PedidoCardState extends State<PedidoCard> {
       child: Semantics(
         label:
         "Pedido #${widget.pedido.numeroPedido}, $minutos minutos, clique para ${_isExpanded ? 'retrair' : 'expandir'}",
-        child: _buildCard(minutos),
+        child: _buildCard(minutos, cs, tt),
       ),
     );
   }
 
-  Widget _buildCard(int minutos) {
+  Widget _buildCard(int minutos, ColorScheme cs, TextTheme tt) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
@@ -79,16 +90,16 @@ class _PedidoCardState extends State<PedidoCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
+                    border: Border.all(color: cs.onSurface.withOpacity(0.2)),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     "#${widget.pedido.numeroPedido}",
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: tt.bodyLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       fontSize: 17,
-                      fontFamily: 'Roboto',
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
@@ -97,7 +108,7 @@ class _PedidoCardState extends State<PedidoCard> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
+                    color: cs.surfaceVariant.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -106,10 +117,9 @@ class _PedidoCardState extends State<PedidoCard> {
                       const SizedBox(width: 5),
                       Text(
                         "$minutos min",
-                        style: const TextStyle(
+                        style: tt.bodyMedium?.copyWith(
+                          color: cs.onSurfaceVariant,
                           fontSize: 14,
-                          fontFamily: 'Roboto',
-                          color: Colors.black87,
                         ),
                       ),
                     ],
@@ -122,22 +132,28 @@ class _PedidoCardState extends State<PedidoCard> {
 
             // Detalhes expandidos
             if (_isExpanded) ...[
-              _infoRow(Icons.person_outline, "Cliente: ${widget.pedido.nomeCliente}"),
-              _infoRow(Icons.work_outline, "Serviço: ${widget.pedido.servico}"),
+              _infoRow(Icons.person_outline, "Cliente: ${widget.pedido.nomeCliente}", cs, tt),
+              _infoRow(Icons.work_outline, "Serviço: ${widget.pedido.servico}", cs, tt),
               _infoRow(
                 Icons.format_list_numbered,
                 "Qtd: ${widget.pedido.quantidade} | Tamanho: ${widget.pedido.tamanho}",
+                cs,
+                tt,
               ),
               _infoRow(
                 Icons.color_lens,
                 "Malha: ${widget.pedido.tipoMalha} | Cor: ${widget.pedido.cor}",
+                cs,
+                tt,
               ),
               _infoRow(
                 Icons.attach_money,
                 "Valor: R\$ ${widget.pedido.valorTotal.toStringAsFixed(2)}",
+                cs,
+                tt,
               ),
               if (widget.pedido.observacoes.isNotEmpty)
-                _infoRow(Icons.note_outlined, "Obs: ${widget.pedido.observacoes}"),
+                _infoRow(Icons.note_outlined, "Obs: ${widget.pedido.observacoes}", cs, tt),
 
               const SizedBox(height: 12),
 
@@ -147,11 +163,11 @@ class _PedidoCardState extends State<PedidoCard> {
                 child: TextButton(
                   onPressed: widget.onTapDetails,
                   style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF6845C3),
+                    foregroundColor: cs.primary,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
-                      side: const BorderSide(color: Color(0xFF6845C3)),
+                      side: BorderSide(color: cs.primary),
                     ),
                   ),
                   child: const Text(
@@ -171,7 +187,7 @@ class _PedidoCardState extends State<PedidoCard> {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                if (!_isExpanded) ..._buildCollapsedIcons(),
+                if (!_isExpanded) ..._buildCollapsedIcons(cs),
 
                 // Toggle expand/contract
                 Semantics(
@@ -179,7 +195,7 @@ class _PedidoCardState extends State<PedidoCard> {
                   child: Icon(
                     _isExpanded ? Icons.expand_less : Icons.expand_more,
                     size: 20,
-                    color: Colors.black54,
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
 
@@ -200,10 +216,10 @@ class _PedidoCardState extends State<PedidoCard> {
                           );
                         }
                       },
-                      child: const Icon(
+                      child: Icon(
                         Icons.delete,
                         size: 20,
-                        color: Colors.red,
+                        color: cs.error,
                       ),
                     ),
                   ),
@@ -218,22 +234,18 @@ class _PedidoCardState extends State<PedidoCard> {
 
   // --- Métodos auxiliares ---
 
-  Widget _infoRow(IconData icon, String text) {
+  Widget _infoRow(IconData icon, String text, ColorScheme cs, TextTheme tt) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: Colors.black54),
+          Icon(icon, size: 18, color: cs.onSurfaceVariant),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               text,
-              style: const TextStyle(
-                color: Colors.black87,
-                fontSize: 15.5,
-                fontFamily: 'Roboto',
-              ),
+              style: tt.bodyMedium?.copyWith(color: cs.onSurface),
               overflow: TextOverflow.ellipsis,
               maxLines: 2,
             ),
@@ -243,20 +255,20 @@ class _PedidoCardState extends State<PedidoCard> {
     );
   }
 
-  List<Widget> _buildCollapsedIcons() {
+  List<Widget> _buildCollapsedIcons(ColorScheme cs) {
     return [
-      const Icon(Icons.person_outline, size: 18, color: Colors.black54),
+      Icon(Icons.person_outline, size: 18, color: cs.onSurfaceVariant),
       const SizedBox(width: 8),
-      const Icon(Icons.work_outline, size: 18, color: Colors.black54),
+      Icon(Icons.work_outline, size: 18, color: cs.onSurfaceVariant),
       const SizedBox(width: 8),
-      const Icon(Icons.format_list_numbered, size: 18, color: Colors.black54),
+      Icon(Icons.format_list_numbered, size: 18, color: cs.onSurfaceVariant),
       const SizedBox(width: 8),
-      const Icon(Icons.color_lens, size: 18, color: Colors.black54),
+      Icon(Icons.color_lens, size: 18, color: cs.onSurfaceVariant),
       const SizedBox(width: 8),
-      const Icon(Icons.attach_money, size: 18, color: Colors.black54),
+      Icon(Icons.attach_money, size: 18, color: cs.onSurfaceVariant),
       if (widget.pedido.observacoes.isNotEmpty) ...[
         const SizedBox(width: 8),
-        const Icon(Icons.note_outlined, size: 18, color: Colors.black54),
+        Icon(Icons.note_outlined, size: 18, color: cs.onSurfaceVariant),
       ],
       const SizedBox(width: 8),
     ];

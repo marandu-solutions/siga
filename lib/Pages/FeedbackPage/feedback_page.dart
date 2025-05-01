@@ -6,37 +6,59 @@ class MetricCard extends StatelessWidget {
   final String number;
   final String label;
 
-  const MetricCard({Key? key, required this.icon, required this.number, required this.label}) : super(key: key);
+  const MetricCard({
+    Key? key,
+    required this.icon,
+    required this.number,
+    required this.label,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0.8, end: 1.0),
       duration: const Duration(milliseconds: 600),
-      builder: (context, value, child) => Transform.scale(scale: value, child: child),
+      builder: (context, value, child) => Transform.scale(
+        scale: value,
+        child: child,
+      ),
       child: Container(
         width: 140,
-        // Removido height fixo para permitir expansão quando o texto for maior
         decoration: BoxDecoration(
-          color: const Color(0xFF262649),
+          color: cs.primaryContainer,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 8, offset: Offset(0, 4))],
+          boxShadow: [
+            BoxShadow(
+              color: cs.shadow.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 36, color: Colors.deepPurpleAccent),
+            Icon(icon, size: 36, color: cs.primary),
             const SizedBox(height: 8),
             Text(
               number,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: cs.onPrimaryContainer,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               label,
-              style: const TextStyle(fontSize: 12, color: Colors.white70),
+              style: TextStyle(
+                fontSize: 12,
+                color: cs.onPrimaryContainer.withOpacity(0.8),
+              ),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -54,12 +76,19 @@ class SatisfactionChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
+    final cs = Theme.of(context).colorScheme;
     return SizedBox(
       height: 180,
       child: LineChart(
         LineChartData(
-          gridData: FlGridData(show: false),
+          gridData: FlGridData(
+            show: true,
+            drawVerticalLine: false,
+            getDrawingHorizontalLine: (_) => FlLine(
+              color: cs.onSurface.withOpacity(0.1),
+              strokeWidth: 1,
+            ),
+          ),
           titlesData: FlTitlesData(
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
@@ -67,7 +96,7 @@ class SatisfactionChart extends StatelessWidget {
                 reservedSize: 24,
                 getTitlesWidget: (v, _) => Text(
                   'D${v.toInt() + 1}',
-                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                  style: TextStyle(color: cs.onSurface, fontSize: 12),
                 ),
               ),
             ),
@@ -77,21 +106,28 @@ class SatisfactionChart extends StatelessWidget {
                 reservedSize: 32,
                 getTitlesWidget: (v, _) => Text(
                   '${v.toInt()}%',
-                  style: const TextStyle(color: Colors.white70, fontSize: 10),
+                  style: TextStyle(color: cs.onSurface, fontSize: 12),
                 ),
               ),
             ),
             topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
             rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
-          borderData: FlBorderData(show: false),
+          borderData: FlBorderData(
+            show: true,
+            border: Border.all(color: cs.onSurface.withOpacity(0.2)),
+          ),
           lineBarsData: [
             LineChartBarData(
-              spots: data.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+              spots: data
+                  .asMap()
+                  .entries
+                  .map((e) => FlSpot(e.key.toDouble(), e.value))
+                  .toList(),
               isCurved: true,
               barWidth: 3,
               dotData: FlDotData(show: false),
-              color: primary,
+              color: cs.primary,
             ),
           ],
         ),
@@ -103,40 +139,44 @@ class SatisfactionChart extends StatelessWidget {
 class SentimentPieChart extends StatelessWidget {
   final int positiveCount;
   final int negativeCount;
-  final Color positiveColor;
-  final Color negativeColor;
-
   const SentimentPieChart({
     Key? key,
     required this.positiveCount,
     required this.negativeCount,
-    required this.positiveColor,
-    required this.negativeColor,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final total = positiveCount + negativeCount;
     return SizedBox(
       height: 180,
       child: PieChart(
         PieChartData(
           centerSpaceRadius: 32,
-          sectionsSpace: 2,
+          sectionsSpace: 4,
           sections: [
             PieChartSectionData(
               value: positiveCount.toDouble(),
-              color: positiveColor,
+              color: cs.secondary,
               radius: 48,
-              title: total > 0 ? '${(positiveCount / total * 100).toStringAsFixed(0)}%' : '0%',
-              titleStyle: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              title: total > 0
+                  ? '${(positiveCount / total * 100).toStringAsFixed(0)}%'
+                  : '0%',
+              titleStyle: TextStyle(
+                  color: cs.onSecondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold),
             ),
             PieChartSectionData(
               value: negativeCount.toDouble(),
-              color: negativeColor,
+              color: cs.error,
               radius: 48,
-              title: total > 0 ? '${(negativeCount / total * 100).toStringAsFixed(0)}%' : '0%',
-              titleStyle: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+              title: total > 0
+                  ? '${(negativeCount / total * 100).toStringAsFixed(0)}%'
+                  : '0%',
+              titleStyle: TextStyle(
+                  color: cs.onError, fontSize: 14, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -189,50 +229,51 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
 
   @override
   Widget build(BuildContext context) {
-    final small = MediaQuery.of(context).size.width < 600;
+    final cs = Theme.of(context).colorScheme;
+    final isMobile = MediaQuery.of(context).size.width < 600;
     return Scaffold(
-      backgroundColor: const Color(0xFF1A1A2E),
+      backgroundColor: cs.surface,
       body: Padding(
-        padding: EdgeInsets.all(small ? 12 : 24),
-        child: small ? _buildMobile() : _buildDesktop(),
+        padding: EdgeInsets.all(isMobile ? 12 : 24),
+        child: isMobile ? _buildMobile(cs) : _buildDesktop(cs),
       ),
     );
   }
 
-  Widget _buildMobile() {
-    final posCount = feedbacks.where((f) => f['sentiment'] == 'positive').length;
-    final negCount = feedbacks.length - posCount;
-    final filtered = feedbacks.where((f) {
-      if (filter == 'all') return true;
-      return f['sentiment'] == filter;
-    }).toList();
+  Widget _buildMobile(ColorScheme cs) {
+    final pos = feedbacks.where((f) => f['sentiment'] == 'positive').length;
+    final neg = feedbacks.length - pos;
+    final filtered =
+    feedbacks.where((f) => filter == 'all' || f['sentiment'] == filter).toList();
 
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Key Performance Indicators',
-            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-          ),
+          Text('Key Performance Indicators',
+              style: TextStyle(
+                  color: cs.onSurface, fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: metrics
-                .map((m) => MetricCard(icon: m['icon'], number: m['number'], label: m['label']))
+                .map((m) =>
+                MetricCard(icon: m['icon'], number: m['number'], label: m['label']))
                 .toList(),
           ),
           const SizedBox(height: 20),
           Card(
-            color: const Color(0xFF262649),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: cs.primaryContainer,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Customer Satisfaction Over Time', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  Text('Customer Satisfaction Over Time',
+                      style: TextStyle(color: cs.onPrimaryContainer)),
                   const SizedBox(height: 8),
                   SatisfactionChart(data: satisfactionData),
                 ],
@@ -241,54 +282,49 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
           ),
           const SizedBox(height: 20),
           Card(
-            color: const Color(0xFF262649),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: cs.primaryContainer,
+            shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Feedback Sentiment Distribution', style: TextStyle(color: Colors.white, fontSize: 14)),
+                  Text('Feedback Sentiment Distribution',
+                      style: TextStyle(color: cs.onPrimaryContainer)),
                   const SizedBox(height: 8),
-                  SentimentPieChart(
-                    positiveCount: posCount,
-                    negativeCount: negCount,
-                    positiveColor: Theme.of(context).colorScheme.primary,
-                    negativeColor: Theme.of(context).colorScheme.error,
-                  ),
+                  SentimentPieChart(positiveCount: pos, negativeCount: neg),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 20),
-          _buildFilterToggle(),
+          _buildFilterToggle(cs),
           const SizedBox(height: 12),
-          ..._buildFeedbackItems(),
+          ..._buildFeedbackItems(filtered, cs),
         ],
       ),
     );
   }
 
-  Widget _buildDesktop() {
-    final theme = Theme.of(context);
-    final posCount = feedbacks.where((f) => f['sentiment'] == 'positive').length;
-    final negCount = feedbacks.length - posCount;
-    final filtered = feedbacks.where((f) {
-      if (filter == 'all') return true;
-      return f['sentiment'] == filter;
-    }).toList();
+  Widget _buildDesktop(ColorScheme cs) {
+    final pos = feedbacks.where((f) => f['sentiment'] == 'positive').length;
+    final neg = feedbacks.length - pos;
+    final filtered =
+    feedbacks.where((f) => filter == 'all' || f['sentiment'] == filter).toList();
 
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
-          child: Text(
-            'Feedbacks dos Clientes',
-            style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
+          child: Text('Feedbacks dos Clientes',
+              style: TextStyle(
+                  color: cs.onSurface, fontSize: 24, fontWeight: FontWeight.bold)),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
         SliverToBoxAdapter(
-          child: const Text('Key Performance Indicators', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          child: Text('Key Performance Indicators',
+              style: TextStyle(
+                  color: cs.onSurface, fontSize: 18, fontWeight: FontWeight.bold)),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
         SliverToBoxAdapter(
@@ -296,95 +332,100 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
             spacing: 16,
             runSpacing: 16,
             children: metrics
-                .map((m) => MetricCard(icon: m['icon'], number: m['number'], label: m['label']))
+                .map((m) =>
+                MetricCard(icon: m['icon'], number: m['number'], label: m['label']))
                 .toList(),
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
         SliverToBoxAdapter(
-          child: Card(
-            color: const Color(0xFF262649),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Customer Satisfaction Over Time', style: TextStyle(color: Colors.white, fontSize: 18)),
-                  const SizedBox(height: 10),
-                  SatisfactionChart(data: satisfactionData),
-                ],
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        SliverToBoxAdapter(
-          child: Card(
-            color: const Color(0xFF262649),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Feedback Sentiment Distribution', style: TextStyle(color: Colors.white, fontSize: 18)),
-                  const SizedBox(height: 10),
-                  SentimentPieChart(
-                    positiveCount: posCount,
-                    negativeCount: negCount,
-                    positiveColor: theme.colorScheme.primary,
-                    negativeColor: theme.colorScheme.error,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Card(
+                  color: cs.primaryContainer,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Customer Satisfaction Over Time',
+                            style: TextStyle(color: cs.onPrimaryContainer)),
+                        const SizedBox(height: 10),
+                        SatisfactionChart(data: satisfactionData),
+                      ],
+                    ),
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Card(
+                  color: cs.primaryContainer,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Feedback Sentiment Distribution',
+                            style: TextStyle(color: cs.onPrimaryContainer)),
+                        const SizedBox(height: 10),
+                        SentimentPieChart(positiveCount: pos, negativeCount: neg),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 24)),
-        SliverToBoxAdapter(child: _buildFilterToggle()),
+        SliverToBoxAdapter(child: _buildFilterToggle(cs)),
         const SliverToBoxAdapter(child: SizedBox(height: 16)),
         SliverList(
           delegate: SliverChildBuilderDelegate(
                 (context, idx) {
               final f = filtered[idx];
-              return Container(
+              return Card(
+                color: cs.surfaceVariant,
                 margin: const EdgeInsets.only(bottom: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF262649),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3)),
-                ),
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          f['sentiment'] == 'positive' ? Icons.thumb_up : Icons.thumb_down,
-                          color: f['sentiment'] == 'positive' ? Colors.green : Colors.red,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            f['nome']!,
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
+                shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            f['sentiment'] == 'positive'
+                                ? Icons.thumb_up
+                                : Icons.thumb_down,
+                            color: f['sentiment'] == 'positive'
+                                ? cs.secondary
+                                : cs.error,
                           ),
-                        ),
-                        Text(
-                          f['numero']!,
-                          style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      f['mensagem']!,
-                      style: const TextStyle(color: Colors.white70, fontSize: 15),
-                    ),
-                  ],
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(f['nome']!,
+                                style: TextStyle(
+                                    color: cs.onSurface,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                          Text(f['numero']!,
+                              style:
+                              TextStyle(color: cs.onSurfaceVariant)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(f['mensagem']!,
+                          style: TextStyle(color: cs.onSurface)),
+                    ],
+                  ),
                 ),
               );
             },
@@ -395,67 +436,61 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     );
   }
 
-  Widget _buildFilterToggle() {
+  Widget _buildFilterToggle(ColorScheme cs) {
     return ToggleButtons(
       borderRadius: BorderRadius.circular(8),
-      fillColor: Colors.deepPurpleAccent,
-      selectedColor: Colors.white,
-      color: Colors.white70,
+      fillColor: cs.primary,
+      selectedColor: cs.onPrimary,
+      color: cs.onSurfaceVariant,
       isSelected: isSelected,
       onPressed: (i) => setState(() {
-        for (int j = 0; j < isSelected.length; j++) isSelected[j] = j == i;
-        filter = i == 0 ? 'all' : (i == 1 ? 'positive' : 'negative');
+        for (var j = 0; j < isSelected.length; j++) {
+          isSelected[j] = j == i;
+        }
+        filter = i == 0
+            ? 'all'
+            : i == 1
+            ? 'positive'
+            : 'negative';
       }),
       children: const [
-        Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('All')),
-        Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Positive')),
-        Padding(padding: EdgeInsets.symmetric(horizontal: 16), child: Text('Negative')),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('All')),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Positive')),
+        Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('Negative')),
       ],
     );
   }
 
-  List<Widget> _buildFeedbackItems() {
-    final list = feedbacks.where((f) => filter == 'all' || f['sentiment'] == filter).toList();
-    return list.map((f) {
-      return Container(
-        margin: const EdgeInsets.only(bottom: 16),
-        decoration: BoxDecoration(
-          color: const Color(0xFF262649),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.deepPurpleAccent.withOpacity(0.3)),
-        ),
-        padding: const EdgeInsets.all(16),
+  List<Widget> _buildFeedbackItems(List<Map<String, String>> list, ColorScheme cs) {
+    return list
+        .map((f) => Card(
+      color: cs.surfaceVariant,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Icon(
-                  f['sentiment'] == 'positive' ? Icons.thumb_up : Icons.thumb_down,
-                  color: f['sentiment'] == 'positive' ? Colors.green : Colors.red,
-                  size: 20,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    f['nome']!,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16),
-                  ),
-                ),
-                Text(
-                  f['numero']!,
-                  style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              f['mensagem']!,
-              style: const TextStyle(color: Colors.white70, fontSize: 15),
-            ),
+            Row(children: [
+              Icon(
+                f['sentiment'] == 'positive' ? Icons.thumb_up : Icons.thumb_down,
+                color: f['sentiment'] == 'positive' ? cs.secondary : cs.error,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(f['nome']!,
+                    style: TextStyle(
+                        color: cs.onSurface, fontWeight: FontWeight.w600)),
+              ),
+              Text(f['numero']!, style: TextStyle(color: cs.onSurfaceVariant)),
+            ]),
+            const SizedBox(height: 8),
+            Text(f['mensagem']!, style: TextStyle(color: cs.onSurface)),
           ],
         ),
-      );
-    }).toList();
+      ),
+    ))
+        .toList();
   }
 }

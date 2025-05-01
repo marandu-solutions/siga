@@ -9,8 +9,8 @@ class PedidoDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final tt = theme.textTheme;
+    final cs = theme.colorScheme; // Obtendo o ColorScheme do tema
+    final tt = theme.textTheme; // Obtendo o TextTheme do tema
 
     return Scaffold(
       backgroundColor: cs.background,

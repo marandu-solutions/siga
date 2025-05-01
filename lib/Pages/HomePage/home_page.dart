@@ -3,8 +3,9 @@ import '../PedidosPage/pedidos_page.dart';
 import '../AtendimentoPage/atendimento_page.dart';
 import '../AlertaPage/alerta_page.dart';
 import '../FeedbackPage/feedback_page.dart';
-import '../EstoquePage/estoque_page.dart';       // <-- import adicionado
-import 'Components/sidebar.dart';
+import '../EstoquePage/estoque_page.dart';
+import 'Components/bottom_nav_bar.dart';
+import 'Components/sidebar.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -15,62 +16,26 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int selectedIndex = 0;
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final List<Widget> pages = [
-    const PedidosPage(),
-    const AtendimentoPage(),
-    const AlertaPage(),
+  final List<Widget> pages = const [
+    PedidosPage(),
+    AtendimentoPage(),
+    AlertaPage(),
     FeedbacksPage(),
-    const EstoquePage(),
+    EstoquePage(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        // Defina aqui o seu breakpoint (por exemplo, 600px)
         final isMobileView = constraints.maxWidth < 600;
 
         if (isMobileView) {
-          // Modo "hamburger menu"
-          return Scaffold(
-            key: _scaffoldKey,
-            appBar: AppBar(
-              title: Text(
-                'MARANDU',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleLarge
-                    ?.copyWith(fontWeight: FontWeight.bold),
-              ),
-              leading: IconButton(
-                icon: const Icon(Icons.menu),
-                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
-              ),
-            ),
-            drawer: Drawer(
-              child: Sidebar(
-                selectedIndex: selectedIndex,
-                onItemSelected: (index) {
-                  setState(() => selectedIndex = index);
-                  Navigator.of(context).pop(); // fecha a drawer
-                },
-              ),
-            ),
-            body: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [
-                    Color(0xFF1E1E2F),
-                    Color(0xFF2A2A40),
-                  ],
-                ),
-              ),
-              child: pages[selectedIndex],
-            ),
+          // Modo mobile: usa BottomNavBar em vez de Drawer
+          return BottomNavBar(
+            selectedIndex: selectedIndex,
+            onItemSelected: (idx) => setState(() => selectedIndex = idx),
           );
         } else {
           // Modo desktop/tablet com sidebar fixa

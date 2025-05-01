@@ -36,8 +36,8 @@ class _KanbanState extends State<Kanban> {
     final theme = Theme.of(context);
     final isLightMode = theme.brightness == Brightness.light;
 
-    // Cabeçalho off-white quente
-    final headerColor = const Color(0xFFF5F5F2);
+    // Cabeçalho off-white quente (utilizando cor do tema)
+    final headerColor = theme.colorScheme.surface;
 
     final pedidosPorEstado = {
       for (var estado in EstadoPedido.values)
@@ -60,7 +60,7 @@ class _KanbanState extends State<Kanban> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: EstadoPedido.values.map((estado) {
               final pedidosEstado = pedidosPorEstado[estado]!;
-              final corFundo = widget.corColuna[estado]!;
+              final corFundo = widget.corColuna[estado]!; // Mantém a cor de fundo da coluna
               final ScrollController verticalScrollController = ScrollController();
 
               return DragTarget<Pedido>(
@@ -80,7 +80,7 @@ class _KanbanState extends State<Kanban> {
                           : null,
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black26,
+                          color: theme.colorScheme.shadow,
                           blurRadius: 6,
                           offset: const Offset(2, 4),
                         ),
@@ -161,20 +161,17 @@ class _KanbanState extends State<Kanban> {
                                           'Confirmar exclusão',
                                           style: theme.textTheme.titleMedium
                                               ?.copyWith(
-                                            color: theme
-                                                .colorScheme.onSurface,
+                                            color: theme.colorScheme.onSurface,
                                           ),
                                         ),
                                         content: Text(
                                           'Deseja excluir o pedido #${pedido.numeroPedido}?',
                                           style: theme.textTheme.bodyMedium
                                               ?.copyWith(
-                                            color: theme
-                                                .colorScheme.onSurface,
+                                            color: theme.colorScheme.onSurface,
                                           ),
                                         ),
-                                        backgroundColor:
-                                        theme.colorScheme.surface,
+                                        backgroundColor: theme.colorScheme.surface,
                                         actions: [
                                           TextButton(
                                             onPressed: () =>
@@ -182,8 +179,7 @@ class _KanbanState extends State<Kanban> {
                                             child: Text(
                                               'Cancelar',
                                               style: TextStyle(
-                                                color: theme
-                                                    .colorScheme.primary,
+                                                color: theme.colorScheme.primary,
                                               ),
                                             ),
                                           ),
@@ -193,8 +189,7 @@ class _KanbanState extends State<Kanban> {
                                             child: Text(
                                               'Excluir',
                                               style: TextStyle(
-                                                color: theme
-                                                    .colorScheme.error,
+                                                color: theme.colorScheme.error,
                                               ),
                                             ),
                                           ),

@@ -5,7 +5,7 @@ import 'package:responsive_framework/responsive_framework.dart';
 import 'Pages/Auth/Login/login_page.dart';
 import 'Pages/Auth/Register/register_page.dart';
 import 'Pages/HomePage/home_page.dart';
-import 'Themes/themes.dart';
+import 'Themes/themes.dart'; // Adicionando o tema para uso
 
 void main() {
   runApp(
@@ -13,8 +13,7 @@ void main() {
       designSize: const Size(375, 812),
       minTextAdapt: true,
       splitScreenMode: true,
-      builder: (context, child) => MaranduApp(),
-      // não precisa passar child se não for usado
+      builder: (context, child) => const MaranduApp(),
     ),
   );
 }
@@ -27,22 +26,22 @@ class MaranduApp extends StatelessWidget {
     return MaterialApp(
       title: 'MARANDU',
       debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: AppThemes.lightTheme,
-      darkTheme: AppThemes.darkTheme,
+      themeMode: ThemeMode.system, // Isso faz com que o tema siga a preferência do sistema
+      theme: AppThemes.lightTheme, // Tema claro
+      darkTheme: AppThemes.darkTheme, // Tema escuro
       builder: (context, widget) => ResponsiveBreakpoints.builder(
         child: widget!,
         breakpoints: const [
-          Breakpoint(start:   0, end:  350, name: MOBILE),
-          Breakpoint(start: 351, end:  600, name: TABLET),
-          Breakpoint(start: 601, end:  800, name: DESKTOP),
+          Breakpoint(start: 0, end: 350, name: MOBILE),
+          Breakpoint(start: 351, end: 600, name: TABLET),
+          Breakpoint(start: 601, end: 800, name: DESKTOP),
         ],
       ),
       initialRoute: '/home',
       routes: {
-        '/':       (context) => const LoginScreen(),
+        '/': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
-        '/home':   (context) => const MainLayout(),
+        '/home': (context) => const MainLayout(),
       },
     );
   }
@@ -54,8 +53,8 @@ class MainLayout extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final logoHeight = 32.h;
-    final spacing    = 10.w;
-    final fontSize   = 20.sp;
+    final spacing = 10.w;
+    final fontSize = 20.sp;
 
     return Scaffold(
       appBar: AppBar(
@@ -65,15 +64,12 @@ class MainLayout extends StatelessWidget {
             Image.asset(
               'assets/logo.png',
               height: logoHeight,
-              color: Theme.of(context).colorScheme.onSurface,
+              color: Theme.of(context).colorScheme.onSurface, // Ajusta a cor conforme o tema
             ),
             SizedBox(width: spacing),
             Text(
               'MARANDU',
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
                 fontSize: fontSize,
