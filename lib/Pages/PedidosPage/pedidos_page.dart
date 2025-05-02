@@ -48,11 +48,11 @@ class _PedidosPageState extends State<PedidosPage> {
   ];
 
   Map<EstadoPedido, Color> _getCorColuna(BuildContext context) => {
-    EstadoPedido.emAberto: Theme.of(context).colorScheme.primary,
-    EstadoPedido.emAndamento: Theme.of(context).colorScheme.secondary,
-    EstadoPedido.entregaRetirada: Theme.of(context).colorScheme.tertiary,
-    EstadoPedido.finalizado: Theme.of(context).colorScheme.secondaryContainer,
-    EstadoPedido.cancelado: Theme.of(context).colorScheme.error,
+    EstadoPedido.emAberto: Theme.of(context).colorScheme.primaryContainer, // Azul mais intenso
+    EstadoPedido.emAndamento: Colors.green.shade700, // Verde escuro (em andamento)
+    EstadoPedido.entregaRetirada: Colors.orange.shade600, // Laranja suave
+    EstadoPedido.finalizado: Colors.blueGrey.shade300, // Azul claro ou cinza
+    EstadoPedido.cancelado: Colors.red.shade600, // Vermelho para cancelamento
   };
 
   bool _isKanbanView = false;

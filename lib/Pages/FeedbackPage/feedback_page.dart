@@ -42,7 +42,7 @@ class MetricCard extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 36, color: cs.primary),
+            Icon(icon, size: 36, color: cs.onPrimaryContainer), // Cor do ícone segue o tema
             const SizedBox(height: 8),
             Text(
               number,
@@ -240,7 +240,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     );
   }
 
-  Widget _buildMobile(ColorScheme cs) {
+Widget _buildMobile(ColorScheme cs) {
     final pos = feedbacks.where((f) => f['sentiment'] == 'positive').length;
     final neg = feedbacks.length - pos;
     final filtered =

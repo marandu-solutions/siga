@@ -3,29 +3,34 @@ import 'package:flutter/material.dart';
 class AppThemes {
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF7B1FA2), // Vibrant purple
+    colorScheme: ColorScheme(
       brightness: Brightness.light,
-      primary: const Color(0xFF7B1FA2), // Vivid purple for highlights
+      primary: const Color(0xFF3F51B5), // Azul moderno
       onPrimary: Colors.white,
-      primaryContainer: Colors.purple.shade100, // Light purple for containers
-      onPrimaryContainer: Colors.black87,
-      secondary: Colors.green.shade600, // Complementary green for secondary actions
+      primaryContainer: const Color(0xFFC5CAE9), // Azul claro
+      onPrimaryContainer: const Color(0xFF303F9F),
+      secondary: const Color(0xFF4CAF50), // Verde fresco
       onSecondary: Colors.white,
-      surface: Colors.grey.shade50, // Light background
-      onSurface: Colors.black87, // Dark text for contrast
-      error: Colors.red.shade700,
+      secondaryContainer: const Color(0xFFC8E6C9), // Verde claro
+      onSecondaryContainer: const Color(0xFF388E3C),
+      background: const Color(0xFFF5F5F5), // Neutro e suave
+      onBackground: const Color(0xFF212121),
+      surface: Colors.white,
+      onSurface: const Color(0xFF212121),
+      surfaceVariant: const Color(0xFFECEFF1), // Leve contraste
+      onSurfaceVariant: const Color(0xFF616161),
+      error: const Color(0xFFD32F2F), // Vermelho suave
       onError: Colors.white,
-      shadow: Colors.black,
+      outline: const Color(0xFFBDBDBD),
     ),
-    scaffoldBackgroundColor: Colors.grey.shade50,
+    scaffoldBackgroundColor: const Color(0xFFF5F5F5),
     appBarTheme: AppBarTheme(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       surfaceTintColor: Colors.transparent,
       titleTextStyle: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w600,
-        color: Colors.black87,
+        color: const Color(0xFF212121),
       ),
     ),
     textTheme: _textTheme,
@@ -36,16 +41,16 @@ class AppThemes {
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF7B1FA2), // Vibrant purple
+      seedColor: const Color(0xFF3F51B5), // Azul para manter consistência
       brightness: Brightness.dark,
-      primary: const Color(0xFF7B1FA2), // Vivid purple for highlights
+      primary: const Color(0xFF3F51B5),
       onPrimary: Colors.white,
-      primaryContainer: Colors.purple.shade800, // Darker purple for containers
+      primaryContainer: Colors.blue.shade800, // Azul mais escuro
       onPrimaryContainer: Colors.grey.shade100,
-      secondary: Colors.greenAccent.shade400, // Bright green for secondary actions
-      onSecondary: Colors.black87,
-      surface: Colors.grey.shade900, // Dark background
-      onSurface: Colors.grey.shade100, // Light text for contrast
+      secondary: const Color(0xFF4CAF50),
+      onSecondary: Colors.white,
+      secondaryContainer: const Color(0xFF81C784),
+      onSecondaryContainer: const Color(0xFF388E3C),
       error: Colors.redAccent.shade400,
       onError: Colors.black,
       shadow: Colors.black,
@@ -95,7 +100,7 @@ class AppThemes {
     ),
     contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     filled: true,
-    fillColor: Colors.transparent, // Let colorScheme.surface handle fill
+    fillColor: Colors.transparent,
   );
 
   static final FilledButtonThemeData _filledButtonTheme = FilledButtonThemeData(
