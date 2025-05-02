@@ -1,6 +1,10 @@
+// lib/Pages/AtendimentoPage/atendimento_page.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:siga/Pages/AtendimentoPage/Components/contato_card.dart';
 import 'package:siga/Pages/AtendimentoPage/Components/chat_page.dart';
+import 'package:siga/Model/pedidos.dart';
+import 'package:siga/Model/pedidos_model.dart';
 
 class AtendimentoPage extends StatefulWidget {
   const AtendimentoPage({Key? key}) : super(key: key);
@@ -10,41 +14,28 @@ class AtendimentoPage extends StatefulWidget {
 }
 
 class _AtendimentoPageState extends State<AtendimentoPage> {
-  final Map<String, List<Map<String, String>>> cardsPorColuna = {
-    'Em aberto': [
-      {
-        'nome': 'João Silva',
-        'numero': '(84) 91234-5678',
-        'foto': 'https://i.pravatar.cc/150?img=3',
-      },
-      {
-        'nome': 'Pedro Paulo',
-        'numero': '(84) 99876-5432',
-        'foto': 'https://i.pravatar.cc/150?img=5',
-      },
-    ],
-    'Em atendimento': [],
-    'Pendências': [],
-    'Finalizado': [],
-  };
+  /// Guarda de qual coluna veio o drag
+  EstadoPedido? colunaDragSource;
 
-  final Map<String, Color> headerColor = {
-    'Em aberto': Colors.deepPurpleAccent,
-    'Em atendimento': Colors.tealAccent,
-    'Pendências': Colors.amberAccent,
-    'Finalizado': Colors.greenAccent,
-  };
+  /// Controle de busca por coluna
+  final Map<EstadoPedido, bool> isSearching = {};
+  final Map<EstadoPedido, TextEditingController> searchControllers = {};
 
-  String? colunaDragSource;
-  final Map<String, bool> isSearching = {};
-  final Map<String, TextEditingController> searchControllers = {};
+  /// Mapa de cores para cada estado
+  final Map<EstadoPedido, Color> headerColor = {
+    EstadoPedido.emAberto: Colors.deepPurpleAccent,
+    EstadoPedido.emAndamento: Colors.tealAccent,
+    EstadoPedido.entregaRetirada: Colors.amberAccent,
+    EstadoPedido.finalizado: Colors.greenAccent,
+    EstadoPedido.cancelado: Colors.redAccent,
+  };
 
   @override
   void initState() {
     super.initState();
-    for (var coluna in cardsPorColuna.keys) {
-      isSearching[coluna] = false;
-      searchControllers[coluna] = TextEditingController();
+    for (var estado in EstadoPedido.values) {
+      isSearching[estado] = false;
+      searchControllers[estado] = TextEditingController();
     }
   }
 
@@ -59,32 +50,49 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final colunas = cardsPorColuna.keys.toList();
+    final isMobile = MediaQuery.of(context).size.width < 900;
+
+    // Obtém pedidos do provider e agrupa por estado
+    final pedidos = context.watch<PedidoModel>().pedidos;
+    final Map<EstadoPedido, List<Pedido>> cardsPorColuna = {
+      for (var estado in EstadoPedido.values)
+        estado: pedidos.where((p) => p.estado == estado).toList(),
+    };
 
     return Scaffold(
       backgroundColor: cs.surface,
       body: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth < 600) {
-            return _buildMobileView(cs, colunas);
+          if (isMobile) {
+            return _buildMobileView(cs, cardsPorColuna);
           } else {
-            return _buildDesktopView(cs, colunas);
+            return _buildDesktopView(cs, cardsPorColuna);
           }
         },
       ),
     );
   }
 
-  Widget _buildMobileView(ColorScheme cs, List<String> colunas) {
+  Widget _buildMobileView(
+      ColorScheme cs,
+      Map<EstadoPedido, List<Pedido>> cardsPorColuna,
+      ) {
+    final estados = cardsPorColuna.keys.toList();
     return DefaultTabController(
-      length: colunas.length,
+      length: estados.length,
       child: Scaffold(
         backgroundColor: cs.surface,
+        appBar: AppBar(
+          title: TabBar(
+            isScrollable: true,
+            tabs: estados.map((e) => Tab(text: e.label)).toList(),
+          ),
+        ),
         body: TabBarView(
-          children: colunas.map((c) {
+          children: estados.map((e) {
             return Padding(
               padding: const EdgeInsets.all(12),
-              child: _buildColumnContent(cs, c),
+              child: _buildColumnContent(cs, e, cardsPorColuna[e]!),
             );
           }).toList(),
         ),
@@ -92,16 +100,23 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  Widget _buildDesktopView(ColorScheme cs, List<String> colunas) {
+  Widget _buildDesktopView(
+      ColorScheme cs,
+      Map<EstadoPedido, List<Pedido>> cardsPorColuna,
+      ) {
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: colunas.map((c) {
+        children: cardsPorColuna.entries.map((entry) {
           return Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: _buildColumnContent(cs, c),
+              child: _buildColumnContent(
+                cs,
+                entry.key,
+                entry.value,
+              ),
             ),
           );
         }).toList(),
@@ -109,21 +124,26 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  Widget _buildColumnContent(ColorScheme cs, String coluna) {
-    final searching = isSearching[coluna]!;
-    final text = searchControllers[coluna]!.text.toLowerCase();
-    final cards = cardsPorColuna[coluna]!
-        .where((card) =>
-    card['nome']!.toLowerCase().contains(text) ||
-        card['numero']!.contains(text))
-        .toList();
+  Widget _buildColumnContent(
+      ColorScheme cs,
+      EstadoPedido estado,
+      List<Pedido> listaOriginal,
+      ) {
+    final searching = isSearching[estado]!;
+    final text = searchControllers[estado]!.text.toLowerCase();
+    // filtra por nomeCliente ou telefoneCliente
+    final listaFiltrada = listaOriginal.where((p) {
+      return p.nomeCliente.toLowerCase().contains(text) ||
+          p.telefoneCliente.contains(text);
+    }).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // cabeçalho com título e botão de busca
         Container(
           decoration: BoxDecoration(
-            color: headerColor[coluna]!.withOpacity(0.1),
+            color: headerColor[estado]!.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -131,36 +151,38 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
             children: [
               Expanded(
                 child: searching
-                    ? _buildSearchField(cs, coluna)
+                    ? _buildSearchField(cs, estado)
                     : Text(
-                  coluna,
+                  estado.label,
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: headerColor[coluna]!,
+                    color: headerColor[estado],
                   ),
                 ),
               ),
               if (!searching)
                 IconButton(
-                  icon: Icon(Icons.search, color: headerColor[coluna]!),
+                  icon: Icon(Icons.search, color: headerColor[estado]),
                   onPressed: () => setState(() {
-                    isSearching[coluna] = true;
+                    isSearching[estado] = true;
                   }),
                 ),
             ],
           ),
         ),
         const SizedBox(height: 10),
+        // área de arrastar/soltar
         Expanded(
-          child: DragTarget<Map<String, String>>(
+          child: DragTarget<Pedido>(
             onWillAccept: (_) => true,
-            onAccept: (data) {
+            onAccept: (pedido) {
               if (colunaDragSource != null) {
-                setState(() {
-                  cardsPorColuna[colunaDragSource!]!.remove(data);
-                  cardsPorColuna[coluna]!.add(data);
-                });
+                final atualizado = pedido.copyWith(estado: estado);
+                context.read<PedidoModel>().atualizarPedido(
+                  pedido.id,
+                  atualizado,
+                );
               }
             },
             builder: (context, candidate, rejected) {
@@ -171,10 +193,12 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
                 ),
                 padding: const EdgeInsets.all(8),
                 child: ListView.separated(
-                  itemCount: cards.length,
+                  itemCount: listaFiltrada.length,
                   separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) =>
-                      _buildDraggableCard(cs, cards[i], coluna),
+                  itemBuilder: (context, i) {
+                    final pedido = listaFiltrada[i];
+                    return _buildDraggableCard(cs, pedido, estado);
+                  },
                 ),
               );
             },
@@ -184,9 +208,12 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  Widget _buildSearchField(ColorScheme cs, String coluna) {
+  Widget _buildSearchField(
+      ColorScheme cs,
+      EstadoPedido estado,
+      ) {
     return TextField(
-      controller: searchControllers[coluna],
+      controller: searchControllers[estado],
       style: TextStyle(color: cs.onSurface),
       decoration: InputDecoration(
         hintText: 'Pesquisar...',
@@ -200,8 +227,8 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
         suffixIcon: IconButton(
           icon: Icon(Icons.close, color: cs.onSurface),
           onPressed: () => setState(() {
-            isSearching[coluna] = false;
-            searchControllers[coluna]!.clear();
+            isSearching[estado] = false;
+            searchControllers[estado]!.clear();
           }),
         ),
       ),
@@ -210,10 +237,13 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   }
 
   Widget _buildDraggableCard(
-      ColorScheme cs, Map<String, String> card, String coluna) {
-    return Draggable<Map<String, String>>(
-      data: card,
-      onDragStarted: () => colunaDragSource = coluna,
+      ColorScheme cs,
+      Pedido pedido,
+      EstadoPedido estadoOrigem,
+      ) {
+    return Draggable<Pedido>(
+      data: pedido,
+      onDragStarted: () => colunaDragSource = estadoOrigem,
       feedback: Material(
         color: Colors.transparent,
         child: Opacity(
@@ -221,9 +251,9 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           child: SizedBox(
             width: 220,
             child: ContatoCard(
-              nome: card['nome']!,
-              numero: card['numero']!,
-              fotoUrl: card['foto']!,
+              nome: pedido.nomeCliente,
+              numero: pedido.telefoneCliente,
+              fotoUrl: pedido.fotoUrl ?? '',
             ),
           ),
         ),
@@ -231,9 +261,9 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       childWhenDragging: Opacity(
         opacity: 0.4,
         child: ContatoCard(
-          nome: card['nome']!,
-          numero: card['numero']!,
-          fotoUrl: card['foto']!,
+          nome: pedido.nomeCliente,
+          numero: pedido.telefoneCliente,
+          fotoUrl: pedido.fotoUrl ?? '',
         ),
       ),
       child: GestureDetector(
@@ -241,18 +271,18 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           PageRouteBuilder(
             transitionDuration: const Duration(milliseconds: 300),
             pageBuilder: (_, __, ___) => ChatPage(
-              nome: card['nome']!,
-              numero: card['numero']!,
-              fotoUrl: card['foto']!,
+              nome: pedido.nomeCliente,
+              numero: pedido.telefoneCliente,
+              fotoUrl: pedido.fotoUrl ?? '',
             ),
             transitionsBuilder: (_, anim, __, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),
         ),
         child: ContatoCard(
-          nome: card['nome']!,
-          numero: card['numero']!,
-          fotoUrl: card['foto']!,
+          nome: pedido.nomeCliente,
+          numero: pedido.telefoneCliente,
+          fotoUrl: pedido.fotoUrl ?? '',
         ),
       ),
     );

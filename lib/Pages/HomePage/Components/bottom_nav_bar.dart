@@ -5,7 +5,7 @@ import '../../PedidosPage/pedidos_page.dart';
 import '../../AtendimentoPage/atendimento_page.dart';
 import '../../AlertaPage/alerta_page.dart';
 import '../../FeedbackPage/feedback_page.dart';
-import '../../EstoquePage/estoque_page.dart';  // Adicionando o import de EstoquePage
+import '../../EstoquePage/estoque_page.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -21,8 +21,8 @@ class BottomNavBar extends StatelessWidget {
     PedidosPage(),
     AtendimentoPage(),
     AlertaPage(),
-    FeedbacksPage(),
     EstoquePage(),
+    FeedbacksPage(),
   ];
 
   @override
@@ -73,12 +73,12 @@ class BottomNavBar extends StatelessWidget {
               label: 'Alerta',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.feedback),
-              label: 'Feedbacks',
-            ),
-            BottomNavigationBarItem(
               icon: Icon(Icons.inventory),
               label: 'Estoque',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.feedback),
+              label: 'Feedbacks',
             ),
           ],
         ),

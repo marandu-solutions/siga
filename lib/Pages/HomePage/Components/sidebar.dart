@@ -29,8 +29,8 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
     {'icon': LucideIcons.package,        'label': 'Pedidos'},
     {'icon': LucideIcons.headphones,     'label': 'Atendimento'},
     {'icon': LucideIcons.alertCircle,    'label': 'Alerta'},
-    {'icon': LucideIcons.messageCircle,  'label': 'Feedbacks'},
     {'icon': LucideIcons.box,            'label': 'Estoque'},
+    {'icon': LucideIcons.messageCircle,  'label': 'Feedbacks'},
   ];
 
   @override

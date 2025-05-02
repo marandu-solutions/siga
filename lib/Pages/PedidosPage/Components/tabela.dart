@@ -1,3 +1,4 @@
+// lib/Pages/Components/tabela.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -92,7 +93,8 @@ class _TabelaState extends State<Tabela> {
                   ...EstadoPedido.values.map((e) => DropdownMenuItem(
                     value: e,
                     child: Text(e.label,
-                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        style:
+                        tt.bodyMedium?.copyWith(color: cs.onSurface)),
                   )),
                 ],
                 onChanged: (v) => setState(() => _filtroEstado = v),
@@ -103,7 +105,6 @@ class _TabelaState extends State<Tabela> {
           ),
           const SizedBox(height: 20),
 
-          // Container da Tabela
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -133,16 +134,15 @@ class _TabelaState extends State<Tabela> {
                       child: DataTableTheme(
                         data: DataTableThemeData(
                           headingRowColor: MaterialStateProperty.all(
-                              cs.primaryContainer), // Rosa suave
-                          dataRowColor:
-                          MaterialStateProperty.all(cs.surface),
+                              cs.primaryContainer),
+                          dataRowColor: MaterialStateProperty.all(cs.surface),
                           dividerThickness: 1.2,
                           headingTextStyle: tt.labelLarge?.copyWith(
                             fontWeight: FontWeight.bold,
                             color: cs.onPrimaryContainer,
                           ),
-                          dataTextStyle: tt.bodyMedium
-                              ?.copyWith(color: cs.onSurface),
+                          dataTextStyle:
+                          tt.bodyMedium?.copyWith(color: cs.onSurface),
                           headingRowHeight: 56,
                           dataRowHeight: 56,
                         ),
@@ -169,8 +169,7 @@ class _TabelaState extends State<Tabela> {
                                   semantics:
                                   "Cliente ${pedido.nomeCliente}"),
                               _buildCell(pedido.servico, cs, tt,
-                                  semantics:
-                                  "Serviço ${pedido.servico}"),
+                                  semantics: "Serviço ${pedido.servico}"),
                               _buildCell(pedido.quantidade.toString(), cs, tt,
                                   semantics:
                                   "Quantidade ${pedido.quantidade}"),
@@ -216,18 +215,6 @@ class _TabelaState extends State<Tabela> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   IconButton(
-                                    icon:
-                                    Icon(LucideIcons.eye, color: cs.primary),
-                                    tooltip: "Ver detalhes",
-                                    onPressed: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) =>
-                                            PedidoDetailsPage(pedido: pedido),
-                                      ),
-                                    ),
-                                  ),
-                                  IconButton(
                                     icon: Icon(LucideIcons.edit,
                                         color: cs.secondary),
                                     tooltip: "Editar",
@@ -244,8 +231,7 @@ class _TabelaState extends State<Tabela> {
                                             builder: (_) => AlertDialog(
                                               title: Text(
                                                   "Confirmar exclusão",
-                                                  style: tt
-                                                      .titleMedium
+                                                  style: tt.titleMedium
                                                       ?.copyWith(
                                                       color: cs
                                                           .onSurface)),
@@ -253,17 +239,15 @@ class _TabelaState extends State<Tabela> {
                                                 "Excluir pedido #${pedido.numeroPedido}?",
                                                 style: tt.bodyMedium
                                                     ?.copyWith(
-                                                    color: cs
-                                                        .onSurface),
+                                                    color:
+                                                    cs.onSurface),
                                               ),
-                                              backgroundColor:
-                                              cs.surface,
+                                              backgroundColor: cs.surface,
                                               actions: [
                                                 TextButton(
                                                   onPressed: () =>
                                                       Navigator.pop(
-                                                          context,
-                                                          false),
+                                                          context, false),
                                                   child: Text("Cancelar",
                                                       style: TextStyle(
                                                           color:
@@ -272,8 +256,7 @@ class _TabelaState extends State<Tabela> {
                                                 TextButton(
                                                   onPressed: () =>
                                                       Navigator.pop(
-                                                          context,
-                                                          true),
+                                                          context, true),
                                                   child: Text("Excluir",
                                                       style: TextStyle(
                                                           color: cs
@@ -290,12 +273,11 @@ class _TabelaState extends State<Tabela> {
                                           SnackBar(
                                             content: Text(
                                               "Pedido #${pedido.numeroPedido} excluído",
-                                              style: tt.bodyMedium?.copyWith(
-                                                  color:
-                                                  cs.onSurface),
+                                              style: tt.bodyMedium
+                                                  ?.copyWith(
+                                                  color: cs.onSurface),
                                             ),
-                                            backgroundColor:
-                                            cs.surface,
+                                            backgroundColor: cs.surface,
                                           ),
                                         );
                                       }

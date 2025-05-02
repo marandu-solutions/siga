@@ -1,221 +1,240 @@
+// lib/Pages/Components/pedido_details_page.dart
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../../../Model/pedidos.dart';
+import '../../../Model/pedidos_model.dart';
 
-class PedidoDetailsPage extends StatelessWidget {
+/// Formatter customizado para telefone no padrão (##) #####-####
+class TelefoneInputFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue,
+      TextEditingValue newValue,
+      ) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final buffer = StringBuffer();
+    var index = 0;
+
+    if (digits.isEmpty) {
+      return newValue.copyWith(text: '');
+    }
+
+    // Abre parênteses
+    buffer.write('(');
+    // DDD
+    if (digits.length >= 2) {
+      buffer.write(digits.substring(0, 2));
+      index = 2;
+    } else {
+      buffer.write(digits);
+      index = digits.length;
+    }
+
+    // Fecha parênteses e espaço
+    if (digits.length > 2) {
+      buffer.write(') ');
+    }
+
+    // Número principal e hífen
+    if (digits.length >= 7) {
+      buffer.write(digits.substring(2, 7));
+      buffer.write('-');
+      buffer.write(digits.substring(7, digits.length > 11 ? 11 : digits.length));
+    } else if (digits.length > 2) {
+      buffer.write(digits.substring(2));
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
+class PedidoDetailsPage extends StatefulWidget {
   final Pedido pedido;
 
   const PedidoDetailsPage({super.key, required this.pedido});
 
   @override
+  State<PedidoDetailsPage> createState() => _PedidoDetailsPageState();
+}
+
+class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
+  late TextEditingController _nomeController;
+  late TextEditingController _telefoneController;
+  late TextEditingController _servicoController;
+  late TextEditingController _quantidadeController;
+  late TextEditingController _tamanhoController;
+  late TextEditingController _tipoMalhaController;
+  late TextEditingController _corController;
+  late TextEditingController _observacoesController;
+  late TextEditingController _valorController;
+  late EstadoPedido _estado;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.pedido;
+    _nomeController = TextEditingController(text: p.nomeCliente);
+    // Formata número inicial
+    var tel = p.telefoneCliente.replaceAll(RegExp(r'\D'), '');
+    _telefoneController = TextEditingController(text: _formatInitial(tel));
+    _servicoController = TextEditingController(text: p.servico);
+    _quantidadeController = TextEditingController(text: p.quantidade.toString());
+    _tamanhoController = TextEditingController(text: p.tamanho);
+    _tipoMalhaController = TextEditingController(text: p.tipoMalha);
+    _corController = TextEditingController(text: p.cor);
+    _observacoesController = TextEditingController(text: p.observacoes);
+    _valorController = TextEditingController(text: p.valorTotal.toString());
+    _estado = p.estado;
+  }
+
+  String _formatInitial(String digits) {
+    if (digits.isEmpty) return '';
+    final buffer = StringBuffer();
+    buffer.write('(');
+    if (digits.length >= 2) {
+      buffer.write(digits.substring(0, 2));
+    } else {
+      buffer.write(digits);
+    }
+    if (digits.length > 2) buffer.write(') ');
+    if (digits.length >= 7) {
+      buffer.write(digits.substring(2, 7));
+      buffer.write('-');
+      buffer.write(digits.substring(7, digits.length > 11 ? 11 : digits.length));
+    } else if (digits.length > 2) {
+      buffer.write(digits.substring(2));
+    }
+    return buffer.toString();
+  }
+
+  @override
+  void dispose() {
+    _nomeController.dispose();
+    _telefoneController.dispose();
+    _servicoController.dispose();
+    _quantidadeController.dispose();
+    _tamanhoController.dispose();
+    _tipoMalhaController.dispose();
+    _corController.dispose();
+    _observacoesController.dispose();
+    _valorController.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    // Remove máscara e salva apenas dígitos
+    final digits = _telefoneController.text.replaceAll(RegExp(r'\D'), '');
+    final atualizado = widget.pedido.copyWith(
+      nomeCliente: _nomeController.text,
+      telefoneCliente: digits,
+      servico: _servicoController.text,
+      quantidade: int.tryParse(_quantidadeController.text) ?? widget.pedido.quantidade,
+      tamanho: _tamanhoController.text,
+      tipoMalha: _tipoMalhaController.text,
+      cor: _corController.text,
+      observacoes: _observacoesController.text,
+      valorTotal: double.tryParse(_valorController.text) ?? widget.pedido.valorTotal,
+      estado: _estado,
+    );
+    context.read<PedidoModel>().atualizarPedido(widget.pedido.id, atualizado);
+    Navigator.of(context).pop();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme; // Obtendo o ColorScheme do tema
-    final tt = theme.textTheme; // Obtendo o TextTheme do tema
-
     return Scaffold(
-      backgroundColor: cs.background,
       appBar: AppBar(
-        backgroundColor: cs.primary,
-        elevation: 2,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Text(
-          "Pedido #${pedido.numeroPedido}",
-          style: tt.titleLarge?.copyWith(color: cs.onPrimary),
-        ),
+        title: Text('Editar Pedido #${widget.pedido.numeroPedido}'),
+        actions: [
+          IconButton(icon: Icon(Icons.save), onPressed: _save),
+        ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _nomeController,
+              decoration: InputDecoration(labelText: 'Nome Cliente'),
             ),
-            elevation: 4,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Cabeçalho
-                  Center(
-                    child: Text(
-                      "Detalhes do Pedido",
-                      style: tt.headlineSmall?.copyWith(
-                        color: cs.onSurface,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Informação do cliente
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.person_outline, color: cs.primary),
-                    title: Text(
-                      pedido.nomeCliente,
-                      style: tt.bodyLarge,
-                    ),
-                    subtitle: Text(
-                      "Cliente",
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                    ),
-                  ),
-                  const Divider(),
-
-                  // Telefone
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.phone, color: cs.primary),
-                    title: Text(
-                      pedido.telefoneCliente,
-                      style: tt.bodyLarge,
-                    ),
-                    subtitle: Text(
-                      "Telefone",
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                    ),
-                  ),
-                  const Divider(),
-
-                  // Serviço
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.work_outline, color: cs.primary),
-                    title: Text(
-                      pedido.servico,
-                      style: tt.bodyLarge,
-                    ),
-                    subtitle: Text(
-                      "Serviço",
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                    ),
-                  ),
-                  const Divider(),
-
-                  // Quantidade e Tamanho
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.format_list_numbered, color: cs.primary),
-                          title: Text(
-                            pedido.quantidade.toString(),
-                            style: tt.bodyLarge,
-                          ),
-                          subtitle: Text(
-                            "Quantidade",
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.straighten, color: cs.primary),
-                          title: Text(
-                            pedido.tamanho,
-                            style: tt.bodyLarge,
-                          ),
-                          subtitle: Text(
-                            "Tamanho",
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-
-                  // Malha e Cor
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.layers, color: cs.primary),
-                          title: Text(
-                            pedido.tipoMalha,
-                            style: tt.bodyLarge,
-                          ),
-                          subtitle: Text(
-                            "Malha",
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: Icon(Icons.palette, color: cs.primary),
-                          title: Text(
-                            pedido.cor,
-                            style: tt.bodyLarge,
-                          ),
-                          subtitle: Text(
-                            "Cor",
-                            style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-
-                  // Valor
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.attach_money, color: cs.primary),
-                    title: Text(
-                      "R\$ ${pedido.valorTotal.toStringAsFixed(2)}",
-                      style: tt.bodyLarge?.copyWith(fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                      "Valor Total",
-                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                    ),
-                  ),
-
-                  // Observações (se houver)
-                  if (pedido.observacoes.isNotEmpty) ...[
-                    const Divider(),
-                    ExpansionTile(
-                      leading: Icon(Icons.note_alt, color: cs.primary),
-                      title: Text(
-                        "Observações",
-                        style: tt.bodyLarge,
-                      ),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          child: Text(
-                            pedido.observacoes,
-                            style: tt.bodyMedium?.copyWith(color: cs.onSurface),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _telefoneController,
+              decoration: InputDecoration(labelText: 'Telefone Cliente'),
+              keyboardType: TextInputType.phone,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                TelefoneInputFormatter(),
+              ],
             ),
-          ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _servicoController,
+              decoration: InputDecoration(labelText: 'Serviço'),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _quantidadeController,
+                    decoration: InputDecoration(labelText: 'Quantidade'),
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: TextField(
+                    controller: _tamanhoController,
+                    decoration: InputDecoration(labelText: 'Tamanho'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _tipoMalhaController,
+              decoration: InputDecoration(labelText: 'Tipo Malha'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _corController,
+              decoration: InputDecoration(labelText: 'Cor'),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _valorController,
+              decoration: InputDecoration(labelText: 'Valor Total'),
+              keyboardType: TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<EstadoPedido>(
+              value: _estado,
+              decoration: InputDecoration(labelText: 'Estado'),
+              items: EstadoPedido.values.map((e) {
+                return DropdownMenuItem(value: e, child: Text(e.label));
+              }).toList(),
+              onChanged: (v) { if (v != null) setState(() => _estado = v); },
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _observacoesController,
+              decoration: InputDecoration(labelText: 'Observações'),
+              maxLines: null,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _save,
+              child: Text('Salvar Alterações'),
+            ),
+          ],
         ),
-      ),
-
-      // Botão de ação flutuante
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: cs.primary,
-        icon: const Icon(Icons.check),
-        label: const Text("Concluir"),
-        onPressed: () {
-          // aqui você pode disparar a ação de conclusão ou edição
-          Navigator.of(context).pop(true);
-        },
       ),
     );
   }

@@ -1,32 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../Model/estoque_model.dart';
+import '../../Model/estoque.dart';
 
-class EstoquePage extends StatefulWidget {
+class EstoquePage extends StatelessWidget {
   const EstoquePage({Key? key}) : super(key: key);
 
-  @override
-  State<EstoquePage> createState() => _EstoquePageState();
-}
-
-class _EstoquePageState extends State<EstoquePage> {
-  final List<Map<String, dynamic>> _itensEstoque = [
-    {'nome': 'Camisa Algodão', 'quantidade': 120, 'limite': 50},
-    {'nome': 'Camiseta Dri-Fit', 'quantidade': 45, 'limite': 50},
-    {'nome': 'Bonés Personalizados', 'quantidade': 30, 'limite': 20},
-    {'nome': 'Mochilas', 'quantidade': 8, 'limite': 10},
-  ];
-
-  bool _estoqueEmFalta(Map<String, dynamic> item) {
-    return item['quantidade'] < item['limite'];
+  bool _estoqueEmFalta(EstoqueItem item) {
+    return item.quantidade < item.limite;
   }
 
-  Future<void> _showItemDialog({int? index}) async {
+  Future<void> _showItemDialog(BuildContext context, {int? index}) async {
     final cs = Theme.of(context).colorScheme;
     final isEdit = index != null;
-    final item = isEdit ? _itensEstoque[index!] : null;
+    final model = context.read<EstoqueModel>();
+    final item = isEdit ? model.itens[index!] : null;
 
-    final nomeCtrl = TextEditingController(text: item?['nome']);
-    final quantidadeCtrl = TextEditingController(text: item?['quantidade']?.toString());
-    final limiteCtrl = TextEditingController(text: item?['limite']?.toString());
+    final nomeCtrl = TextEditingController(text: item?.nome);
+    final quantidadeCtrl = TextEditingController(text: item?.quantidade.toString());
+    final limiteCtrl = TextEditingController(text: item?.limite.toString());
 
     final formKey = GlobalKey<FormState>();
 
@@ -64,7 +56,7 @@ class _EstoquePageState extends State<EstoquePage> {
                     key: formKey,
                     child: Column(
                       children: [
-                        _buildTextField(controller: nomeCtrl, icon: Icons.shopping_bag_outlined, label: 'Nome do produto'),
+                        _buildTextField(controller: nomeCtrl, icon: Icons.shopping_bag_outlined, label: 'Nome do produto', context: context),
                         const SizedBox(height: 16),
                         Row(
                           children: [
@@ -74,6 +66,7 @@ class _EstoquePageState extends State<EstoquePage> {
                                 icon: Icons.format_list_numbered,
                                 label: 'Quantidade',
                                 keyboardType: TextInputType.number,
+                                context: context,
                                 validator: (v) => int.tryParse(v ?? '') == null ? 'Número inválido' : null,
                               ),
                             ),
@@ -84,6 +77,7 @@ class _EstoquePageState extends State<EstoquePage> {
                                 icon: Icons.warning_amber_outlined,
                                 label: 'Estoque mínimo',
                                 keyboardType: TextInputType.number,
+                                context: context,
                                 validator: (v) => int.tryParse(v ?? '') == null ? 'Número inválido' : null,
                               ),
                             ),
@@ -101,16 +95,16 @@ class _EstoquePageState extends State<EstoquePage> {
                             ElevatedButton(
                               onPressed: () {
                                 if (formKey.currentState!.validate()) {
-                                  final nome = nomeCtrl.text.trim();
-                                  final q = int.parse(quantidadeCtrl.text.trim());
-                                  final l = int.parse(limiteCtrl.text.trim());
-                                  setState(() {
-                                    if (isEdit) {
-                                      _itensEstoque[index!] = {'nome': nome, 'quantidade': q, 'limite': l};
-                                    } else {
-                                      _itensEstoque.add({'nome': nome, 'quantidade': q, 'limite': l});
-                                    }
-                                  });
+                                  final novoItem = EstoqueItem(
+                                    nome: nomeCtrl.text.trim(),
+                                    quantidade: int.parse(quantidadeCtrl.text.trim()),
+                                    limite: int.parse(limiteCtrl.text.trim()),
+                                  );
+                                  if (isEdit) {
+                                    model.atualizar(index!, novoItem);
+                                  } else {
+                                    model.adicionar(novoItem);
+                                  }
                                   Navigator.of(ctx).pop();
                                 }
                               },
@@ -140,6 +134,7 @@ class _EstoquePageState extends State<EstoquePage> {
     required TextEditingController controller,
     required IconData icon,
     required String label,
+    required BuildContext context,
     TextInputType? keyboardType,
     String? Function(String?)? validator,
   }) {
@@ -163,83 +158,86 @@ class _EstoquePageState extends State<EstoquePage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: cs.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Estoque',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold),
+    return Consumer<EstoqueModel>(
+      builder: (context, model, _) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: cs.surfaceVariant,
+            borderRadius: BorderRadius.circular(16),
           ),
-          const SizedBox(height: 24),
-          Expanded(
-            child: ListView.builder(
-              itemCount: _itensEstoque.length,
-              itemBuilder: (context, index) {
-                final item = _itensEstoque[index];
-                final emFalta = _estoqueEmFalta(item);
-                return Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: cs.surface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Row(
-                    children: [
-                      Checkbox(
-                        value: false,
-                        onChanged: (_) {},
-                        side: BorderSide(color: emFalta ? cs.error : cs.primary),
-                        fillColor: MaterialStateProperty.all(emFalta ? cs.error : cs.primary),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item['nome'], style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Em estoque: ${item['quantidade']}   •   Mínimo: ${item['limite']}',
-                              style: TextStyle(color: cs.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.edit, color: cs.primary),
-                        onPressed: () => _showItemDialog(index: index),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton.icon(
-              icon: Icon(Icons.add, color: cs.onPrimary),
-              label: Text('Adicionar Item'),
-              onPressed: () => _showItemDialog(),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: cs.primary,
-                foregroundColor: cs.onPrimary,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Estoque',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold),
               ),
-            ),
+              const SizedBox(height: 24),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: model.itens.length,
+                  itemBuilder: (context, index) {
+                    final item = model.itens[index];
+                    final emFalta = _estoqueEmFalta(item);
+                    return Container(
+                      margin: const EdgeInsets.symmetric(vertical: 8),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: cs.surface,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Checkbox(
+                            value: false,
+                            onChanged: (_) {},
+                            side: BorderSide(color: emFalta ? cs.error : cs.primary),
+                            fillColor: MaterialStateProperty.all(emFalta ? cs.error : cs.primary),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(item.nome, style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.bold, fontSize: 16)),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Em estoque: ${item.quantidade}   •   Mínimo: ${item.limite}',
+                                  style: TextStyle(color: cs.onSurfaceVariant),
+                                ),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.edit, color: cs.primary),
+                            onPressed: () => _showItemDialog(context, index: index),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: ElevatedButton.icon(
+                  icon: Icon(Icons.add, color: cs.onPrimary),
+                  label: Text('Adicionar Item'),
+                  onPressed: () => _showItemDialog(context),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: cs.primary,
+                    foregroundColor: cs.onPrimary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

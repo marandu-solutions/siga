@@ -1,4 +1,8 @@
+// lib/Pages/AtendimentoPage/Components/alerta_page.dart
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../Model/pedidos.dart';
+import '../../../Model/pedidos_model.dart';
 
 class AlertaPage extends StatefulWidget {
   const AlertaPage({Key? key}) : super(key: key);
@@ -9,13 +13,8 @@ class AlertaPage extends StatefulWidget {
 
 class _AlertaPageState extends State<AlertaPage> {
   final TextEditingController motivoController = TextEditingController();
-  final List<String> pedidosSelecionados = [];
+  final List<int> pedidosSelecionados = [];
   DateTime? novaData;
-  final List<Map<String, String>> pedidos = [
-    {'id': '001', 'nome': 'João Silva', 'detalhe': '100 camisas algodão'},
-    {'id': '002', 'nome': 'Maria Souza', 'detalhe': '50 camisetas dri-fit'},
-    {'id': '003', 'nome': 'Carlos Lima', 'detalhe': '200 camisas promocionais'},
-  ];
 
   Future<void> _selecionarData(BuildContext context) async {
     final cs = Theme.of(context).colorScheme;
@@ -59,6 +58,10 @@ class _AlertaPageState extends State<AlertaPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final pedidos = context.watch<PedidoModel>().pedidos
+        .where((p) => p.estado == EstadoPedido.emAberto) // filtrando atrasados
+        .toList();
+
     return Scaffold(
       backgroundColor: cs.background,
       body: LayoutBuilder(
@@ -69,7 +72,7 @@ class _AlertaPageState extends State<AlertaPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _buildPedidosPanel(cs),
+                  _buildPedidosPanel(cs, pedidos),
                   const SizedBox(height: 24),
                   _buildNotificarPanel(cs),
                 ],
@@ -81,7 +84,7 @@ class _AlertaPageState extends State<AlertaPage> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  SizedBox(width: 300, child: _buildPedidosPanel(cs)),
+                  SizedBox(width: 300, child: _buildPedidosPanel(cs, pedidos)),
                   const SizedBox(width: 24),
                   SizedBox(
                     width: width - 300 - 56,
@@ -95,7 +98,7 @@ class _AlertaPageState extends State<AlertaPage> {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  SizedBox(width: 300, child: _buildPedidosPanel(cs)),
+                  SizedBox(width: 300, child: _buildPedidosPanel(cs, pedidos)),
                   const SizedBox(width: 30),
                   Expanded(child: _buildNotificarPanel(cs)),
                 ],
@@ -107,7 +110,7 @@ class _AlertaPageState extends State<AlertaPage> {
     );
   }
 
-  Widget _buildPedidosPanel(ColorScheme cs) {
+  Widget _buildPedidosPanel(ColorScheme cs, List<Pedido> pedidos) {
     return Card(
       color: cs.surface,
       elevation: 8,
@@ -138,16 +141,15 @@ class _AlertaPageState extends State<AlertaPage> {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: pedidos.length,
               itemBuilder: (context, i) {
-                final pedido = pedidos[i];
-                final selecionado = pedidosSelecionados.contains(pedido['id']);
+                final p = pedidos[i];
+                final selecionado = pedidosSelecionados.contains(p.id);
                 return Card(
                   color: selecionado ? cs.primary.withOpacity(0.2) : cs.surfaceVariant,
                   elevation: selecionado ? 4 : 0,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   margin: const EdgeInsets.symmetric(vertical: 8),
                   child: ListTile(
-                    contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     leading: Container(
                       width: 24,
                       height: 24,
@@ -157,15 +159,17 @@ class _AlertaPageState extends State<AlertaPage> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                     ),
-                    title: Text(pedido['nome']!, style: TextStyle(color: cs.onSurface)),
-                    subtitle:
-                    Text(pedido['detalhe']!, style: TextStyle(color: cs.onSurfaceVariant)),
-                    trailing: Text('#${pedido['id']}', style: TextStyle(color: cs.onSurfaceVariant)),
+                    title: Text(p.nomeCliente, style: TextStyle(color: cs.onSurface)),
+                    subtitle: Text(
+                      '${p.quantidade} x ${p.servico}',
+                      style: TextStyle(color: cs.onSurfaceVariant),
+                    ),
+                    trailing: Text('#${p.numeroPedido}', style: TextStyle(color: cs.onSurfaceVariant)),
                     onTap: () => setState(() {
                       if (selecionado) {
-                        pedidosSelecionados.remove(pedido['id']);
+                        pedidosSelecionados.remove(p.id);
                       } else {
-                        pedidosSelecionados.add(pedido['id']!);
+                        pedidosSelecionados.add(p.id);
                       }
                     }),
                   ),
@@ -241,7 +245,7 @@ class _AlertaPageState extends State<AlertaPage> {
                   filled: true,
                   fillColor: cs.surfaceVariant,
                   hintText:
-                  'Olá [Nome], informamos que... (use {{data}} para inserir a nova data)',
+                  'Olá {{nome}}, informamos que seu pedido foi reagendado para {{data}}',
                   hintStyle: TextStyle(color: cs.onSurfaceVariant),
                   border: OutlineInputBorder(
                     borderSide: BorderSide.none,
@@ -274,7 +278,7 @@ class _AlertaPageState extends State<AlertaPage> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             elevation: podeEnviar ? 6 : 0,
                           ),
-                          onPressed: podeEnviar ? () {} : null,
+                          onPressed: podeEnviar ? _enviarNotificacoes : null,
                         ),
                       )
                     ],
@@ -298,7 +302,7 @@ class _AlertaPageState extends State<AlertaPage> {
                               vertical: 16, horizontal: 32),
                           elevation: podeEnviar ? 6 : 0,
                         ),
-                        onPressed: podeEnviar ? () {} : null,
+                        onPressed: podeEnviar ? _enviarNotificacoes : null,
                       )
                     ],
                   );
@@ -309,5 +313,18 @@ class _AlertaPageState extends State<AlertaPage> {
         ),
       ),
     );
+  }
+
+  void _enviarNotificacoes() {
+    final pedidosModel = context.read<PedidoModel>();
+    for (var id in pedidosSelecionados) {
+      final p = pedidosModel.buscarPedidoPorId(id);
+      final msg = motivoController.text
+          .replaceAll('{{nome}}', p.nomeCliente)
+          .replaceAll('{{data}}',
+          '${novaData!.day}/${novaData!.month}/${novaData!.year}');
+      // aqui você pode chamar um serviço de WhatsApp, por enquanto só print:
+      debugPrint('Enviar para ${p.telefoneCliente}: $msg');
+    }
   }
 }
