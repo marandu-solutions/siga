@@ -28,65 +28,48 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final width = MediaQuery.of(context).size.width;
+    final theme    = Theme.of(context);
+    final isDark   = theme.brightness == Brightness.dark;
+    final width    = MediaQuery.of(context).size.width;
     final isCompact = width < 350;
 
-    final horizontalPadding = isCompact ? 8.0 : 16.0;
-    final verticalPadding = isCompact ? 4.0 : 8.0;
-    final navHeight = isCompact ? 56.0 : 72.0;
+    final hPad = isCompact ? 6.0 : 10.0;
+    final vPad = isCompact ? 2.0 : 6.0;
+    final navH  = isCompact ? 56.0 : 72.0;
 
-    return Scaffold(
-      body: IndexedStack(
-        index: selectedIndex,
-        children: const [
-          PedidosPage(),
-          AtendimentoPage(),
-          AlertaPage(),
-          EstoquePage(),
-          FeedbacksPage(),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding,
-            vertical: verticalPadding,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(32),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                height: navHeight,
-                decoration: BoxDecoration(
-                  color: isDark
-                      ? Colors.black.withOpacity(0.6)
-                      : Colors.white.withOpacity(0.8),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 16,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(32),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+          child: Container(
+            height: navH,
+            decoration: BoxDecoration(
+              color: isDark
+                  ? Colors.black.withOpacity(0.6)
+                  : Colors.white.withOpacity(0.8),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 16,
+                  offset: Offset(0, 4),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: List.generate(_navItems.length, (index) {
-                    final item = _navItems[index];
-                    final selected = index == selectedIndex;
-                    return _NavButton(
-                      icon: item.icon,
-                      label: item.label,
-                      selected: selected,
-                      isCompact: isCompact,
-                      onTap: () => onItemSelected(index),
-                    );
-                  }),
-                ),
-              ),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: List.generate(_navItems.length, (index) {
+                final item     = _navItems[index];
+                final selected = index == selectedIndex;
+                return _NavButton(
+                  icon: item.icon,
+                  label: item.label,
+                  selected: selected,
+                  isCompact: isCompact,
+                  onTap: () => onItemSelected(index),
+                );
+              }),
             ),
           ),
         ),
@@ -114,10 +97,10 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseSize = isCompact ? 20.0 : 24.0;
-    final selSize = isCompact ? 24.0 : 28.0;
-    final horizPad = isCompact ? 8.0 : 12.0;
-    final vertPad = isCompact ? 4.0 : 8.0;
+    final baseSize = isCompact ? 16.0 : 20.0;
+    final selSize = isCompact ? 20.0 : 24.0;
+    final horizPad = isCompact ? 6.0 : 10.0;
+    final vertPad = isCompact ? 2.0 : 6.0;
 
     return Material(
       color: Colors.transparent,

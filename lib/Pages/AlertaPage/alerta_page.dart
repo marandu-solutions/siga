@@ -1,8 +1,8 @@
-// lib/Pages/AtendimentoPage/Components/alerta_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../Model/pedidos.dart';
 import '../../../Model/pedidos_model.dart';
+import 'components/historico_page.dart';
 
 class AlertaPage extends StatefulWidget {
   const AlertaPage({Key? key}) : super(key: key);
@@ -58,16 +58,30 @@ class _AlertaPageState extends State<AlertaPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    // Filtra agora os pedidos que estão emAberto, emAndamento ou entregaRetirada
-    final pedidos = context.watch<PedidoModel>().pedidos
-        .where((p) =>
-    p.estado == EstadoPedido.emAberto ||
-        p.estado == EstadoPedido.emAndamento ||
-        p.estado == EstadoPedido.entregaRetirada)
-        .toList();
+
+    final pedidos = context.watch<PedidoModel>().pedidos.where((p) {
+      return p.estado == EstadoPedido.emAberto ||
+          p.estado == EstadoPedido.emAndamento ||
+          p.estado == EstadoPedido.entregaRetirada;
+    }).toList();
 
     return Scaffold(
       backgroundColor: cs.background,
+      appBar: AppBar(
+        title: const Text('Alerta de Pedidos'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'Histórico',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoricoPage()),
+              );
+            },
+          ),
+        ],
+      ),
       body: LayoutBuilder(
         builder: (context, constraints) {
           final width = constraints.maxWidth;
@@ -76,7 +90,7 @@ class _AlertaPageState extends State<AlertaPage> {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _buildPedidosPanel(cs, pedidos),
+                  _buildPedidosPanel(cs, pedidos, constraints.maxHeight),
                   const SizedBox(height: 24),
                   _buildNotificarPanel(cs),
                 ],
@@ -88,7 +102,10 @@ class _AlertaPageState extends State<AlertaPage> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  SizedBox(width: 300, child: _buildPedidosPanel(cs, pedidos)),
+                  SizedBox(
+                    width: 300,
+                    child: _buildPedidosPanel(cs, pedidos, constraints.maxHeight),
+                  ),
                   const SizedBox(width: 24),
                   SizedBox(
                     width: width - 300 - 56,
@@ -102,7 +119,10 @@ class _AlertaPageState extends State<AlertaPage> {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  SizedBox(width: 300, child: _buildPedidosPanel(cs, pedidos)),
+                  SizedBox(
+                    width: 300,
+                    child: _buildPedidosPanel(cs, pedidos, constraints.maxHeight),
+                  ),
                   const SizedBox(width: 30),
                   Expanded(child: _buildNotificarPanel(cs)),
                 ],
@@ -114,7 +134,8 @@ class _AlertaPageState extends State<AlertaPage> {
     );
   }
 
-  Widget _buildPedidosPanel(ColorScheme cs, List<Pedido> pedidos) {
+  Widget _buildPedidosPanel(ColorScheme cs, List<Pedido> pedidos, double maxHeight) {
+    final panelHeight = maxHeight * 0.5;
     return Card(
       color: cs.surface,
       elevation: 8,
@@ -131,60 +152,68 @@ class _AlertaPageState extends State<AlertaPage> {
                 Expanded(
                   child: Text(
                     'Pedidos em Aberto, Em Andamento ou Entrega/Retirada',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: cs.onSurface,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: pedidos.length,
-              itemBuilder: (context, i) {
-                final p = pedidos[i];
-                final selecionado = pedidosSelecionados.contains(p.id);
-                return Card(
-                  color: selecionado ? cs.primary.withOpacity(0.2) : cs.surfaceVariant,
-                  elevation: selecionado ? 4 : 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  margin: const EdgeInsets.symmetric(vertical: 8),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    leading: Container(
-                      width: 24,
-                      height: 24,
-                      decoration: BoxDecoration(
-                        color: selecionado ? cs.primary : Colors.transparent,
-                        border: Border.all(color: cs.primary),
-                        borderRadius: BorderRadius.circular(4),
+            SizedBox(
+              height: panelHeight,
+              child: ListView.builder(
+                itemCount: pedidos.length,
+                itemBuilder: (context, i) {
+                  final p = pedidos[i];
+                  final selecionado = pedidosSelecionados.contains(p.id);
+                  return Card(
+                    color: selecionado
+                        ? cs.primary.withOpacity(0.2)
+                        : cs.surfaceVariant,
+                    elevation: selecionado ? 4 : 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                    margin: const EdgeInsets.symmetric(vertical: 8),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      leading: Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color:
+                          selecionado ? cs.primary : Colors.transparent,
+                          border: Border.all(color: cs.primary),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
                       ),
+                      title: Text(p.nomeCliente,
+                          style: TextStyle(color: cs.onSurface)),
+                      subtitle: Text('${p.quantidade} x ${p.servico}',
+                          style: TextStyle(color: cs.onSurfaceVariant)),
+                      trailing: Text('#${p.numeroPedido}',
+                          style: TextStyle(color: cs.onSurfaceVariant)),
+                      onTap: () => setState(() {
+                        if (selecionado) {
+                          pedidosSelecionados.remove(p.id);
+                        } else {
+                          pedidosSelecionados.add(p.id);
+                        }
+                      }),
                     ),
-                    title: Text(p.nomeCliente, style: TextStyle(color: cs.onSurface)),
-                    subtitle: Text(
-                      '${p.quantidade} x ${p.servico}',
-                      style: TextStyle(color: cs.onSurfaceVariant),
-                    ),
-                    trailing: Text('#${p.numeroPedido}', style: TextStyle(color: cs.onSurfaceVariant)),
-                    onTap: () => setState(() {
-                      if (selecionado) {
-                        pedidosSelecionados.remove(p.id);
-                      } else {
-                        pedidosSelecionados.add(p.id);
-                      }
-                    }),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 16),
             TextButton.icon(
               icon: Icon(Icons.clear_all, color: cs.primary),
-              label: Text('Limpar Seleção', style: TextStyle(color: cs.primary)),
-              onPressed: pedidosSelecionados.isNotEmpty ? _limparSelecao : null,
+              label: Text('Limpar Seleção',
+                  style: TextStyle(color: cs.primary)),
+              onPressed:
+              pedidosSelecionados.isNotEmpty ? _limparSelecao : null,
             ),
             const SizedBox(height: 8),
             Text('${pedidosSelecionados.length} selecionados',
@@ -206,23 +235,27 @@ class _AlertaPageState extends State<AlertaPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Notificar Clientes',
-                style: Theme.of(context)
-                    .textTheme
-                    .headlineSmall
-                    ?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold)),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.bold,
+                )),
             const SizedBox(height: 20),
             Row(
               children: [
                 ElevatedButton.icon(
                   icon: const Icon(Icons.calendar_today),
-                  label: Text(novaData == null
-                      ? 'Escolher Data'
-                      : 'Data: ${novaData!.day}/${novaData!.month}/${novaData!.year}'),
+                  label: Text(
+                    novaData == null
+                        ? 'Escolher Data'
+                        : 'Data: ${novaData!.day}/${novaData!.month}/${novaData!.year}',
+                  ),
                   style: ElevatedButton.styleFrom(
                     foregroundColor: cs.onPrimary,
                     backgroundColor: cs.primary,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 14, horizontal: 20),
                     elevation: 4,
                   ),
                   onPressed: () => _selecionarData(context),
@@ -236,7 +269,10 @@ class _AlertaPageState extends State<AlertaPage> {
             ),
             const SizedBox(height: 24),
             Text('Mensagem Personalizada',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.onSurface)),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(color: cs.onSurface)),
             const SizedBox(height: 12),
             SizedBox(
               height: 200,
@@ -265,8 +301,10 @@ class _AlertaPageState extends State<AlertaPage> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Será enviado via WhatsApp para todos selecionados',
-                          style: TextStyle(color: cs.onSurfaceVariant)),
+                      Text(
+                          'Será enviado via WhatsApp para todos selecionados',
+                          style:
+                          TextStyle(color: cs.onSurfaceVariant)),
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
@@ -275,38 +313,48 @@ class _AlertaPageState extends State<AlertaPage> {
                           label: const Text('Enviar'),
                           style: ElevatedButton.styleFrom(
                             foregroundColor: cs.onPrimary,
-                            backgroundColor:
-                            podeEnviar ? cs.primary : cs.surfaceVariant,
+                            backgroundColor: podeEnviar
+                                ? cs.primary
+                                : cs.surfaceVariant,
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16)),
-                            padding: const EdgeInsets.symmetric(vertical: 16),
+                                borderRadius:
+                                BorderRadius.circular(16)),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 16),
                             elevation: podeEnviar ? 6 : 0,
                           ),
-                          onPressed: podeEnviar ? _enviarNotificacoes : null,
+                          onPressed:
+                          podeEnviar ? _enviarNotificacoes : null,
                         ),
                       )
                     ],
                   );
                 } else {
                   return Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Será enviado via WhatsApp para todos selecionados',
-                          style: TextStyle(color: cs.onSurfaceVariant)),
+                      Text(
+                          'Será enviado via WhatsApp para todos selecionados',
+                          style:
+                          TextStyle(color: cs.onSurfaceVariant)),
                       ElevatedButton.icon(
                         icon: const Icon(Icons.send),
                         label: const Text('Enviar'),
                         style: ElevatedButton.styleFrom(
                           foregroundColor: cs.onPrimary,
-                          backgroundColor:
-                          podeEnviar ? cs.primary : cs.surfaceVariant,
+                          backgroundColor: podeEnviar
+                              ? cs.primary
+                              : cs.surfaceVariant,
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                              borderRadius:
+                              BorderRadius.circular(16)),
                           padding: const EdgeInsets.symmetric(
                               vertical: 16, horizontal: 32),
                           elevation: podeEnviar ? 6 : 0,
                         ),
-                        onPressed: podeEnviar ? _enviarNotificacoes : null,
+                        onPressed:
+                        podeEnviar ? _enviarNotificacoes : null,
                       )
                     ],
                   );
@@ -323,11 +371,18 @@ class _AlertaPageState extends State<AlertaPage> {
     final pedidosModel = context.read<PedidoModel>();
     for (var id in pedidosSelecionados) {
       final p = pedidosModel.buscarPedidoPorId(id);
+      final formattedDate =
+          '${novaData!.day}/${novaData!.month}/${novaData!.year}';
       final msg = motivoController.text
           .replaceAll('{{nome}}', p.nomeCliente)
-          .replaceAll('{{data}}',
-          '${novaData!.day}/${novaData!.month}/${novaData!.year}');
-      // aqui você pode chamar um serviço de WhatsApp, por enquanto só print:
+          .replaceAll('{{data}}', formattedDate);
+
+      // Adiciona ao histórico de notificações no PedidoModel
+      pedidosModel.adicionarNotificacao(
+        pedidoId: id,
+        mensagem: 'Pedido #${p.numeroPedido}: $msg',
+      );
+
       debugPrint('Enviar para ${p.telefoneCliente}: $msg');
     }
   }
