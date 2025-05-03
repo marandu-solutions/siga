@@ -1,11 +1,12 @@
-// lib/components/bottom_nav_bar.dart
-
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import '../../PedidosPage/pedidos_page.dart';
-import '../../AtendimentoPage/atendimento_page.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+
 import '../../AlertaPage/alerta_page.dart';
-import '../../FeedbackPage/feedback_page.dart';
+import '../../AtendimentoPage/atendimento_page.dart';
 import '../../EstoquePage/estoque_page.dart';
+import '../../FeedbackPage/feedback_page.dart';
+import '../../PedidosPage/pedidos_page.dart';
 
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
@@ -17,72 +18,152 @@ class BottomNavBar extends StatelessWidget {
     required this.onItemSelected,
   }) : super(key: key);
 
-  final List<Widget> pages = const [
-    PedidosPage(),
-    AtendimentoPage(),
-    AlertaPage(),
-    EstoquePage(),
-    FeedbacksPage(),
+  static const _navItems = <_NavItem>[
+    _NavItem(icon: LucideIcons.package, label: 'Pedidos'),
+    _NavItem(icon: LucideIcons.headphones, label: 'Atendimento'),
+    _NavItem(icon: LucideIcons.alertCircle, label: 'Alerta'),
+    _NavItem(icon: LucideIcons.box, label: 'Estoque'),
+    _NavItem(icon: LucideIcons.messageCircle, label: 'Feedbacks'),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final width = MediaQuery.of(context).size.width;
+    final isCompact = width < 350;
+
+    final horizontalPadding = isCompact ? 8.0 : 16.0;
+    final verticalPadding = isCompact ? 4.0 : 8.0;
+    final navHeight = isCompact ? 56.0 : 72.0;
+
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E1E2F),
-              Color(0xFF2A2A40),
-            ],
-          ),
-        ),
-        child: pages[selectedIndex],
+      body: IndexedStack(
+        index: selectedIndex,
+        children: const [
+          PedidosPage(),
+          AtendimentoPage(),
+          AlertaPage(),
+          EstoquePage(),
+          FeedbacksPage(),
+        ],
       ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E1E4C), // Cor mais escura no topo
-              Color(0xFF2A2A72), // Cor mais clara no fundo
-            ],
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: horizontalPadding,
+            vertical: verticalPadding,
           ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: selectedIndex,
-          onTap: onItemSelected,
-          selectedItemColor: Colors.white, // Cor do ícone quando selecionado
-          unselectedItemColor: Colors.white.withOpacity(0.7), // Cor do ícone quando não selecionado
-          backgroundColor: Colors.transparent, // Remover fundo da BottomNavigationBar
-          type: BottomNavigationBarType.fixed, // Garantir que todos os itens tenham o mesmo tamanho
-          items: [
-            BottomNavigationBarItem(
-              icon: Icon(Icons.shopping_basket),
-              label: 'Pedidos',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: Container(
+                height: navHeight,
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? Colors.black.withOpacity(0.6)
+                      : Colors.white.withOpacity(0.8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 16,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: List.generate(_navItems.length, (index) {
+                    final item = _navItems[index];
+                    final selected = index == selectedIndex;
+                    return _NavButton(
+                      icon: item.icon,
+                      label: item.label,
+                      selected: selected,
+                      isCompact: isCompact,
+                      onTap: () => onItemSelected(index),
+                    );
+                  }),
+                ),
+              ),
             ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.headphones),
-              label: 'Atendimento',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.notifications),
-              label: 'Alerta',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.inventory),
-              label: 'Estoque',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.feedback),
-              label: 'Feedbacks',
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
+
+class _NavButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool isCompact;
+  final VoidCallback onTap;
+
+  const _NavButton({
+    Key? key,
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.isCompact,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final baseSize = isCompact ? 20.0 : 24.0;
+    final selSize = isCompact ? 24.0 : 28.0;
+    final horizPad = isCompact ? 8.0 : 12.0;
+    final vertPad = isCompact ? 4.0 : 8.0;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        splashColor: theme.colorScheme.primary.withOpacity(0.2),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: EdgeInsets.symmetric(
+            horizontal: horizPad,
+            vertical: vertPad,
+          ),
+          decoration: BoxDecoration(
+            color: selected
+                ? theme.colorScheme.primary.withOpacity(0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: selected ? selSize : baseSize,
+                color: selected ? theme.colorScheme.primary : theme.iconTheme.color,
+              ),
+              if (selected && !isCompact) ...[
+                const SizedBox(width: 8),
+                Text(
+                  label,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem {
+  final IconData icon;
+  final String label;
+  const _NavItem({required this.icon, required this.label});
 }

@@ -14,14 +14,9 @@ class AtendimentoPage extends StatefulWidget {
 }
 
 class _AtendimentoPageState extends State<AtendimentoPage> {
-  /// Guarda de qual coluna veio o drag
   EstadoPedido? colunaDragSource;
-
-  /// Controle de busca por coluna
   final Map<EstadoPedido, bool> isSearching = {};
   final Map<EstadoPedido, TextEditingController> searchControllers = {};
-
-  /// Mapa de cores para cada estado
   final Map<EstadoPedido, Color> headerColor = {
     EstadoPedido.emAberto: Colors.deepPurpleAccent,
     EstadoPedido.emAndamento: Colors.tealAccent,
@@ -50,73 +45,71 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final isMobile = MediaQuery.of(context).size.width < 900;
+    final width = MediaQuery.of(context).size.width;
+    final isMobile = width < 900;
 
-    // Obtém pedidos do provider e agrupa por estado
     final pedidos = context.watch<PedidoModel>().pedidos;
-    final Map<EstadoPedido, List<Pedido>> cardsPorColuna = {
+    final cardsPorColuna = {
       for (var estado in EstadoPedido.values)
         estado: pedidos.where((p) => p.estado == estado).toList(),
     };
 
     return Scaffold(
       backgroundColor: cs.surface,
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          if (isMobile) {
-            return _buildMobileView(cs, cardsPorColuna);
-          } else {
-            return _buildDesktopView(cs, cardsPorColuna);
-          }
-        },
-      ),
+      body: isMobile
+          ? _buildMobileListView(cs, pedidos)
+          : _buildDesktopKanban(cs, cardsPorColuna),
     );
   }
 
-  Widget _buildMobileView(
-      ColorScheme cs,
-      Map<EstadoPedido, List<Pedido>> cardsPorColuna,
-      ) {
-    final estados = cardsPorColuna.keys.toList();
-    return DefaultTabController(
-      length: estados.length,
-      child: Scaffold(
-        backgroundColor: cs.surface,
-        appBar: AppBar(
-          title: TabBar(
-            isScrollable: true,
-            tabs: estados.map((e) => Tab(text: e.label)).toList(),
+  // Mobile: simple WhatsApp-style list
+  Widget _buildMobileListView(ColorScheme cs, List<Pedido> pedidos) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: pedidos.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (context, i) {
+        final pedido = pedidos[i];
+        return GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 300),
+              pageBuilder: (_, __, ___) => ChatPage(
+                nome: pedido.nomeCliente,
+                numero: pedido.telefoneCliente,
+                fotoUrl: pedido.fotoUrl ?? '',
+              ),
+              transitionsBuilder: (_, anim, __, child) =>
+                  FadeTransition(opacity: anim, child: child),
+            ),
           ),
-        ),
-        body: TabBarView(
-          children: estados.map((e) {
-            return Padding(
-              padding: const EdgeInsets.all(12),
-              child: _buildColumnContent(cs, e, cardsPorColuna[e]!),
-            );
-          }).toList(),
-        ),
-      ),
+          child: ContatoCard(
+            nome: pedido.nomeCliente,
+            numero: pedido.telefoneCliente,
+            fotoUrl: pedido.fotoUrl ?? '',
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildDesktopView(
+  // Desktop: fixed-width Kanban with horizontal scroll
+  Widget _buildDesktopKanban(
       ColorScheme cs,
       Map<EstadoPedido, List<Pedido>> cardsPorColuna,
       ) {
-    return Padding(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.all(24),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: cardsPorColuna.entries.map((entry) {
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: _buildColumnContent(
-                cs,
-                entry.key,
-                entry.value,
-              ),
+          return Container(
+            width: 280, // fixed column width
+            margin: const EdgeInsets.symmetric(horizontal: 12),
+            child: _buildColumnContent(
+              cs,
+              entry.key,
+              entry.value,
             ),
           );
         }).toList(),
@@ -131,7 +124,6 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       ) {
     final searching = isSearching[estado]!;
     final text = searchControllers[estado]!.text.toLowerCase();
-    // filtra por nomeCliente ou telefoneCliente
     final listaFiltrada = listaOriginal.where((p) {
       return p.nomeCliente.toLowerCase().contains(text) ||
           p.telefoneCliente.contains(text);
@@ -140,7 +132,6 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // cabeçalho com título e botão de busca
         Container(
           decoration: BoxDecoration(
             color: headerColor[estado]!.withOpacity(0.1),
@@ -172,7 +163,6 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           ),
         ),
         const SizedBox(height: 10),
-        // área de arrastar/soltar
         Expanded(
           child: DragTarget<Pedido>(
             onWillAccept: (_) => true,

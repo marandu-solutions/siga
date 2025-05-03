@@ -82,8 +82,8 @@ class _MainLayoutState extends State<MainLayout> {
     PedidosPage(),
     AtendimentoPage(),
     AlertaPage(),
-    FeedbacksPage(),
     EstoquePage(),
+    FeedbacksPage(),
   ];
 
   @override

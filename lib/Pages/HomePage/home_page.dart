@@ -21,8 +21,8 @@ class _HomePageState extends State<HomePage> {
     PedidosPage(),
     AtendimentoPage(),
     AlertaPage(),
-    FeedbacksPage(),
     EstoquePage(),
+    FeedbacksPage(),
   ];
 
   @override
