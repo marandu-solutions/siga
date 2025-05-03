@@ -1,3 +1,4 @@
+// lib/Pages/PedidosPage/pedidos_page.dart
 import 'dart:ui'; // Para PointerDeviceKind e PointerScrollEvent
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -17,8 +18,6 @@ class PedidosPage extends StatefulWidget {
 
 class _PedidosPageState extends State<PedidosPage> {
   bool _isKanbanView = false;
-
-  // Controlador para scroll horizontal no kanban
   final ScrollController _kanbanScrollController = ScrollController();
 
   Map<EstadoPedido, Color> _getCorColuna(BuildContext context) => {
@@ -41,8 +40,7 @@ class _PedidosPageState extends State<PedidosPage> {
     final pedidosModel = context.watch<PedidoModel>();
     final pedidos = pedidosModel.pedidos;
     final screenWidth = MediaQuery.of(context).size.width;
-    final sidebarWidth = 250.0;
-    final availableWidth = screenWidth - sidebarWidth;
+    final availableWidth = screenWidth; // sem sidebar
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -59,8 +57,6 @@ class _PedidosPageState extends State<PedidosPage> {
             ),
           ),
         ),
-        centerTitle: false,
-        automaticallyImplyLeading: false,
         actions: [
           if (availableWidth >= 600) ...[
             ViewToggleButton(
@@ -72,13 +68,20 @@ class _PedidosPageState extends State<PedidosPage> {
           ],
         ],
       ),
-      body: LayoutBuilder(
+      body: pedidos.isEmpty
+          ? Center(
+        child: Text(
+          'Nenhum pedido cadastrado',
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: theme.colorScheme.onSurfaceVariant,
+          ),
+        ),
+      )
+          : LayoutBuilder(
         builder: (context, constraints) {
           if (availableWidth < 600) {
-            // Mobile: lista simples sem drag and drop
             return _buildMobilePedidosList(pedidos);
           }
-          // Desktop: habilita kanban (com drag and drop) ou tabela
           return _isKanbanView
               ? _buildDesktopKanban(pedidos)
               : _buildTabela(pedidos);
@@ -86,7 +89,6 @@ class _PedidosPageState extends State<PedidosPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Exemplo de novo pedido para teste
           final novoPedido = Pedido(
             id: DateTime.now().millisecondsSinceEpoch,
             numeroPedido: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -178,7 +180,11 @@ class _PedidosPageState extends State<PedidosPage> {
                         color: corFundo.withOpacity(0.9),
                         borderRadius: BorderRadius.circular(16),
                         border: candidate.isNotEmpty
-                            ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                            ? Border.all(
+                          color:
+                          Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        )
                             : null,
                         boxShadow: [
                           BoxShadow(
@@ -193,7 +199,8 @@ class _PedidosPageState extends State<PedidosPage> {
                         children: [
                           Container(
                             width: double.infinity,
-                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 12, horizontal: 16),
                             decoration: BoxDecoration(
                               color: Theme.of(context).colorScheme.surface,
                               borderRadius: const BorderRadius.only(
@@ -203,8 +210,13 @@ class _PedidosPageState extends State<PedidosPage> {
                             ),
                             child: Text(
                               estado.label,
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurface,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .onSurface,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -221,8 +233,10 @@ class _PedidosPageState extends State<PedidosPage> {
                                 : ListView.builder(
                               itemCount: lista.length,
                               itemBuilder: (ctx, i) => Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                                child: _buildPedidoCard(lista[i], draggable: true),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                child: _buildPedidoCard(
+                                    lista[i], draggable: true),
                               ),
                             ),
                           ),
@@ -244,7 +258,8 @@ class _PedidosPageState extends State<PedidosPage> {
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       child: Tabela(
         pedidos: pedidos,
-        onEstadoChanged: (p) => context.read<PedidoModel>().atualizarPedido(p.id, p),
+        onEstadoChanged: (p) =>
+            context.read<PedidoModel>().atualizarPedido(p.id, p),
         onDelete: (p) => context.read<PedidoModel>().removerPedido(p.id),
         onEdit: (p) => Navigator.push(
           context,
@@ -264,25 +279,30 @@ class _PedidosPageState extends State<PedidosPage> {
       child: InkWell(
         onTap: () => _openDetails(pedido),
         child: Padding(
-          padding: const EdgeInsets.all(8), // Reduzido o padding
+          padding: const EdgeInsets.all(8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Pedido #${pedido.numeroPedido}',
-                  style: theme.textTheme.titleMedium?.copyWith( // Tamanho da fonte reduzido
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface,
-                  )),
-              const SizedBox(height: 4), // Menor espaçamento
-              Text('Cliente: ${pedido.nomeCliente}', style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
-              Text('Serviço: ${pedido.servico}', style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
-              Text('Status: ${pedido.estado.label}', style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
-              const SizedBox(height: 8), // Menor espaçamento
+              Text(
+                'Pedido #${pedido.numeroPedido}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text('Cliente: ${pedido.nomeCliente}',
+                  style: theme.textTheme.bodySmall),
+              Text('Serviço: ${pedido.servico}',
+                  style: theme.textTheme.bodySmall),
+              Text('Status: ${pedido.estado.label}',
+                  style: theme.textTheme.bodySmall),
+              const SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Total: R\$ ${pedido.valorTotal.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
+                      style: theme.textTheme.bodySmall),
                   _buildActionButtons(pedido),
                 ],
               ),
@@ -292,26 +312,18 @@ class _PedidosPageState extends State<PedidosPage> {
       ),
     );
 
-    if (!draggable) {
-      return cardContent;
-    } else {
-      return Draggable<Pedido>(
-        data: pedido,
-        feedback: Material(
-          color: Colors.transparent,
-          elevation: 6,
-          child: Opacity(
-            opacity: 0.85,
-            child: cardContent,
-          ),
-        ),
-        childWhenDragging: Opacity(
-          opacity: 0.3,
-          child: cardContent,
-        ),
-        child: cardContent,
-      );
-    }
+    if (!draggable) return cardContent;
+
+    return Draggable<Pedido>(
+      data: pedido,
+      feedback: Material(
+        color: Colors.transparent,
+        elevation: 6,
+        child: Opacity(opacity: 0.85, child: cardContent),
+      ),
+      childWhenDragging: Opacity(opacity: 0.3, child: cardContent),
+      child: cardContent,
+    );
   }
 
   Widget _buildActionButtons(Pedido pedido) {
@@ -323,11 +335,13 @@ class _PedidosPageState extends State<PedidosPage> {
           icon: Icon(LucideIcons.edit, size: 18, color: theme.iconTheme.color),
           onPressed: () => Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: pedido)),
+            MaterialPageRoute(
+                builder: (_) => PedidoDetailsPage(pedido: pedido)),
           ),
         ),
         IconButton(
-          icon: Icon(LucideIcons.trash, size: 18, color: theme.iconTheme.color),
+          icon:
+          Icon(LucideIcons.trash, size: 18, color: theme.iconTheme.color),
           onPressed: () {
             model.removerPedido(pedido.id);
           },
@@ -388,10 +402,10 @@ class _ToggleIcon extends StatelessWidget {
   final VoidCallback onTap;
 
   const _ToggleIcon({
+    super.key,
     required this.icon,
     required this.selected,
     required this.onTap,
-    super.key,
   });
 
   @override
@@ -403,13 +417,17 @@ class _ToggleIcon extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primaryContainer : Colors.transparent,
+          color: selected
+              ? theme.colorScheme.primaryContainer
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(24),
         ),
         child: Icon(
           icon,
           size: 20,
-          color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
+          color: selected
+              ? theme.colorScheme.onPrimaryContainer
+              : theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

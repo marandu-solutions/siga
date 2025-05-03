@@ -27,7 +27,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     EstadoPedido.cancelado: Colors.redAccent,
   };
 
-  // NOVO: controlador para scroll horizontal
+  // Controlador para scroll horizontal no desktop
   final ScrollController _scrollController = ScrollController();
 
   @override
@@ -44,7 +44,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     for (var ctrl in searchControllers.values) {
       ctrl.dispose();
     }
-    _scrollController.dispose(); // DESCARTA o controller
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -62,14 +62,27 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
 
     return Scaffold(
       backgroundColor: cs.surface,
+      appBar: isMobile ? AppBar(title: const Text('Atendimento')) : null,
       body: isMobile
-          ? _buildMobileListView(cs, pedidos)
+          ? _buildMobileContent(cs, pedidos)
           : _buildDesktopKanban(cs, cardsPorColuna),
     );
   }
 
-  // Mobile: simple WhatsApp-style list
-  Widget _buildMobileListView(ColorScheme cs, List<Pedido> pedidos) {
+  /// Mobile: lista ou mensagem centralizada ocupando todo o espaço
+  Widget _buildMobileContent(ColorScheme cs, List<Pedido> pedidos) {
+    if (pedidos.isEmpty) {
+      return Center(
+        child: Text(
+          'Nenhum atendimento iniciado',
+          style: TextStyle(
+            fontSize: 18,
+            color: cs.onSurfaceVariant,
+          ),
+        ),
+      );
+    }
+
     return ListView.separated(
       padding: const EdgeInsets.all(12),
       itemCount: pedidos.length,
@@ -99,7 +112,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  // Desktop: Kanban com scroll horizontal por touch, mouse drag e roda-pé de mouse
+  /// Desktop: Kanban com scroll horizontal
   Widget _buildDesktopKanban(
       ColorScheme cs,
       Map<EstadoPedido, List<Pedido>> cardsPorColuna,
@@ -107,8 +120,8 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     return Listener(
       onPointerSignal: (pointerSignal) {
         if (pointerSignal is PointerScrollEvent) {
-          // converte scroll vertical da roda em scroll horizontal
-          final newOffset = _scrollController.offset + pointerSignal.scrollDelta.dy;
+          final newOffset =
+              _scrollController.offset + pointerSignal.scrollDelta.dy;
           final clamped = newOffset.clamp(
             _scrollController.position.minScrollExtent,
             _scrollController.position.maxScrollExtent,
@@ -120,7 +133,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
         behavior: ScrollConfiguration.of(context).copyWith(
           dragDevices: {
             PointerDeviceKind.touch,
-            PointerDeviceKind.mouse, // permite drag por mouse
+            PointerDeviceKind.mouse,
           },
         ),
         child: SingleChildScrollView(
@@ -130,7 +143,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           child: Row(
             children: cardsPorColuna.entries.map((entry) {
               return Container(
-                width: 280, // largura fixa da coluna
+                width: 280,
                 margin: const EdgeInsets.symmetric(horizontal: 12),
                 child: _buildColumnContent(
                   cs,
@@ -145,6 +158,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
+  /// Coluna individual do Kanban
   Widget _buildColumnContent(
       ColorScheme cs,
       EstadoPedido estado,
