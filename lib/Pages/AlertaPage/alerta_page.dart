@@ -58,8 +58,12 @@ class _AlertaPageState extends State<AlertaPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    // Filtra agora os pedidos que estão emAberto, emAndamento ou entregaRetirada
     final pedidos = context.watch<PedidoModel>().pedidos
-        .where((p) => p.estado == EstadoPedido.emAberto) // filtrando atrasados
+        .where((p) =>
+    p.estado == EstadoPedido.emAberto ||
+        p.estado == EstadoPedido.emAndamento ||
+        p.estado == EstadoPedido.entregaRetirada)
         .toList();
 
     return Scaffold(
@@ -126,7 +130,7 @@ class _AlertaPageState extends State<AlertaPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Pedidos com Atraso',
+                    'Pedidos em Aberto, Em Andamento ou Entrega/Retirada',
                     style: Theme.of(context)
                         .textTheme
                         .titleMedium

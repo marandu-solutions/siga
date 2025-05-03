@@ -1,9 +1,9 @@
-// lib/Pages/pedidos_page.dart
+import 'dart:ui'; // Para PointerDeviceKind e PointerScrollEvent
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../Model/pedidos.dart';
-import 'Components/kanban.dart';
 import 'Components/pedido_details_page.dart';
 import 'Components/tabela.dart';
 import '../../Model/pedidos_model.dart';
@@ -18,6 +18,9 @@ class PedidosPage extends StatefulWidget {
 class _PedidosPageState extends State<PedidosPage> {
   bool _isKanbanView = false;
 
+  // Controlador para scroll horizontal no kanban
+  final ScrollController _kanbanScrollController = ScrollController();
+
   Map<EstadoPedido, Color> _getCorColuna(BuildContext context) => {
     EstadoPedido.emAberto: Theme.of(context).colorScheme.primaryContainer,
     EstadoPedido.emAndamento: Colors.green.shade700,
@@ -25,6 +28,12 @@ class _PedidosPageState extends State<PedidosPage> {
     EstadoPedido.finalizado: Colors.blueGrey.shade300,
     EstadoPedido.cancelado: Colors.red.shade600,
   };
+
+  @override
+  void dispose() {
+    _kanbanScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,14 +75,18 @@ class _PedidosPageState extends State<PedidosPage> {
       body: LayoutBuilder(
         builder: (context, constraints) {
           if (availableWidth < 600) {
-            return _buildPedidosList(pedidos);
+            // Mobile: lista simples sem drag and drop
+            return _buildMobilePedidosList(pedidos);
           }
-          return _isKanbanView ? _buildKanban(pedidos) : _buildTabela(pedidos);
+          // Desktop: habilita kanban (com drag and drop) ou tabela
+          return _isKanbanView
+              ? _buildDesktopKanban(pedidos)
+              : _buildTabela(pedidos);
         },
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Exemplo de pedido de teste para validar CRUD
+          // Exemplo de novo pedido para teste
           final novoPedido = Pedido(
             id: DateTime.now().millisecondsSinceEpoch,
             numeroPedido: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -96,22 +109,154 @@ class _PedidosPageState extends State<PedidosPage> {
     );
   }
 
-  Widget _buildPedidosList(List<Pedido> pedidos) {
+  void _onPedidoEstadoChanged(Pedido pedidoAtualizado) {
+    context.read<PedidoModel>().atualizarPedido(
+      pedidoAtualizado.id,
+      pedidoAtualizado,
+    );
+  }
+
+  Widget _buildMobilePedidosList(List<Pedido> pedidos) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
       child: ListView.builder(
         itemCount: pedidos.length,
         itemBuilder: (context, index) {
           final pedido = pedidos[index];
-          return _buildPedidoCard(pedido);
+          return _buildPedidoCard(pedido, draggable: false);
         },
       ),
     );
   }
 
-  Widget _buildPedidoCard(Pedido pedido) {
+  Widget _buildDesktopKanban(List<Pedido> pedidos) {
+    final pedidosPorEstado = {
+      for (var estado in EstadoPedido.values)
+        estado: pedidos.where((p) => p.estado == estado).toList(),
+    };
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      child: Listener(
+        onPointerSignal: (ps) {
+          if (ps is PointerScrollEvent) {
+            final delta = ps.scrollDelta.dy;
+            final newOffset = _kanbanScrollController.offset + delta;
+            final clamped = newOffset.clamp(
+              _kanbanScrollController.position.minScrollExtent,
+              _kanbanScrollController.position.maxScrollExtent,
+            );
+            _kanbanScrollController.jumpTo(clamped);
+          }
+        },
+        child: ScrollConfiguration(
+          behavior: ScrollConfiguration.of(context).copyWith(
+            dragDevices: {
+              PointerDeviceKind.touch,
+              PointerDeviceKind.mouse,
+            },
+          ),
+          child: SingleChildScrollView(
+            controller: _kanbanScrollController,
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: EstadoPedido.values.map((estado) {
+                final lista = pedidosPorEstado[estado]!;
+                final corFundo = _getCorColuna(context)[estado]!;
+
+                return DragTarget<Pedido>(
+                  onWillAccept: (p) => p != null && p.estado != estado,
+                  onAccept: (p) {
+                    _onPedidoEstadoChanged(p.copyWith(estado: estado));
+                  },
+                  builder: (context, candidate, rejected) {
+                    return Container(
+                      width: 280,
+                      margin: const EdgeInsets.only(right: 20),
+                      decoration: BoxDecoration(
+                        color: corFundo.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                        border: candidate.isNotEmpty
+                            ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Theme.of(context).colorScheme.shadow,
+                            blurRadius: 6,
+                            offset: const Offset(2, 4),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                            decoration: BoxDecoration(
+                              color: Theme.of(context).colorScheme.surface,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                            ),
+                            child: Text(
+                              estado.label,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: lista.isEmpty
+                                ? const Center(
+                              child: Padding(
+                                padding: EdgeInsets.all(12),
+                                child: Text('Nenhum pedido'),
+                              ),
+                            )
+                                : ListView.builder(
+                              itemCount: lista.length,
+                              itemBuilder: (ctx, i) => Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                child: _buildPedidoCard(lista[i], draggable: true),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTabela(List<Pedido> pedidos) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+      child: Tabela(
+        pedidos: pedidos,
+        onEstadoChanged: (p) => context.read<PedidoModel>().atualizarPedido(p.id, p),
+        onDelete: (p) => context.read<PedidoModel>().removerPedido(p.id),
+        onEdit: (p) => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPedidoCard(Pedido pedido, {required bool draggable}) {
     final theme = Theme.of(context);
-    return Card(
+    final cardContent = Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -119,25 +264,25 @@ class _PedidosPageState extends State<PedidosPage> {
       child: InkWell(
         onTap: () => _openDetails(pedido),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(8), // Reduzido o padding
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Pedido #${pedido.numeroPedido}',
-                  style: theme.textTheme.titleLarge?.copyWith(
+                  style: theme.textTheme.titleMedium?.copyWith( // Tamanho da fonte reduzido
                     fontWeight: FontWeight.bold,
                     color: theme.colorScheme.onSurface,
                   )),
-              const SizedBox(height: 8),
-              Text('Cliente: ${pedido.nomeCliente}', style: theme.textTheme.bodyMedium),
-              Text('Serviço: ${pedido.servico}', style: theme.textTheme.bodyMedium),
-              Text('Status: ${pedido.estado.label}', style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4), // Menor espaçamento
+              Text('Cliente: ${pedido.nomeCliente}', style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
+              Text('Serviço: ${pedido.servico}', style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
+              Text('Status: ${pedido.estado.label}', style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
+              const SizedBox(height: 8), // Menor espaçamento
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Total: R\$ ${pedido.valorTotal.toStringAsFixed(2)}',
-                      style: theme.textTheme.bodyMedium),
+                      style: theme.textTheme.bodySmall), // Tamanho da fonte reduzido
                   _buildActionButtons(pedido),
                 ],
               ),
@@ -146,6 +291,27 @@ class _PedidosPageState extends State<PedidosPage> {
         ),
       ),
     );
+
+    if (!draggable) {
+      return cardContent;
+    } else {
+      return Draggable<Pedido>(
+        data: pedido,
+        feedback: Material(
+          color: Colors.transparent,
+          elevation: 6,
+          child: Opacity(
+            opacity: 0.85,
+            child: cardContent,
+          ),
+        ),
+        childWhenDragging: Opacity(
+          opacity: 0.3,
+          child: cardContent,
+        ),
+        child: cardContent,
+      );
+    }
   }
 
   Widget _buildActionButtons(Pedido pedido) {
@@ -167,31 +333,6 @@ class _PedidosPageState extends State<PedidosPage> {
           },
         ),
       ],
-    );
-  }
-
-  Widget _buildTabela(List<Pedido> pedidos) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-      child: Tabela(
-        pedidos: pedidos,
-        onEstadoChanged: (p) => context.read<PedidoModel>().atualizarPedido(p.id, p),
-        onDelete: (p) => context.read<PedidoModel>().removerPedido(p.id),
-        onEdit: (p) => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKanban(List<Pedido> pedidos) {
-    return Kanban(
-      pedidos: pedidos,
-      corColuna: _getCorColuna(context),
-      onPedidoEstadoChanged: (p) => context.read<PedidoModel>().atualizarPedido(p.id, p),
-      onDelete: (p) => context.read<PedidoModel>().removerPedido(p.id),
-      onTapDetails: _openDetails,
     );
   }
 
@@ -268,9 +409,7 @@ class _ToggleIcon extends StatelessWidget {
         child: Icon(
           icon,
           size: 20,
-          color: selected
-              ? theme.colorScheme.onPrimaryContainer
-              : theme.colorScheme.onSurfaceVariant,
+          color: selected ? theme.colorScheme.onPrimaryContainer : theme.colorScheme.onSurfaceVariant,
         ),
       ),
     );

@@ -1,10 +1,12 @@
 // lib/Pages/AtendimentoPage/atendimento_page.dart
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:siga/Pages/AtendimentoPage/Components/contato_card.dart';
 import 'package:siga/Pages/AtendimentoPage/Components/chat_page.dart';
 import 'package:siga/Model/pedidos.dart';
 import 'package:siga/Model/pedidos_model.dart';
+import 'dart:ui'; // Para PointerDeviceKind
 
 class AtendimentoPage extends StatefulWidget {
   const AtendimentoPage({Key? key}) : super(key: key);
@@ -25,6 +27,9 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     EstadoPedido.cancelado: Colors.redAccent,
   };
 
+  // NOVO: controlador para scroll horizontal
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
@@ -39,6 +44,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     for (var ctrl in searchControllers.values) {
       ctrl.dispose();
     }
+    _scrollController.dispose(); // DESCARTA o controller
     super.dispose();
   }
 
@@ -93,26 +99,48 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  // Desktop: fixed-width Kanban with horizontal scroll
+  // Desktop: Kanban com scroll horizontal por touch, mouse drag e roda-pé de mouse
   Widget _buildDesktopKanban(
       ColorScheme cs,
       Map<EstadoPedido, List<Pedido>> cardsPorColuna,
       ) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.all(24),
-      child: Row(
-        children: cardsPorColuna.entries.map((entry) {
-          return Container(
-            width: 280, // fixed column width
-            margin: const EdgeInsets.symmetric(horizontal: 12),
-            child: _buildColumnContent(
-              cs,
-              entry.key,
-              entry.value,
-            ),
+    return Listener(
+      onPointerSignal: (pointerSignal) {
+        if (pointerSignal is PointerScrollEvent) {
+          // converte scroll vertical da roda em scroll horizontal
+          final newOffset = _scrollController.offset + pointerSignal.scrollDelta.dy;
+          final clamped = newOffset.clamp(
+            _scrollController.position.minScrollExtent,
+            _scrollController.position.maxScrollExtent,
           );
-        }).toList(),
+          _scrollController.jumpTo(clamped);
+        }
+      },
+      child: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(
+          dragDevices: {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.mouse, // permite drag por mouse
+          },
+        ),
+        child: SingleChildScrollView(
+          controller: _scrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: cardsPorColuna.entries.map((entry) {
+              return Container(
+                width: 280, // largura fixa da coluna
+                margin: const EdgeInsets.symmetric(horizontal: 12),
+                child: _buildColumnContent(
+                  cs,
+                  entry.key,
+                  entry.value,
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }

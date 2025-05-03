@@ -1,4 +1,3 @@
-// lib/Pages/Components/pedido_details_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -67,10 +66,6 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
   late TextEditingController _telefoneController;
   late TextEditingController _servicoController;
   late TextEditingController _quantidadeController;
-  late TextEditingController _tamanhoController;
-  late TextEditingController _tipoMalhaController;
-  late TextEditingController _corController;
-  late TextEditingController _observacoesController;
   late TextEditingController _valorController;
   late EstadoPedido _estado;
 
@@ -84,10 +79,6 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     _telefoneController = TextEditingController(text: _formatInitial(tel));
     _servicoController = TextEditingController(text: p.servico);
     _quantidadeController = TextEditingController(text: p.quantidade.toString());
-    _tamanhoController = TextEditingController(text: p.tamanho);
-    _tipoMalhaController = TextEditingController(text: p.tipoMalha);
-    _corController = TextEditingController(text: p.cor);
-    _observacoesController = TextEditingController(text: p.observacoes);
     _valorController = TextEditingController(text: p.valorTotal.toString());
     _estado = p.estado;
   }
@@ -118,10 +109,6 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     _telefoneController.dispose();
     _servicoController.dispose();
     _quantidadeController.dispose();
-    _tamanhoController.dispose();
-    _tipoMalhaController.dispose();
-    _corController.dispose();
-    _observacoesController.dispose();
     _valorController.dispose();
     super.dispose();
   }
@@ -134,10 +121,6 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
       telefoneCliente: digits,
       servico: _servicoController.text,
       quantidade: int.tryParse(_quantidadeController.text) ?? widget.pedido.quantidade,
-      tamanho: _tamanhoController.text,
-      tipoMalha: _tipoMalhaController.text,
-      cor: _corController.text,
-      observacoes: _observacoesController.text,
       valorTotal: double.tryParse(_valorController.text) ?? widget.pedido.valorTotal,
       estado: _estado,
     );
@@ -191,44 +174,25 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: TextField(
-                    controller: _tamanhoController,
-                    decoration: InputDecoration(labelText: 'Tamanho'),
+                    controller: _valorController,
+                    decoration: InputDecoration(labelText: 'Valor Total'),
+                    keyboardType: TextInputType.numberWithOptions(decimal: true),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _tipoMalhaController,
-              decoration: InputDecoration(labelText: 'Tipo Malha'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _corController,
-              decoration: InputDecoration(labelText: 'Cor'),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _valorController,
-              decoration: InputDecoration(labelText: 'Valor Total'),
-              keyboardType: TextInputType.numberWithOptions(decimal: true),
-            ),
-            const SizedBox(height: 12),
             DropdownButtonFormField<EstadoPedido>(
               value: _estado,
               decoration: InputDecoration(labelText: 'Estado'),
-              items: EstadoPedido.values.map((e) {
-                return DropdownMenuItem(value: e, child: Text(e.label));
-              }).toList(),
-              onChanged: (v) { if (v != null) setState(() => _estado = v); },
+              items: EstadoPedido.values
+                  .map((e) => DropdownMenuItem(value: e, child: Text(e.label)))
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) setState(() => _estado = v);
+              },
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _observacoesController,
-              decoration: InputDecoration(labelText: 'Observações'),
-              maxLines: null,
-            ),
-            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _save,
               child: Text('Salvar Alterações'),
