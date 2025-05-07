@@ -58,6 +58,7 @@ class _AlertaPageState extends State<AlertaPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final themes = Theme.of(context);
 
     final pedidos = context.watch<PedidoModel>().pedidos.where((p) {
       return p.estado == EstadoPedido.emAberto ||
@@ -66,8 +67,9 @@ class _AlertaPageState extends State<AlertaPage> {
     }).toList();
 
     return Scaffold(
-      backgroundColor: cs.background,
+      backgroundColor: themes.appBarTheme.backgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Alerta de Pedidos'),
         actions: [
           IconButton(

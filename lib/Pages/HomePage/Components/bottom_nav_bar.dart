@@ -2,12 +2,6 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
-import '../../AlertaPage/alerta_page.dart';
-import '../../AtendimentoPage/atendimento_page.dart';
-import '../../EstoquePage/estoque_page.dart';
-import '../../FeedbackPage/feedback_page.dart';
-import '../../PedidosPage/pedidos_page.dart';
-
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -28,14 +22,18 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme    = Theme.of(context);
-    final isDark   = theme.brightness == Brightness.dark;
-    final width    = MediaQuery.of(context).size.width;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final width = MediaQuery.of(context).size.width;
     final isCompact = width < 350;
 
     final hPad = isCompact ? 6.0 : 10.0;
-    final vPad = isCompact ? 2.0 : 6.0;
-    final navH  = isCompact ? 56.0 : 72.0;
+    final vPad = isCompact ? 14.0 : 18.0;
+    final navH = isCompact ? 56.0 : 72.0;
+
+    // Use theme surfaceVariant for background blur container
+    final containerColor = theme.colorScheme.surfaceVariant.withOpacity(isDark ? 0.6 : 0.3);
+    final shadowColor = theme.colorScheme.shadow.withOpacity(0.1);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
@@ -46,21 +44,19 @@ class BottomNavBar extends StatelessWidget {
           child: Container(
             height: navH,
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.black.withOpacity(0.6)
-                  : Colors.white.withOpacity(0.8),
+              color: containerColor,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: shadowColor,
                   blurRadius: 16,
-                  offset: Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(_navItems.length, (index) {
-                final item     = _navItems[index];
+                final item = _navItems[index];
                 final selected = index == selectedIndex;
                 return _NavButton(
                   icon: item.icon,
@@ -102,22 +98,21 @@ class _NavButton extends StatelessWidget {
     final horizPad = isCompact ? 6.0 : 10.0;
     final vertPad = isCompact ? 2.0 : 6.0;
 
+    // Selected background uses primaryContainer
+    final selectedBg = theme.colorScheme.primaryContainer.withOpacity(0.2);
+    final splashClr = theme.colorScheme.primary.withOpacity(0.2);
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
-        splashColor: theme.colorScheme.primary.withOpacity(0.2),
+        splashColor: splashClr,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.symmetric(
-            horizontal: horizPad,
-            vertical: vertPad,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: horizPad, vertical: vertPad),
           decoration: BoxDecoration(
-            color: selected
-                ? theme.colorScheme.primary.withOpacity(0.15)
-                : Colors.transparent,
+            color: selected ? selectedBg : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
           ),
           child: Row(
@@ -125,7 +120,9 @@ class _NavButton extends StatelessWidget {
               Icon(
                 icon,
                 size: selected ? selSize : baseSize,
-                color: selected ? theme.colorScheme.primary : theme.iconTheme.color,
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.iconTheme.color,
               ),
               if (selected && !isCompact) ...[
                 const SizedBox(width: 8),

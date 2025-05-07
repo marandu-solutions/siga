@@ -21,10 +21,10 @@ class _PedidosPageState extends State<PedidosPage> {
   final ScrollController _kanbanScrollController = ScrollController();
 
   Map<EstadoPedido, Color> _getCorColuna(BuildContext context) => {
-    EstadoPedido.emAberto: Theme.of(context).colorScheme.primaryContainer,
-    EstadoPedido.emAndamento: Colors.green.shade700,
-    EstadoPedido.entregaRetirada: Colors.orange.shade600,
-    EstadoPedido.finalizado: Colors.blueGrey.shade300,
+    EstadoPedido.emAberto: Colors.purple.shade300,
+    EstadoPedido.emAndamento: Colors.amber.shade400,
+    EstadoPedido.entregaRetirada: Colors.orange.shade500,
+    EstadoPedido.finalizado: Colors.green.shade600,
     EstadoPedido.cancelado: Colors.red.shade600,
   };
 
@@ -43,8 +43,8 @@ class _PedidosPageState extends State<PedidosPage> {
     final availableWidth = screenWidth; // sem sidebar
 
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: theme.appBarTheme.backgroundColor,
         elevation: 1,
         title: Padding(
@@ -375,7 +375,7 @@ class ViewToggleButton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
+        color: theme.colorScheme.onPrimary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(

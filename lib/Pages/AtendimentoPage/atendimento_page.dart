@@ -20,12 +20,17 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   final Map<EstadoPedido, bool> isSearching = {};
   final Map<EstadoPedido, TextEditingController> searchControllers = {};
   final Map<EstadoPedido, Color> headerColor = {
-    EstadoPedido.emAberto: Colors.deepPurpleAccent,
-    EstadoPedido.emAndamento: Colors.tealAccent,
-    EstadoPedido.entregaRetirada: Colors.amberAccent,
-    EstadoPedido.finalizado: Colors.greenAccent,
-    EstadoPedido.cancelado: Colors.redAccent,
+    EstadoPedido.emAberto: Colors.purple.shade500,
+    EstadoPedido.emAndamento: Colors.amber.shade600,
+    EstadoPedido.entregaRetirada: Colors.orange.shade700,
+    EstadoPedido.finalizado: Colors.green.shade700,
+    EstadoPedido.cancelado: Colors.red.shade700,
   };
+
+  // Mobile search e filtro
+  bool isMobileSearching = false;
+  late TextEditingController mobileSearchController;
+  EstadoPedido? mobileFilter;
 
   // Controlador para scroll horizontal no desktop
   final ScrollController _scrollController = ScrollController();
@@ -37,6 +42,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       isSearching[estado] = false;
       searchControllers[estado] = TextEditingController();
     }
+    mobileSearchController = TextEditingController();
   }
 
   @override
@@ -44,6 +50,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     for (var ctrl in searchControllers.values) {
       ctrl.dispose();
     }
+    mobileSearchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -51,6 +58,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final themes = Theme.of(context);
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 900;
 
@@ -61,54 +69,125 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     };
 
     return Scaffold(
-      backgroundColor: cs.surface,
-      appBar: isMobile ? AppBar(title: const Text('Atendimento')) : null,
+      backgroundColor: themes.appBarTheme.backgroundColor,
+      appBar: isMobile
+          ? AppBar(
+        title: const Text('Atendimento'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () => setState(() {
+              isMobileSearching = !isMobileSearching;
+              if (!isMobileSearching) {
+                mobileSearchController.clear();
+              }
+            }),
+          ),
+          PopupMenuButton<EstadoPedido?>(
+            icon: const Icon(Icons.filter_list),
+            onSelected: (novo) => setState(() {
+              mobileFilter = novo;
+            }),
+            itemBuilder: (_) {
+              return [
+                const PopupMenuItem<EstadoPedido?>(
+                  value: null,
+                  child: Text('Todos'),
+                ),
+                ...EstadoPedido.values.map((e) => PopupMenuItem(
+                  value: e,
+                  child: Text(e.label),
+                )),
+              ];
+            },
+          ),
+        ],
+      )
+          : null,
       body: isMobile
           ? _buildMobileContent(cs, pedidos)
           : _buildDesktopKanban(cs, cardsPorColuna),
     );
   }
 
-  /// Mobile: lista ou mensagem centralizada ocupando todo o espaço
+  /// Mobile: campo de pesquisa e lista/vazio
   Widget _buildMobileContent(ColorScheme cs, List<Pedido> pedidos) {
-    if (pedidos.isEmpty) {
-      return Center(
-        child: Text(
-          'Nenhum atendimento iniciado',
-          style: TextStyle(
-            fontSize: 18,
-            color: cs.onSurfaceVariant,
-          ),
-        ),
-      );
-    }
+    final text = mobileSearchController.text.toLowerCase();
+    final filtered = pedidos.where((p) {
+      final matchText = p.nomeCliente.toLowerCase().contains(text) || p.telefoneCliente.contains(text);
+      final matchState = mobileFilter == null || p.estado == mobileFilter;
+      return matchText && matchState;
+    }).toList();
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(12),
-      itemCount: pedidos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (context, i) {
-        final pedido = pedidos[i];
-        return GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            PageRouteBuilder(
-              transitionDuration: const Duration(milliseconds: 300),
-              pageBuilder: (_, __, ___) => ChatPage(
-                nome: pedido.nomeCliente,
-                numero: pedido.telefoneCliente,
-                fotoUrl: pedido.fotoUrl ?? '',
+    return Column(
+      children: [
+        if (isMobileSearching)
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: mobileSearchController,
+              decoration: InputDecoration(
+                hintText: 'Pesquisar...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => setState(() {
+                    isMobileSearching = false;
+                    mobileSearchController.clear();
+                  }),
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-              transitionsBuilder: (_, anim, __, child) =>
-                  FadeTransition(opacity: anim, child: child),
+              onChanged: (_) => setState(() {}),
             ),
           ),
-          child: ContatoCard(
-            nome: pedido.nomeCliente,
-            numero: pedido.telefoneCliente,
-            fotoUrl: pedido.fotoUrl ?? '',
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+            child: Text(
+              'Nenhum atendimento encontrado',
+              style: TextStyle(
+                fontSize: 18,
+                color: cs.onSurfaceVariant,
+              ),
+            ),
+          )
+              : ListView.separated(
+            padding: const EdgeInsets.all(12),
+            itemCount: filtered.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (context, i) {
+              final pedido = filtered[i];
+              return GestureDetector(
+                onTap: () => Navigator.of(context).push(
+                  PageRouteBuilder(
+                    transitionDuration: const Duration(milliseconds: 300),
+                    pageBuilder: (_, __, ___) => ChatPage(
+                      nome: pedido.nomeCliente,
+                      numero: pedido.telefoneCliente,
+                      fotoUrl: pedido.fotoUrl ?? '',
+                    ),
+                    transitionsBuilder: (_, anim, __, child) =>
+                        FadeTransition(opacity: anim, child: child),
+                  ),
+                ),
+                child: ContatoCard(
+                  nome: pedido.nomeCliente,
+                  numero: pedido.telefoneCliente,
+                  fotoUrl: pedido.fotoUrl ?? '',
+                  estado: pedido.estado,
+                  onEstadoChanged: (novoEstado) {
+                    final atualizado = pedido.copyWith(estado: novoEstado);
+                    context.read<PedidoModel>().atualizarPedido(pedido.id, atualizado);
+                  },
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -282,11 +361,16 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           opacity: 0.85,
           child: SizedBox(
             width: 220,
-            child: ContatoCard(
-              nome: pedido.nomeCliente,
-              numero: pedido.telefoneCliente,
-              fotoUrl: pedido.fotoUrl ?? '',
-            ),
+              child: ContatoCard(
+                nome: pedido.nomeCliente,
+                numero: pedido.telefoneCliente,
+                fotoUrl: pedido.fotoUrl ?? '',
+                estado: pedido.estado,
+                onEstadoChanged: (novoEstado) {
+                  final atualizado = pedido.copyWith(estado: novoEstado);
+                  context.read<PedidoModel>().atualizarPedido(pedido.id, atualizado);
+                },
+              ),
           ),
         ),
       ),
@@ -296,6 +380,11 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           nome: pedido.nomeCliente,
           numero: pedido.telefoneCliente,
           fotoUrl: pedido.fotoUrl ?? '',
+          estado: pedido.estado,
+          onEstadoChanged: (novoEstado) {
+            final atualizado = pedido.copyWith(estado: novoEstado);
+            context.read<PedidoModel>().atualizarPedido(pedido.id, atualizado);
+          },
         ),
       ),
       child: GestureDetector(
@@ -315,6 +404,11 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           nome: pedido.nomeCliente,
           numero: pedido.telefoneCliente,
           fotoUrl: pedido.fotoUrl ?? '',
+          estado: pedido.estado,
+          onEstadoChanged: (novoEstado) {
+            final atualizado = pedido.copyWith(estado: novoEstado);
+            context.read<PedidoModel>().atualizarPedido(pedido.id, atualizado);
+          },
         ),
       ),
     );

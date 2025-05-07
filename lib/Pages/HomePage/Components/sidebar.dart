@@ -82,7 +82,7 @@ class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
             width: _widthAnim.value,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [Color(0xFF1E1E4C), Color(0xFF2A2A72)],
+                colors: [Color(0xFF051FAA), Color(0xFF1D39CD)],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
               ),

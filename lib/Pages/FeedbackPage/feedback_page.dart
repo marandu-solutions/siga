@@ -203,6 +203,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final themes = Theme.of(context);
     final isMobile = MediaQuery.of(context).size.width < 600;
 
     // Integração com CRUD de pedidos
@@ -275,7 +276,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     ];
 
     return Scaffold(
-      backgroundColor: cs.surface,
+      backgroundColor: themes.appBarTheme.backgroundColor,
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context, pedidos),
         child: const Icon(Icons.add_comment),

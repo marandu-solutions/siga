@@ -1,23 +1,25 @@
+// Pages/HomePage/home_page.dart
 import 'package:flutter/material.dart';
+import 'package:responsive_framework/responsive_framework.dart';
+
 import '../PedidosPage/pedidos_page.dart';
 import '../AtendimentoPage/atendimento_page.dart';
 import '../AlertaPage/alerta_page.dart';
-import '../FeedbackPage/feedback_page.dart';
 import '../EstoquePage/estoque_page.dart';
+import '../FeedbackPage/feedback_page.dart';
 import 'Components/bottom_nav_bar.dart';
-import 'Components/sidebar.dart'; 
+import 'Components/sidebar.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({Key? key}) : super(key: key);
 
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int selectedIndex = 0;
-
-  final List<Widget> pages = const [
+  int _selectedIndex = 0;
+  static const List<Widget> _pages = <Widget>[
     PedidosPage(),
     AtendimentoPage(),
     AlertaPage(),
@@ -25,44 +27,40 @@ class _HomePageState extends State<HomePage> {
     FeedbacksPage(),
   ];
 
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isMobileView = constraints.maxWidth < 600;
-
-        if (isMobileView) {
-          // Modo mobile: usa BottomNavBar em vez de Drawer
-          return BottomNavBar(
-            selectedIndex: selectedIndex,
-            onItemSelected: (idx) => setState(() => selectedIndex = idx),
+        final isMobile = constraints.maxWidth < 600;
+        if (isMobile) {
+          return Scaffold(
+            extendBody: true,
+            body: Padding(
+              padding: const EdgeInsets.only(bottom: 75.0), // ajuste o valor conforme o tamanho da nav bar
+              child: _pages[_selectedIndex],
+            ),
+            bottomNavigationBar: BottomNavBar(
+              selectedIndex: _selectedIndex,
+              onItemSelected: _onItemTapped,
+            ),
+            floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           );
         } else {
-          // Modo desktop/tablet com sidebar fixa
           return Scaffold(
-            backgroundColor: Colors.black12,
+            extendBody: true,
             body: Stack(
               children: [
-                // Fundo com gradiente
-                Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Color(0xFF1E1E2F),
-                        Color(0xFF2A2A40),
-                      ],
-                    ),
-                  ),
-                ),
                 Row(
                   children: [
                     Sidebar(
-                      selectedIndex: selectedIndex,
-                      onItemSelected: (index) {
-                        setState(() => selectedIndex = index);
-                      },
+                      selectedIndex: _selectedIndex,
+                      onItemSelected: _onItemTapped,
                     ),
                     Expanded(
                       child: Padding(
@@ -84,7 +82,7 @@ class _HomePageState extends State<HomePage> {
                           ),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(20),
-                            child: pages[selectedIndex],
+                            child: _pages[_selectedIndex],
                           ),
                         ),
                       ),
