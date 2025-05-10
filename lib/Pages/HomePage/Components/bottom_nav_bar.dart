@@ -17,7 +17,7 @@ class BottomNavBar extends StatelessWidget {
     _NavItem(icon: LucideIcons.headphones, label: 'Atendimento'),
     _NavItem(icon: LucideIcons.alertCircle, label: 'Alerta'),
     _NavItem(icon: LucideIcons.box, label: 'Estoque'),
-    _NavItem(icon: LucideIcons.messageCircle, label: 'Feedbacks'),
+    _NavItem(icon: LucideIcons.thumbsUp, label: 'Feedbacks'),
   ];
 
   @override
@@ -31,9 +31,8 @@ class BottomNavBar extends StatelessWidget {
     final vPad = isCompact ? 14.0 : 18.0;
     final navH = isCompact ? 56.0 : 72.0;
 
-    // Use theme surfaceVariant for background blur container
-    final containerColor = theme.colorScheme.surfaceVariant.withOpacity(isDark ? 0.6 : 0.3);
-    final shadowColor = theme.colorScheme.shadow.withOpacity(0.1);
+    final containerColor = theme.colorScheme.surfaceVariant.withOpacity(isDark ? 0.8 : 0.5);
+    final shadowColor = theme.colorScheme.shadow.withOpacity(0.15);
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
@@ -48,7 +47,7 @@ class BottomNavBar extends StatelessWidget {
               boxShadow: [
                 BoxShadow(
                   color: shadowColor,
-                  blurRadius: 16,
+                  blurRadius: 20,
                   offset: const Offset(0, 4),
                 ),
               ],
@@ -93,14 +92,21 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final baseSize = isCompact ? 16.0 : 20.0;
-    final selSize = isCompact ? 20.0 : 24.0;
-    final horizPad = isCompact ? 6.0 : 10.0;
-    final vertPad = isCompact ? 2.0 : 6.0;
+    final isDark = theme.brightness == Brightness.dark;
+    final baseSize = isCompact ? 18.0 : 22.0;
+    final selSize = isCompact ? 22.0 : 26.0;
+    final horizPad = isCompact ? 8.0 : 12.0;
+    final vertPad = isCompact ? 4.0 : 8.0;
 
-    // Selected background uses primaryContainer
-    final selectedBg = theme.colorScheme.primaryContainer.withOpacity(0.2);
-    final splashClr = theme.colorScheme.primary.withOpacity(0.2);
+    // Selected background stronger contrast, especially in dark
+    final selectedBg = theme.colorScheme.primaryContainer.withOpacity(isDark ? 0.5 : 0.3);
+    final splashClr = theme.colorScheme.primary.withOpacity(0.3);
+
+    // Icon colors: unselected uses onSurface, selected uses onPrimaryContainer in dark for readability
+    final unselectedColor = theme.colorScheme.onSurface;
+    final selectedColor = isDark
+        ? theme.colorScheme.onPrimaryContainer
+        : theme.colorScheme.primary;
 
     return Material(
       color: Colors.transparent,
@@ -120,16 +126,14 @@ class _NavButton extends StatelessWidget {
               Icon(
                 icon,
                 size: selected ? selSize : baseSize,
-                color: selected
-                    ? theme.colorScheme.primary
-                    : theme.iconTheme.color,
+                color: selected ? selectedColor : unselectedColor,
               ),
               if (selected && !isCompact) ...[
                 const SizedBox(width: 8),
                 Text(
                   label,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.primary,
+                    color: selectedColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),

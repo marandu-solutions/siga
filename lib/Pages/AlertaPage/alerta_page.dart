@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../Model/pedidos.dart';
 import '../../../Model/pedidos_model.dart';
 import 'components/historico_page.dart';
@@ -12,41 +13,14 @@ class AlertaPage extends StatefulWidget {
 }
 
 class _AlertaPageState extends State<AlertaPage> {
-  final TextEditingController motivoController = TextEditingController();
+  final motivoController = TextEditingController();
   final List<int> pedidosSelecionados = [];
   DateTime? novaData;
 
-  Future<void> _selecionarData(BuildContext context) async {
-    final cs = Theme.of(context).colorScheme;
-    final DateTime? picked = await showDatePicker(
-      context: context,
-      initialDate: novaData ?? DateTime.now().add(const Duration(days: 3)),
-      firstDate: DateTime.now(),
-      lastDate: DateTime(DateTime.now().year + 1),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: cs.copyWith(
-            primary: cs.primary,
-            onPrimary: cs.onPrimary,
-            surface: cs.surface,
-            onSurface: cs.onSurface,
-          ),
-          dialogBackgroundColor: cs.surface,
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null && picked != novaData) {
-      setState(() => novaData = picked);
-    }
-  }
-
-  void _limparSelecao() => setState(pedidosSelecionados.clear);
-
-  bool get podeEnviar {
-    return pedidosSelecionados.isNotEmpty &&
-        motivoController.text.isNotEmpty &&
-        novaData != null;
+  @override
+  void initState() {
+    super.initState();
+    motivoController.addListener(() => setState(() {}));
   }
 
   @override
@@ -55,93 +29,146 @@ class _AlertaPageState extends State<AlertaPage> {
     super.dispose();
   }
 
+  Future<void> _selecionarData(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: novaData ?? DateTime.now().add(const Duration(days: 3)),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (ctx, child) {
+        final theme = Theme.of(ctx);
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: theme.colorScheme.copyWith(
+              primary: theme.colorScheme.primary,
+              onPrimary: theme.colorScheme.onPrimary,
+              surface: theme.colorScheme.surface,
+              onSurface: theme.colorScheme.onSurface,
+            ),
+            dialogBackgroundColor: theme.colorScheme.surface,
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null && picked != novaData) {
+      setState(() => novaData = picked);
+    }
+  }
+
+  void _limparSelecao() => setState(() => pedidosSelecionados.clear());
+
+  bool get podeEnviar =>
+      pedidosSelecionados.isNotEmpty &&
+          motivoController.text.trim().isNotEmpty &&
+          novaData != null;
+
+  void _enviarNotificacoes() {
+    final pedidosModel = context.read<PedidoModel>();
+    final formatted = '${novaData!.day}/${novaData!.month}/${novaData!.year}';
+
+    for (final id in pedidosSelecionados) {
+      final p = pedidosModel.buscarPedidoPorId(id);
+      final msg = motivoController.text
+          .replaceAll('{{nome}}', p.nomeCliente)
+          .replaceAll('{{data}}', formatted);
+
+      pedidosModel.adicionarNotificacao(
+        pedidoId: id,
+        mensagem: 'Pedido #${p.numeroPedido}: $msg',
+      );
+
+      debugPrint('Enviar para ${p.telefoneCliente}: $msg');
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Notificações enviadas com sucesso!')),
+    );
+    _limparSelecao();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final themes = Theme.of(context);
-
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final pedidos = context.watch<PedidoModel>().pedidos.where((p) {
       return p.estado == EstadoPedido.emAberto ||
           p.estado == EstadoPedido.emAndamento ||
           p.estado == EstadoPedido.entregaRetirada;
     }).toList();
 
+    final pedidosPanel = _PedidosPanel(pedidos, pedidosSelecionados, _limparSelecao);
+    final notificarPanel = _NotificarPanel(
+      motivoController,
+      novaData,
+      _selecionarData,
+      podeEnviar,
+      _enviarNotificacoes,
+    );
+
     return Scaffold(
-      backgroundColor: themes.appBarTheme.backgroundColor,
+      backgroundColor: cs.background,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: const Text('Alerta de Pedidos'),
+        automaticallyImplyLeading: false,
         actions: [
           IconButton(
-            icon: const Icon(Icons.history),
-            tooltip: 'Histórico',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const HistoricoPage()),
-              );
-            },
+              icon: const Icon(Icons.history),
+              onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const HistoricoPage()),
+            ),
           ),
         ],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final width = constraints.maxWidth;
-          if (width < 600) {
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+          final isWide = constraints.maxWidth >= 900;
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: isWide
+                ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 1, child: pedidosPanel),
+                const SizedBox(width: 24),
+                Expanded(flex: 2, child: notificarPanel),
+              ],
+            )
+                : SingleChildScrollView(
               child: Column(
                 children: [
-                  _buildPedidosPanel(cs, pedidos, constraints.maxHeight),
+                  SizedBox(height: 400, child: pedidosPanel),
                   const SizedBox(height: 24),
-                  _buildNotificarPanel(cs),
+                  notificarPanel,
                 ],
               ),
-            );
-          } else if (width < 900) {
-            return SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 300,
-                    child: _buildPedidosPanel(cs, pedidos, constraints.maxHeight),
-                  ),
-                  const SizedBox(width: 24),
-                  SizedBox(
-                    width: width - 300 - 56,
-                    child: _buildNotificarPanel(cs),
-                  ),
-                ],
-              ),
-            );
-          } else {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 300,
-                    child: _buildPedidosPanel(cs, pedidos, constraints.maxHeight),
-                  ),
-                  const SizedBox(width: 30),
-                  Expanded(child: _buildNotificarPanel(cs)),
-                ],
-              ),
-            );
-          }
+            ),
+          );
         },
       ),
     );
   }
+}
 
-  Widget _buildPedidosPanel(ColorScheme cs, List<Pedido> pedidos, double maxHeight) {
-    final panelHeight = maxHeight * 0.5;
+class _PedidosPanel extends StatelessWidget {
+  const _PedidosPanel(
+      this.pedidos,
+      this.selecionados,
+      this.onLimpar,
+      );
+
+  final List<Pedido> pedidos;
+  final List<int> selecionados;
+  final VoidCallback onLimpar;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
-      color: cs.surface,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -153,239 +180,150 @@ class _AlertaPageState extends State<AlertaPage> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Pedidos em Aberto, Em Andamento ou Entrega/Retirada',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    'Pedidos Pendentes',
+                    style: Theme.of(context)
+                        .textTheme
+                        .titleMedium
+                        ?.copyWith(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              height: panelHeight,
+            const SizedBox(height: 12),
+            Expanded(
               child: ListView.builder(
                 itemCount: pedidos.length,
-                itemBuilder: (context, i) {
+                itemBuilder: (ctx, i) {
                   final p = pedidos[i];
-                  final selecionado = pedidosSelecionados.contains(p.id);
-                  return Card(
-                    color: selecionado
-                        ? cs.primary.withOpacity(0.2)
-                        : cs.surfaceVariant,
-                    elevation: selecionado ? 4 : 0,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    margin: const EdgeInsets.symmetric(vertical: 8),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      leading: Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color:
-                          selecionado ? cs.primary : Colors.transparent,
-                          border: Border.all(color: cs.primary),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
+                  final isSel = selecionados.contains(p.id);
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSel ? cs.primary.withOpacity(0.15) : cs.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: isSel ? cs.primary : cs.outline,
                       ),
-                      title: Text(p.nomeCliente,
-                          style: TextStyle(color: cs.onSurface)),
-                      subtitle: Text('${p.quantidade} x ${p.servico}',
-                          style: TextStyle(color: cs.onSurfaceVariant)),
-                      trailing: Text('#${p.numeroPedido}',
-                          style: TextStyle(color: cs.onSurfaceVariant)),
-                      onTap: () => setState(() {
-                        if (selecionado) {
-                          pedidosSelecionados.remove(p.id);
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        isSel ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: isSel ? cs.primary : cs.onSurfaceVariant,
+                      ),
+                      title: Text(p.nomeCliente),
+                      subtitle: Text('${p.quantidade} x ${p.servico}'),
+                      trailing: Text('#${p.numeroPedido}'),
+                      onTap: () {
+                        if (isSel) {
+                          selecionados.remove(p.id);
                         } else {
-                          pedidosSelecionados.add(p.id);
+                          selecionados.add(p.id);
                         }
-                      }),
+                        (context as Element).markNeedsBuild();
+                      },
                     ),
                   );
                 },
               ),
             ),
-            const SizedBox(height: 16),
-            TextButton.icon(
-              icon: Icon(Icons.clear_all, color: cs.primary),
-              label: Text('Limpar Seleção',
-                  style: TextStyle(color: cs.primary)),
-              onPressed:
-              pedidosSelecionados.isNotEmpty ? _limparSelecao : null,
-            ),
             const SizedBox(height: 8),
-            Text('${pedidosSelecionados.length} selecionados',
-                style: TextStyle(color: cs.onSurfaceVariant)),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${selecionados.length} selecionado(s)',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                TextButton.icon(
+                  onPressed: selecionados.isNotEmpty ? onLimpar : null,
+                  icon: const Icon(Icons.clear_all),
+                  label: const Text('Limpar'),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildNotificarPanel(ColorScheme cs) {
+class _NotificarPanel extends StatelessWidget {
+  const _NotificarPanel(
+      this.controller,
+      this.data,
+      this.onSelectDate,
+      this.canSend,
+      this.onSend,
+      );
+
+  final TextEditingController controller;
+  final DateTime? data;
+  final void Function(BuildContext) onSelectDate;
+  final bool canSend;
+  final VoidCallback onSend;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Card(
-      color: cs.surface,
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Notificar Clientes',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: cs.onSurface,
-                  fontWeight: FontWeight.bold,
-                )),
+            Text('Notificar Clientes', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text(
-                    novaData == null
-                        ? 'Escolher Data'
-                        : 'Data: ${novaData!.day}/${novaData!.month}/${novaData!.year}',
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    foregroundColor: cs.onPrimary,
-                    backgroundColor: cs.primary,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 14, horizontal: 20),
-                    elevation: 4,
-                  ),
-                  onPressed: () => _selecionarData(context),
-                ),
-                if (novaData != null)
-                  IconButton(
-                    icon: Icon(Icons.edit, color: cs.primary),
-                    onPressed: () => _selecionarData(context),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            Text('Mensagem Personalizada',
-                style: Theme.of(context)
-                    .textTheme
-                    .titleMedium
-                    ?.copyWith(color: cs.onSurface)),
-            const SizedBox(height: 12),
-            SizedBox(
-              height: 200,
-              child: TextField(
-                controller: motivoController,
-                expands: true,
-                maxLines: null,
-                style: TextStyle(color: cs.onSurface),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: cs.surfaceVariant,
-                  hintText:
-                  'Olá {{nome}}, informamos que seu pedido foi reagendado para {{data}}',
-                  hintStyle: TextStyle(color: cs.onSurfaceVariant),
-                  border: OutlineInputBorder(
-                    borderSide: BorderSide.none,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
+            ElevatedButton.icon(
+              icon: const Icon(Icons.calendar_today_outlined),
+              label: Text(data == null
+                  ? 'Escolher Data'
+                  : 'Data: ${data!.day}/${data!.month}/${data!.year}'),
+              onPressed: () => onSelectDate(context),
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
             const SizedBox(height: 24),
-            LayoutBuilder(
-              builder: (context, cons) {
-                if (cons.maxWidth < 600) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                          'Será enviado via WhatsApp para todos selecionados',
-                          style:
-                          TextStyle(color: cs.onSurfaceVariant)),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          icon: const Icon(Icons.send),
-                          label: const Text('Enviar'),
-                          style: ElevatedButton.styleFrom(
-                            foregroundColor: cs.onPrimary,
-                            backgroundColor: podeEnviar
-                                ? cs.primary
-                                : cs.surfaceVariant,
-                            shape: RoundedRectangleBorder(
-                                borderRadius:
-                                BorderRadius.circular(16)),
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 16),
-                            elevation: podeEnviar ? 6 : 0,
-                          ),
-                          onPressed:
-                          podeEnviar ? _enviarNotificacoes : null,
-                        ),
-                      )
-                    ],
-                  );
-                } else {
-                  return Row(
-                    mainAxisAlignment:
-                    MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                          'Será enviado via WhatsApp para todos selecionados',
-                          style:
-                          TextStyle(color: cs.onSurfaceVariant)),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.send),
-                        label: const Text('Enviar'),
-                        style: ElevatedButton.styleFrom(
-                          foregroundColor: cs.onPrimary,
-                          backgroundColor: podeEnviar
-                              ? cs.primary
-                              : cs.surfaceVariant,
-                          shape: RoundedRectangleBorder(
-                              borderRadius:
-                              BorderRadius.circular(16)),
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 16, horizontal: 32),
-                          elevation: podeEnviar ? 6 : 0,
-                        ),
-                        onPressed:
-                        podeEnviar ? _enviarNotificacoes : null,
-                      )
-                    ],
-                  );
-                }
-              },
-            )
+            Text('Mensagem Personalizada', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              maxLines: 6,
+              onChanged: (_) => {}, // Gatilho visualizador já adicionado no initState
+              decoration: InputDecoration(
+                hintText: 'Olá {{nome}}, seu pedido foi reagendado para {{data}}',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Será enviado via WhatsApp',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.send_outlined),
+                  label: const Text('Enviar'),
+                  onPressed: canSend ? onSend : null,
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(120, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
-  }
-
-  void _enviarNotificacoes() {
-    final pedidosModel = context.read<PedidoModel>();
-    for (var id in pedidosSelecionados) {
-      final p = pedidosModel.buscarPedidoPorId(id);
-      final formattedDate =
-          '${novaData!.day}/${novaData!.month}/${novaData!.year}';
-      final msg = motivoController.text
-          .replaceAll('{{nome}}', p.nomeCliente)
-          .replaceAll('{{data}}', formattedDate);
-
-      // Adiciona ao histórico de notificações no PedidoModel
-      pedidosModel.adicionarNotificacao(
-        pedidoId: id,
-        mensagem: 'Pedido #${p.numeroPedido}: $msg',
-      );
-
-      debugPrint('Enviar para ${p.telefoneCliente}: $msg');
-    }
   }
 }
