@@ -5,7 +5,7 @@ import 'package:responsive_framework/responsive_framework.dart';
 import '../PedidosPage/pedidos_page.dart';
 import '../AtendimentoPage/atendimento_page.dart';
 import '../AlertaPage/alerta_page.dart';
-import '../EstoquePage/estoque_page.dart';
+import '../CatalogoPage/catalogo_page.dart';
 import '../FeedbackPage/feedback_page.dart';
 import 'Components/bottom_nav_bar.dart';
 import 'Components/sidebar.dart';
@@ -23,7 +23,7 @@ class _HomePageState extends State<HomePage> {
     PedidosPage(),
     AtendimentoPage(),
     AlertaPage(),
-    EstoquePage(),
+    CatalogoPage(),
     FeedbacksPage(),
   ];
 

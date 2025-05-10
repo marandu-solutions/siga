@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../Model/pedidos.dart';
-import '../../../Model/pedidos_model.dart';
 
 /// Formatter customizado para telefone no padrão (##) #####-####
 class TelefoneInputFormatter extends TextInputFormatter {

@@ -16,7 +16,7 @@ class BottomNavBar extends StatelessWidget {
     _NavItem(icon: LucideIcons.package, label: 'Pedidos'),
     _NavItem(icon: LucideIcons.headphones, label: 'Atendimento'),
     _NavItem(icon: LucideIcons.alertCircle, label: 'Alerta'),
-    _NavItem(icon: LucideIcons.box, label: 'Estoque'),
+    _NavItem(icon: LucideIcons.box, label: 'Catalogo'),
     _NavItem(icon: LucideIcons.thumbsUp, label: 'Feedbacks'),
   ];
 

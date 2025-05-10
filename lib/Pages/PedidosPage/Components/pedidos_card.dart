@@ -130,16 +130,6 @@ class _PedidoCardState extends State<PedidoCard> {
                   "Cliente: ${widget.pedido.nomeCliente}", cs, tt),
               _infoRow(Icons.work_outline,
                   "Serviço: ${widget.pedido.servico}", cs, tt),
-              _infoRow(
-                  Icons.format_list_numbered,
-                  "Qtd: ${widget.pedido.quantidade} | Tamanho: ${widget.pedido.tamanho}",
-                  cs,
-                  tt),
-              _infoRow(
-                  Icons.color_lens,
-                  "Malha: ${widget.pedido.tipoMalha} | Cor: ${widget.pedido.cor}",
-                  cs,
-                  tt),
               _infoRow(Icons.attach_money,
                   "Valor: R\$ ${widget.pedido.valorTotal.toStringAsFixed(2)}", cs, tt),
               if (widget.pedido.observacoes.isNotEmpty)

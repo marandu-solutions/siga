@@ -1,13 +1,13 @@
 // lib/Pages/AtendimentoPage/Components/contato_card.dart
 import 'package:flutter/material.dart';
-import 'package:siga/Model/pedidos.dart';
+import 'package:siga/Model/atendimento.dart';
 
 class ContatoCard extends StatelessWidget {
   final String nome;
   final String numero;
   final String fotoUrl;
-  final EstadoPedido estado;
-  final ValueChanged<EstadoPedido> onEstadoChanged;
+  final EstadoAtendimento estado;
+  final ValueChanged<EstadoAtendimento> onEstadoChanged;
 
   const ContatoCard({
     super.key,
@@ -23,11 +23,9 @@ class ContatoCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     // mapeamento de cores por estado
     final estadoColor = {
-      EstadoPedido.emAberto: Colors.purple.shade500,
-      EstadoPedido.emAndamento: Colors.amber.shade700,
-      EstadoPedido.entregaRetirada: Colors.orange.shade700,
-      EstadoPedido.finalizado: Colors.green.shade700,
-      EstadoPedido.cancelado: Colors.red.shade700,
+      EstadoAtendimento.emAberto: Colors.purple.shade500,
+      EstadoAtendimento.emAndamento: Colors.amber.shade700,
+      EstadoAtendimento.finalizado: Colors.green.shade700,
     }[estado]!;
 
     // detecta tela estreita (<900px)
@@ -59,11 +57,10 @@ class ContatoCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
-                      color: cs.onSurface,  // nome volta a cor padrão
+                      color: cs.onSurface,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // exibe o estado com cor correspondente
                   Text(
                     estado.label,
                     style: TextStyle(
@@ -83,12 +80,11 @@ class ContatoCard extends StatelessWidget {
                 ],
               ),
             ),
-            // só exibe o Dropdown em mobile
             if (isMobile)
-              DropdownButton<EstadoPedido>(
+              DropdownButton<EstadoAtendimento>(
                 value: estado,
                 underline: const SizedBox(),
-                items: EstadoPedido.values.map((e) {
+                items: EstadoAtendimento.values.map((e) {
                   return DropdownMenuItem(
                     value: e,
                     child: Text(e.label, style: TextStyle(fontSize: 12)),

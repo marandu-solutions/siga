@@ -8,7 +8,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../Model/pedidos.dart';
 import 'Components/pedido_details_page.dart';
 import 'Components/tabela.dart';
-import '../../Model/pedidos_model.dart';
 
 class PedidosPage extends StatefulWidget {
   const PedidosPage({super.key});
@@ -191,9 +190,6 @@ class _PedidosPageState extends State<PedidosPage> {
             telefoneCliente: '77900000000',
             servico: 'Serviço de Teste',
             quantidade: 1,
-            tamanho: 'M',
-            tipoMalha: 'Algodão',
-            cor: 'Preto',
             observacoes: 'Gerado para teste CRUD',
             valorTotal: 99.9,
             dataPedido: DateTime.now(),

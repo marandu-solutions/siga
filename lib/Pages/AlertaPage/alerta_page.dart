@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../Model/pedidos.dart';
-import '../../../Model/pedidos_model.dart';
 import 'components/historico_page.dart';
 
 class AlertaPage extends StatefulWidget {

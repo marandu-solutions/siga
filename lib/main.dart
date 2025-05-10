@@ -3,33 +3,36 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 
-import 'Model/estoque_model.dart';
-import 'Model/pedidos_model.dart';
-import 'Model/usuario_model.dart';
+import 'Model/pedidos.dart';
+import 'Model/catalogo.dart';
+import 'Model/usuario.dart';
 import 'Pages/Auth/Login/login_page.dart';
 import 'Pages/Auth/Register/register_page.dart';
 import 'Pages/HomePage/home_page.dart';
 import 'Themes/themes.dart';
+import 'Model/atendimento.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    ScreenUtilInit(
-      designSize: const Size(375, 812),
-      minTextAdapt: true,
-      splitScreenMode: true,
-      builder: (context, child) {
-        return MultiProvider(
-          providers: [
-            ChangeNotifierProvider(create: (_) => PedidoModel()),
-            ChangeNotifierProvider(create: (_) => EstoqueModel()),
-            ChangeNotifierProvider(create: (_) => UsuarioProvider()),
-          ],
-          child: const MaranduApp(),
-        );
-      },
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => PedidoModel()),
+        ChangeNotifierProvider(create: (_) => CatalogoModel()),
+        ChangeNotifierProvider(create: (_) => UsuarioProvider()),
+        ChangeNotifierProvider(create: (_) => AtendimentoModel()),
+      ],
+      child: ScreenUtilInit(
+        designSize: const Size(375, 812),
+        minTextAdapt: true,
+        splitScreenMode: true,
+        builder: (_, __) => const MaranduApp(),
+      ),
     ),
   );
 }
+
+
 
 class MaranduApp extends StatelessWidget {
   const MaranduApp({Key? key}) : super(key: key);

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 enum EstadoPedido {
   emAberto,
   emAndamento,
@@ -74,9 +76,6 @@ class Pedido {
   final String telefoneCliente;
   final String servico;
   final int quantidade;
-  final String tamanho;
-  final String tipoMalha;
-  final String cor;
   final String observacoes;
   final double valorTotal;
   final DateTime dataPedido;
@@ -96,9 +95,6 @@ class Pedido {
     required this.telefoneCliente,
     required this.servico,
     required this.quantidade,
-    required this.tamanho,
-    required this.tipoMalha,
-    required this.cor,
     required this.observacoes,
     required this.valorTotal,
     required this.dataPedido,
@@ -116,9 +112,6 @@ class Pedido {
       telefoneCliente: json['telefone_cliente'] ?? '',
       servico: json['servico'] ?? '',
       quantidade: json['quantidade'] ?? 0,
-      tamanho: json['tamanho'] ?? '',
-      tipoMalha: json['tipo_malha'] ?? '',
-      cor: json['cor'] ?? '',
       observacoes: json['observacoes'] ?? '',
       valorTotal: (json['valor_total'] as num).toDouble(),
       dataPedido: DateTime.parse(json['data_pedido']),
@@ -140,9 +133,6 @@ class Pedido {
       'telefone_cliente': telefoneCliente,
       'servico': servico,
       'quantidade': quantidade,
-      'tamanho': tamanho,
-      'tipo_malha': tipoMalha,
-      'cor': cor,
       'observacoes': observacoes,
       'valor_total': valorTotal,
       'data_pedido': dataPedido.toIso8601String(),
@@ -178,9 +168,6 @@ class Pedido {
       telefoneCliente: telefoneCliente ?? this.telefoneCliente,
       servico: servico ?? this.servico,
       quantidade: quantidade ?? this.quantidade,
-      tamanho: tamanho ?? this.tamanho,
-      tipoMalha: tipoMalha ?? this.tipoMalha,
-      cor: cor ?? this.cor,
       observacoes: observacoes ?? this.observacoes,
       valorTotal: valorTotal ?? this.valorTotal,
       dataPedido: dataPedido ?? this.dataPedido,
@@ -189,5 +176,85 @@ class Pedido {
       fotoUrl: fotoUrl ?? this.fotoUrl,
       feedbacks: feedbacks ?? List.from(this.feedbacks),
     );
+  }
+}
+
+class NotificationEntry {
+  final int pedidoId;
+  final String mensagem;
+  final DateTime data;
+
+  NotificationEntry({
+    required this.pedidoId,
+    required this.mensagem,
+    required this.data,
+  });
+}
+
+class PedidoModel extends ChangeNotifier {
+  final List<Pedido> _pedidos = [];
+
+  /// Histórico de notificações enviadas
+  final List<NotificationEntry> _notificacoes = [];
+
+  List<Pedido> get pedidos => List.unmodifiable(_pedidos);
+  List<NotificationEntry> get notificacoes => List.unmodifiable(_notificacoes);
+
+  void adicionarPedido(Pedido pedido) {
+    _pedidos.add(pedido);
+    notifyListeners();
+  }
+
+  void removerPedido(int id) {
+    _pedidos.removeWhere((p) => p.id == id);
+    notifyListeners();
+  }
+
+  void atualizarPedido(int id, Pedido pedidoAtualizado) {
+    final idx = _pedidos.indexWhere((p) => p.id == id);
+    if (idx != -1) {
+      _pedidos[idx] = pedidoAtualizado;
+      notifyListeners();
+    }
+  }
+
+  Pedido buscarPedidoPorId(int id) {
+    return _pedidos.firstWhere((p) => p.id == id);
+  }
+
+  void limparPedidos() {
+    _pedidos.clear();
+    notifyListeners();
+  }
+
+  /// Adiciona um feedback a um pedido existente
+  void adicionarFeedback(int pedidoId, FeedbackEntry feedback) {
+    final idx = _pedidos.indexWhere((p) => p.id == pedidoId);
+    if (idx != -1) {
+      final p = _pedidos[idx];
+      final atualizado = p.copyWith(
+        feedbacks: [...p.feedbacks, feedback],
+      );
+      _pedidos[idx] = atualizado;
+      notifyListeners();
+    }
+  }
+
+  /// Retorna lista de feedbacks para um pedido
+  List<FeedbackEntry> feedbacksDoPedido(int pedidoId) {
+    return buscarPedidoPorId(pedidoId).feedbacks;
+  }
+
+  /// Adiciona uma notificação ao histórico
+  void adicionarNotificacao({
+    required int pedidoId,
+    required String mensagem,
+  }) {
+    _notificacoes.add(NotificationEntry(
+      pedidoId: pedidoId,
+      mensagem: mensagem,
+      data: DateTime.now(),
+    ));
+    notifyListeners();
   }
 }

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../Model/pedidos_model.dart';
+import '../../../Model/pedidos.dart';
 
 class HistoricoPage extends StatelessWidget {
   const HistoricoPage({Key? key}) : super(key: key);
