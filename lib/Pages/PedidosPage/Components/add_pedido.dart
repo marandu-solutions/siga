@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../Model/pedidos.dart';
-import '../../../Service/pedidos_service.dart';
 
 class AddPedidoDialog extends StatefulWidget {
   final Function(Pedido) onAdd;
@@ -22,7 +21,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
   DateTime _dataPedido = DateTime.now();
   DateTime _dataEntrega = DateTime.now().add(const Duration(days: 1));
   bool _isLoading = false;
-  final PedidoService _pedidoService = PedidoService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -127,7 +125,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
       }).toList();
 
       final novoPedido = Pedido(
-        id: '', // Será preenchido pelo Xata
+        id: '', // Será preenchido pelo backend
         numeroPedido: DateTime.now().millisecondsSinceEpoch.toString(),
         nomeCliente: _nomeClienteController.text,
         telefoneCliente: _telefoneClienteController.text,
@@ -138,17 +136,12 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
         estado: _estado,
       );
 
-      try {
-        final pedidoCriado = await _pedidoService.adicionarPedido(novoPedido);
-        widget.onAdd(pedidoCriado);
-        Navigator.of(context).pop();
-      } catch (e) {
-        print('Erro ao adicionar pedido: $e');
-      } finally {
-        setState(() {
-          _isLoading = false;
-        });
-      }
+      widget.onAdd(novoPedido);
+      Navigator.of(context).pop();
+
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 

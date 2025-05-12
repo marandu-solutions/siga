@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import '../../Model/pedidos.dart';
 import '../../Service/pedidos_service.dart';
@@ -17,12 +18,19 @@ class PedidosPage extends StatefulWidget {
 class _PedidosPageState extends State<PedidosPage> {
   final PedidoService _pedidoService = PedidoService();
   bool _isLoading = false;
-  String _viewMode = 'tabela'; // Estado para controlar a visualização
+  bool _isKanbanView = false;
+  bool _isSearching = false;
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  EstadoPedido? _statusFilter;
 
   @override
   void initState() {
     super.initState();
     _fetchPedidos();
+    _searchController.addListener(() {
+      setState(() => _searchQuery = _searchController.text);
+    });
   }
 
   Future<void> _fetchPedidos() async {
@@ -113,9 +121,6 @@ class _PedidosPageState extends State<PedidosPage> {
       if (mounted) {
         final atualizado = pedido.copyWith(estado: novoEstado);
         context.read<PedidoModel>().atualizarPedido(pedido.id, atualizado);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Estado do pedido #${pedido.numeroPedido} atualizado')),
-        );
       }
     } catch (e) {
       if (mounted) {
@@ -128,79 +133,111 @@ class _PedidosPageState extends State<PedidosPage> {
 
   @override
   Widget build(BuildContext context) {
+    bool isMobile(BuildContext ctx) =>
+        MediaQuery.of(ctx).size.width < 600;
     final pedidos = context.watch<PedidoModel>().pedidos;
 
     // Definindo as cores para cada estado
-    final corColuna = {
-      EstadoPedido.emAberto: Colors.blue[100]!,
-      EstadoPedido.emAndamento: Colors.yellow[100]!,
-      EstadoPedido.entregaRetirada: Colors.orange[100]!,
-      EstadoPedido.finalizado: Colors.green[100]!,
-      EstadoPedido.cancelado: Colors.red[100]!,
-    };
+    final corColuna = Theme.of(context).brightness == Brightness.dark
+         ? <EstadoPedido, Color>{
+             EstadoPedido.emAberto: const Color(0xFF7016BD),
+             EstadoPedido.emAndamento: const Color(0xFFC5960D),
+             EstadoPedido.entregaRetirada: const Color(0xFFB13D10),
+             EstadoPedido.finalizado: const Color(0xFF059E05),
+             EstadoPedido.cancelado: const Color(0xFF9E051C),
+           }
+         : <EstadoPedido, Color>{
+             EstadoPedido.emAberto: Colors.purple.shade500,
+             EstadoPedido.emAndamento: Colors.amber.shade600,
+             EstadoPedido.entregaRetirada: Colors.orange.shade700,
+             EstadoPedido.finalizado: Colors.green.shade800,
+             EstadoPedido.cancelado: Colors.red.shade800,
+           };
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Pedidos'),
+        title: isMobile(context) && _isSearching
+            ? TextField(
+          controller: _searchController,
+          decoration: const InputDecoration(
+            hintText: 'Pesquisar pedidos...',
+            border: InputBorder.none,
+          ),
+          textInputAction: TextInputAction.search,
+        )
+            : const Text('Pedidos'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.table_chart),
-            onPressed: () => setState(() => _viewMode = 'tabela'),
-            color: _viewMode == 'tabela' ? null : Colors.grey,
-            tooltip: 'Visualização Tabela',
-          ),
-          IconButton(
-            icon: const Icon(Icons.view_kanban),
-            onPressed: () => setState(() => _viewMode = 'kanban'),
-            color: _viewMode == 'kanban' ? null : Colors.grey,
-            tooltip: 'Visualização Kanban',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchPedidos,
-            tooltip: 'Atualizar',
-          ),
+          if (isMobile(context)) ...[
+            IconButton(
+              icon: Icon(_isSearching ? LucideIcons.x : LucideIcons.search),
+              onPressed: () => setState(() {
+                if (_isSearching) _searchController.clear();
+                _isSearching = !_isSearching;
+              }),
+            ),
+            DropdownButton<EstadoPedido?>(
+              value: _statusFilter,
+              hint: const Icon(LucideIcons.filter),
+              underline: const SizedBox(),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todos')),
+                for (var st in EstadoPedido.values)
+                  DropdownMenuItem(
+                    value: st,
+                    child: Text(st.label),
+                  ),
+              ],
+              onChanged: (v) => setState(() => _statusFilter = v),
+            ),
+          ] else ...[
+            ViewToggleButton(
+              theme: Theme.of(context),
+              isKanbanView: _isKanbanView,
+              onToggle: (v) => setState(() => _isKanbanView = v),
+            ),
+            IconButton(
+              icon: const Icon(Icons.refresh),
+              onPressed: _fetchPedidos,
+              tooltip: 'Atualizar',
+            ),
+          ],
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : pedidos.isEmpty
           ? const Center(child: Text('Nenhum pedido encontrado'))
-          : _viewMode == 'tabela'
-          ? Tabela(
-        pedidos: pedidos,
-        onEstadoChanged: (pedido) async {
-          await _atualizarEstadoPedido(pedido, pedido.estado);
-        },
-        onDelete: (pedido) async {
-          await _deletarPedido(pedido);
-        },
-        onEdit: (pedido) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PedidoDetailsPage(pedido: pedido),
-            ),
-          );
-        },
-      )
-          : Kanban(
+          : _isKanbanView
+          ? Kanban(
         pedidos: pedidos,
         corColuna: corColuna,
-        onPedidoEstadoChanged: (pedido) async {
-          await _atualizarEstadoPedido(pedido, pedido.estado);
+        onPedidoEstadoChanged: (p) async {
+          await _atualizarEstadoPedido(p, p.estado);
         },
-        onDelete: (pedido) async {
-          await _deletarPedido(pedido);
+        onDelete: (p) async {
+          await _deletarPedido(p);
         },
-        onTapDetails: (pedido) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => PedidoDetailsPage(pedido: pedido),
-            ),
-          );
+        onTapDetails: (p) => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PedidoDetailsPage(pedido: p),
+          ),
+        ),
+      )
+          : Tabela(
+        pedidos: pedidos,
+        onEstadoChanged: (p) async {
+          await _atualizarEstadoPedido(p, p.estado);
         },
+        onDelete: (p) async {
+          await _deletarPedido(p);
+        },
+        onEdit: (p) => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PedidoDetailsPage(pedido: p),
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -215,6 +252,88 @@ class _PedidosPageState extends State<PedidosPage> {
         },
         child: const Icon(Icons.add),
         tooltip: 'Adicionar Pedido',
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+}
+
+class ViewToggleButton extends StatelessWidget {
+  final bool isKanbanView;
+  final ValueChanged<bool> onToggle;
+  final ThemeData theme;
+
+  const ViewToggleButton({
+    super.key,
+    required this.isKanbanView,
+    required this.onToggle,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.onPrimary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        children: [
+          _ToggleIcon(
+            icon: LucideIcons.layoutGrid,
+            selected: isKanbanView,
+            onTap: () => onToggle(true),
+          ),
+          _ToggleIcon(
+            icon: LucideIcons.table,
+            selected: !isKanbanView,
+            onTap: () => onToggle(false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleIcon extends StatelessWidget {
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _ToggleIcon({
+    super.key,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(24),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? theme.colorScheme.primaryContainer
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Icon(
+          icon,
+          size: 20,
+          color: selected
+              ? theme.colorScheme.onPrimaryContainer
+              : theme.colorScheme.onSurfaceVariant,
+        ),
       ),
     );
   }
