@@ -36,7 +36,7 @@ enum EstadoPedido {
       case "cancelado":
         return EstadoPedido.cancelado;
       default:
-        return EstadoPedido.emAberto; // Valor padrão para status desconhecidos
+        return EstadoPedido.emAberto;
     }
   }
 }
@@ -109,20 +109,20 @@ class Pedido {
 
     return Pedido(
       id: json['id'] as String,
-      numeroPedido: json['numero_pedido'] ?? '', // Não presente na resposta, pode ser ajustado
-      nomeCliente: json['cliente_nome'] ?? '',
-      telefoneCliente: json['cliente_contato'] ?? '',
-      servico: detalhes['produto'] ?? '',
-      quantidade: detalhes['quantidade'] ?? 0,
-      observacoes: detalhes['observacoes'] ?? '',
+      numeroPedido: detalhes['numeroPedido']?.toString() ?? '',
+      nomeCliente: json['cliente_nome'] as String? ?? '',
+      telefoneCliente: json['ccliente_contato'] as String? ?? '',
+      servico: detalhes['servico'] as String? ?? '',
+      quantidade: (detalhes['quantidade'] as num?)?.toInt() ?? 0,
+      observacoes: detalhes['observacoes'] as String? ?? '',
       valorTotal: (detalhes['valor_total'] as num?)?.toDouble() ?? 0.0,
-      dataEntrega: DateTime.parse(json['data_entrega']),
-      dataPedido: DateTime.parse(json['xata']['createdAt']),
-      estado: EstadoPedido.fromString(json['status'] ?? 'Em aberto'),
-      atendimentoHumano: json['atendimento_humano'] ?? false,
-      fotoUrl: json['foto_url'],
+      dataEntrega: DateTime.parse(json['data_entrega'] as String),
+      dataPedido: DateTime.parse(json['xata']['createdAt'] as String),
+      estado: EstadoPedido.fromString(json['status'] as String? ?? 'Em aberto'),
+      atendimentoHumano: json['atendimento_humano'] as bool? ?? false,
+      fotoUrl: json['foto_url'] as String?,
       feedbacks: (json['feedbacks'] as List<dynamic>?)
-          ?.map((e) => FeedbackEntry.fromJson(e))
+          ?.map((e) => FeedbackEntry.fromJson(e as Map<String, dynamic>))
           .toList() ??
           [],
     );
@@ -131,18 +131,19 @@ class Pedido {
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'numero_pedido': numeroPedido,
       'cliente_nome': nomeCliente,
-      'cliente_contato': telefoneCliente,
+      'ccliente_contato': telefoneCliente,
       'status': estado.label,
-      'data_entrega': dataEntrega.toIso8601String(),
-      'atendimento_humano': atendimentoHumano,
       'detalhes': jsonEncode({
-        'produto': servico,
+        'numeroPedido': numeroPedido,
+        'servico': servico,
         'quantidade': quantidade,
         'observacoes': observacoes,
         'valor_total': valorTotal,
+        'dataPedido': dataPedido.toIso8601String(),
       }),
+      'data_entrega': "${dataEntrega.toIso8601String()}Z",
+      'atendimento_humano': atendimentoHumano,
       'foto_url': fotoUrl,
       'feedbacks': feedbacks.map((f) => f.toJson()).toList(),
     };

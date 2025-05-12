@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../Model/pedidos.dart';
 import '../../Service/pedidos_service.dart';
+import 'Components/add_pedido.dart';
 import 'Components/pedido_details_page.dart';
 import 'Components/tabela.dart';
 
@@ -190,32 +191,17 @@ class _PedidosPageState extends State<PedidosPage> {
                 : _buildTabela(displayed);
           }),
           floatingActionButton: FloatingActionButton(
-            onPressed: () async {
-              final novo = Pedido(
-                id: '',
-                numeroPedido: DateTime.now().millisecondsSinceEpoch.toString(),
-                nomeCliente: 'Cliente Teste',
-                telefoneCliente: '77900000000',
-                servico: 'Serviço de Teste',
-                quantidade: 1,
-                observacoes: 'Gerado para teste CRUD',
-                valorTotal: 99.9,
-                dataPedido: DateTime.now(),
-                dataEntrega: DateTime.now().add(const Duration(minutes: 30)),
-                estado: EstadoPedido.emAberto,
-                atendimentoHumano: false,
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AddPedidoDialog(
+                  onAdd: (novoPedido) {
+                    setState(() {
+                      _pedidos.add(novoPedido);
+                    });
+                  },
+                ),
               );
-              try {
-                // Stub: Não faz nada, apenas exibe mensagem
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text('Adicionar pedido não disponível no momento')),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Erro: $e')),
-                );
-              }
             },
             child: const Icon(LucideIcons.plus),
           ),

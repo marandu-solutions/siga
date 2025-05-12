@@ -53,17 +53,19 @@ class PedidoService {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'numero_pedido': pedido.numeroPedido,
-        'nome_cliente': pedido.nomeCliente,
-        'telefone_cliente': pedido.telefoneCliente,
-        'servico': pedido.servico,
-        'quantidade': pedido.quantidade,
-        'observacoes': pedido.observacoes,
-        'valor_total': pedido.valorTotal,
-        'data_pedido': pedido.dataPedido.toIso8601String(),
-        'data_entrega': pedido.dataEntrega.toIso8601String(),
+        'cliente_nome': pedido.nomeCliente,
+        'cliente_contato': pedido.telefoneCliente, // Corrigido de cliente_contato para ccliente_contato
         'status': pedido.estado.label,
+        'detalhes': jsonEncode({
+          'numeroPedido': pedido.numeroPedido,
+          'servico': pedido.servico,
+          'quantidade': pedido.quantidade,
+          'observacoes': pedido.observacoes,
+          'valor_total': pedido.valorTotal,
+          'dataPedido': pedido.dataPedido.toIso8601String(),
+        }),
         'atendimento_humano': pedido.atendimentoHumano,
+        'data_entrega': "${pedido.dataEntrega.toIso8601String()}Z",
       }),
     );
 
@@ -84,6 +86,44 @@ class PedidoService {
 
     if (response.statusCode != 200) {
       throw Exception('Falha ao deletar pedido: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  Future<Pedido> adicionarPedido(Pedido pedido) async {
+    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data');
+    final body = jsonEncode({
+      'cliente_nome': pedido.nomeCliente,
+      'cliente_contato': pedido.telefoneCliente, // Corrigido de cliente_contato para ccliente_contato
+      'status': pedido.estado.label,
+      'detalhes': jsonEncode({
+        'numeroPedido': pedido.numeroPedido,
+        'servico': pedido.servico,
+        'quantidade': pedido.quantidade,
+        'observacoes': pedido.observacoes,
+        'valor_total': pedido.valorTotal,
+        'dataPedido': pedido.dataPedido.toIso8601String(),
+      }),
+      'atendimento_humano': pedido.atendimentoHumano,
+      'data_entrega': "${pedido.dataEntrega.toIso8601String()}Z",
+    });
+
+    print('JSON enviado para o Xata: $body'); // Log para depuração
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'Bearer $xataApiKey',
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    );
+
+    if (response.statusCode == 201) {
+      final Map<String, dynamic> data = jsonDecode(response.body);
+      print('Resposta do Xata: ${response.body}'); // Log para depuração
+      return Pedido.fromJson(data);
+    } else {
+      throw Exception('Falha ao adicionar pedido: ${response.statusCode} - ${response.body}');
     }
   }
 }
