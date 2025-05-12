@@ -1,4 +1,3 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
@@ -11,6 +10,7 @@ import 'Pages/Auth/Register/register_page.dart';
 import 'Pages/HomePage/home_page.dart';
 import 'Themes/themes.dart';
 import 'Model/atendimento.dart';
+import 'Service/pedidos_service.dart'; // Importe o PedidoService
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,8 +31,6 @@ void main() {
     ),
   );
 }
-
-
 
 class MaranduApp extends StatelessWidget {
   const MaranduApp({Key? key}) : super(key: key);

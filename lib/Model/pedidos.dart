@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 enum EstadoPedido {
@@ -23,28 +24,27 @@ enum EstadoPedido {
   }
 
   static EstadoPedido fromString(String value) {
-    switch (value) {
-      case "Em aberto":
+    switch (value.toLowerCase()) {
+      case "em aberto":
         return EstadoPedido.emAberto;
-      case "Em andamento":
+      case "em andamento":
         return EstadoPedido.emAndamento;
-      case "Entrega/Retirada":
+      case "entrega/retirada":
         return EstadoPedido.entregaRetirada;
-      case "Finalizado":
+      case "finalizado":
         return EstadoPedido.finalizado;
-      case "Cancelado":
+      case "cancelado":
         return EstadoPedido.cancelado;
       default:
-        return EstadoPedido.emAberto;
+        return EstadoPedido.emAberto; // Valor padrão para status desconhecidos
     }
   }
 }
 
-/// Representa um feedback dado por cliente sobre um pedido
 class FeedbackEntry {
-  final String id;          // identificador único de feedback
+  final String id;
   final String mensagem;
-  final bool positive;      // true = positivo, false = negativo
+  final bool positive;
   final DateTime data;
 
   FeedbackEntry({
@@ -70,7 +70,7 @@ class FeedbackEntry {
 }
 
 class Pedido {
-  final int id;
+  final String id;
   final String numeroPedido;
   final String nomeCliente;
   final String telefoneCliente;
@@ -78,14 +78,11 @@ class Pedido {
   final int quantidade;
   final String observacoes;
   final double valorTotal;
+  final DateTime dataEntrega;
   final DateTime dataPedido;
   final EstadoPedido estado;
-
-  // Atributos opcionais
-  final String? nomeFuncionario;
+  final bool atendimentoHumano;
   final String? fotoUrl;
-
-  /// Lista de feedbacks associados a este pedido
   final List<FeedbackEntry> feedbacks;
 
   Pedido({
@@ -97,29 +94,35 @@ class Pedido {
     required this.quantidade,
     required this.observacoes,
     required this.valorTotal,
+    required this.dataEntrega,
     required this.dataPedido,
     required this.estado,
-    this.nomeFuncionario,
+    required this.atendimentoHumano,
     this.fotoUrl,
     List<FeedbackEntry>? feedbacks,
   }) : feedbacks = feedbacks ?? [];
 
   factory Pedido.fromJson(Map<String, dynamic> json) {
+    // Desserializa a string JSON do campo detalhes para um Map
+    final detalhesString = json['detalhes'] as String? ?? '{}';
+    final Map<String, dynamic> detalhes = jsonDecode(detalhesString);
+
     return Pedido(
-      id: json['id'],
-      numeroPedido: json['numero_pedido'] ?? '',
-      nomeCliente: json['nome_cliente'] ?? '',
-      telefoneCliente: json['telefone_cliente'] ?? '',
-      servico: json['servico'] ?? '',
-      quantidade: json['quantidade'] ?? 0,
-      observacoes: json['observacoes'] ?? '',
-      valorTotal: (json['valor_total'] as num).toDouble(),
-      dataPedido: DateTime.parse(json['data_pedido']),
-      estado: EstadoPedido.fromString(json['estado'] ?? 'Em aberto'),
-      nomeFuncionario: json['nome_funcionario'],
+      id: json['id'] as String,
+      numeroPedido: json['numero_pedido'] ?? '', // Não presente na resposta, pode ser ajustado
+      nomeCliente: json['cliente_nome'] ?? '',
+      telefoneCliente: json['cliente_contato'] ?? '',
+      servico: detalhes['produto'] ?? '',
+      quantidade: detalhes['quantidade'] ?? 0,
+      observacoes: detalhes['observacoes'] ?? '',
+      valorTotal: (detalhes['valor_total'] as num?)?.toDouble() ?? 0.0,
+      dataEntrega: DateTime.parse(json['data_entrega']),
+      dataPedido: DateTime.parse(json['xata']['createdAt']),
+      estado: EstadoPedido.fromString(json['status'] ?? 'Em aberto'),
+      atendimentoHumano: json['atendimento_humano'] ?? false,
       fotoUrl: json['foto_url'],
       feedbacks: (json['feedbacks'] as List<dynamic>?)
-          ?.map((e) => FeedbackEntry.fromJson(e as Map<String, dynamic>))
+          ?.map((e) => FeedbackEntry.fromJson(e))
           .toList() ??
           [],
     );
@@ -129,35 +132,35 @@ class Pedido {
     return {
       'id': id,
       'numero_pedido': numeroPedido,
-      'nome_cliente': nomeCliente,
-      'telefone_cliente': telefoneCliente,
-      'servico': servico,
-      'quantidade': quantidade,
-      'observacoes': observacoes,
-      'valor_total': valorTotal,
-      'data_pedido': dataPedido.toIso8601String(),
-      'estado': estado.label,
-      'nome_funcionario': nomeFuncionario,
+      'cliente_nome': nomeCliente,
+      'cliente_contato': telefoneCliente,
+      'status': estado.label,
+      'data_entrega': dataEntrega.toIso8601String(),
+      'atendimento_humano': atendimentoHumano,
+      'detalhes': jsonEncode({
+        'produto': servico,
+        'quantidade': quantidade,
+        'observacoes': observacoes,
+        'valor_total': valorTotal,
+      }),
       'foto_url': fotoUrl,
       'feedbacks': feedbacks.map((f) => f.toJson()).toList(),
     };
   }
 
   Pedido copyWith({
-    int? id,
+    String? id,
     String? numeroPedido,
     String? nomeCliente,
     String? telefoneCliente,
     String? servico,
     int? quantidade,
-    String? tamanho,
-    String? tipoMalha,
-    String? cor,
     String? observacoes,
     double? valorTotal,
+    DateTime? dataEntrega,
     DateTime? dataPedido,
     EstadoPedido? estado,
-    String? nomeFuncionario,
+    bool? atendimentoHumano,
     String? fotoUrl,
     List<FeedbackEntry>? feedbacks,
   }) {
@@ -170,9 +173,10 @@ class Pedido {
       quantidade: quantidade ?? this.quantidade,
       observacoes: observacoes ?? this.observacoes,
       valorTotal: valorTotal ?? this.valorTotal,
+      dataEntrega: dataEntrega ?? this.dataEntrega,
       dataPedido: dataPedido ?? this.dataPedido,
       estado: estado ?? this.estado,
-      nomeFuncionario: nomeFuncionario ?? this.nomeFuncionario,
+      atendimentoHumano: atendimentoHumano ?? this.atendimentoHumano,
       fotoUrl: fotoUrl ?? this.fotoUrl,
       feedbacks: feedbacks ?? List.from(this.feedbacks),
     );
@@ -180,7 +184,7 @@ class Pedido {
 }
 
 class NotificationEntry {
-  final int pedidoId;
+  final String pedidoId;
   final String mensagem;
   final DateTime data;
 
@@ -193,8 +197,6 @@ class NotificationEntry {
 
 class PedidoModel extends ChangeNotifier {
   final List<Pedido> _pedidos = [];
-
-  /// Histórico de notificações enviadas
   final List<NotificationEntry> _notificacoes = [];
 
   List<Pedido> get pedidos => List.unmodifiable(_pedidos);
@@ -205,12 +207,12 @@ class PedidoModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void removerPedido(int id) {
+  void removerPedido(String id) {
     _pedidos.removeWhere((p) => p.id == id);
     notifyListeners();
   }
 
-  void atualizarPedido(int id, Pedido pedidoAtualizado) {
+  void atualizarPedido(String id, Pedido pedidoAtualizado) {
     final idx = _pedidos.indexWhere((p) => p.id == id);
     if (idx != -1) {
       _pedidos[idx] = pedidoAtualizado;
@@ -218,7 +220,7 @@ class PedidoModel extends ChangeNotifier {
     }
   }
 
-  Pedido buscarPedidoPorId(int id) {
+  Pedido buscarPedidoPorId(String id) {
     return _pedidos.firstWhere((p) => p.id == id);
   }
 
@@ -227,8 +229,7 @@ class PedidoModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Adiciona um feedback a um pedido existente
-  void adicionarFeedback(int pedidoId, FeedbackEntry feedback) {
+  void adicionarFeedback(String pedidoId, FeedbackEntry feedback) {
     final idx = _pedidos.indexWhere((p) => p.id == pedidoId);
     if (idx != -1) {
       final p = _pedidos[idx];
@@ -240,14 +241,12 @@ class PedidoModel extends ChangeNotifier {
     }
   }
 
-  /// Retorna lista de feedbacks para um pedido
-  List<FeedbackEntry> feedbacksDoPedido(int pedidoId) {
+  List<FeedbackEntry> feedbacksDoPedido(String pedidoId) {
     return buscarPedidoPorId(pedidoId).feedbacks;
   }
 
-  /// Adiciona uma notificação ao histórico
   void adicionarNotificacao({
-    required int pedidoId,
+    required String pedidoId,
     required String mensagem,
   }) {
     _notificacoes.add(NotificationEntry(

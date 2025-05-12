@@ -44,7 +44,7 @@ class _KanbanState extends State<Kanban> {
         estado: widget.pedidos
             .where((p) => p.estado == estado)
             .toList()
-          ..sort((a, b) => a.dataPedido.compareTo(b.dataPedido)),
+          ..sort((a, b) => a.dataEntrega.compareTo(b.dataEntrega)),
     };
 
     return Padding(

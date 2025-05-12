@@ -13,7 +13,7 @@ class AlertaPage extends StatefulWidget {
 
 class _AlertaPageState extends State<AlertaPage> {
   final motivoController = TextEditingController();
-  final List<int> pedidosSelecionados = [];
+  final List<String> pedidosSelecionados = []; // Alterado de List<int> para List<String>
   DateTime? novaData;
 
   @override
@@ -68,14 +68,14 @@ class _AlertaPageState extends State<AlertaPage> {
     final formatted = '${novaData!.day}/${novaData!.month}/${novaData!.year}';
 
     for (final id in pedidosSelecionados) {
-      final p = pedidosModel.buscarPedidoPorId(id);
+      final p = pedidosModel.buscarPedidoPorId(id); // Agora usa String
       final msg = motivoController.text
           .replaceAll('{{nome}}', p.nomeCliente)
           .replaceAll('{{data}}', formatted);
 
       pedidosModel.adicionarNotificacao(
-        pedidoId: id,
-        mensagem: 'Pedido #${p.numeroPedido}: $msg',
+        pedidoId: id, // Usa String
+        mensagem: 'Pedido #${p.id.substring(0, 8)}: $msg', // Usa id em vez de numeroPedido
       );
 
       debugPrint('Enviar para ${p.telefoneCliente}: $msg');
@@ -113,8 +113,8 @@ class _AlertaPageState extends State<AlertaPage> {
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
-              icon: const Icon(Icons.history),
-              onPressed: () => Navigator.push(
+            icon: const Icon(Icons.history),
+            onPressed: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const HistoricoPage()),
             ),
@@ -159,7 +159,7 @@ class _PedidosPanel extends StatelessWidget {
       );
 
   final List<Pedido> pedidos;
-  final List<int> selecionados;
+  final List<String> selecionados; // Alterado para List<String>
   final VoidCallback onLimpar;
 
   @override
@@ -212,7 +212,7 @@ class _PedidosPanel extends StatelessWidget {
                       ),
                       title: Text(p.nomeCliente),
                       subtitle: Text('${p.quantidade} x ${p.servico}'),
-                      trailing: Text('#${p.numeroPedido}'),
+                      trailing: Text('#${p.id.substring(0, 8)}'), // Usa id em vez de numeroPedido
                       onTap: () {
                         if (isSel) {
                           selecionados.remove(p.id);
