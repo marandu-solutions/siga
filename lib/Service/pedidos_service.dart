@@ -35,12 +35,55 @@ class PedidoService {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'status': novoEstado.label, // Usa a representação em string do estado (ex.: "Em aberto")
+        'status': novoEstado.label,
       }),
     );
 
     if (response.statusCode != 200) {
       throw Exception('Falha ao atualizar estado do pedido: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  Future<void> editarPedido(Pedido pedido) async {
+    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data/${pedido.id}');
+    final response = await http.patch(
+      url,
+      headers: {
+        'Authorization': 'Bearer $xataApiKey',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'numero_pedido': pedido.numeroPedido,
+        'nome_cliente': pedido.nomeCliente,
+        'telefone_cliente': pedido.telefoneCliente,
+        'servico': pedido.servico,
+        'quantidade': pedido.quantidade,
+        'observacoes': pedido.observacoes,
+        'valor_total': pedido.valorTotal,
+        'data_pedido': pedido.dataPedido.toIso8601String(),
+        'data_entrega': pedido.dataEntrega.toIso8601String(),
+        'status': pedido.estado.label,
+        'atendimento_humano': pedido.atendimentoHumano,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Falha ao editar pedido: ${response.statusCode} - ${response.body}');
+    }
+  }
+
+  Future<void> deletarPedido(String pedidoId) async {
+    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data/$pedidoId');
+    final response = await http.delete(
+      url,
+      headers: {
+        'Authorization': 'Bearer $xataApiKey',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Falha ao deletar pedido: ${response.statusCode} - ${response.body}');
     }
   }
 }
