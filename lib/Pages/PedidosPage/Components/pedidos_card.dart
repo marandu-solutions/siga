@@ -1,4 +1,3 @@
-// lib/Pages/Components/pedido_card.dart
 import 'package:flutter/material.dart';
 import '../../../Model/pedidos.dart';
 
@@ -51,8 +50,7 @@ class _PedidoCardState extends State<PedidoCard> {
           ),
         ],
       ),
-    ) ??
-        false;
+    ) ?? false;
   }
 
   @override
@@ -72,6 +70,12 @@ class _PedidoCardState extends State<PedidoCard> {
   }
 
   Widget _buildCard(int minutos, ColorScheme cs, TextTheme tt) {
+    // Calcular o valor total somando os preços dos itens
+    final valorTotal = widget.pedido.itens.fold<double>(
+      0.0,
+          (sum, item) => sum + (item.preco * item.quantidade),
+    );
+
     return Card(
       clipBehavior: Clip.antiAlias,
       margin: const EdgeInsets.only(bottom: 12),
@@ -128,10 +132,48 @@ class _PedidoCardState extends State<PedidoCard> {
               const SizedBox(height: 8),
               _infoRow(Icons.person_outline,
                   "Cliente: ${widget.pedido.nomeCliente}", cs, tt),
-              _infoRow(Icons.work_outline,
-                  "Serviço: ${widget.pedido.servico}", cs, tt),
+              // Exibir a lista de itens
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6.0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.fastfood, size: 16, color: cs.onSurfaceVariant),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Itens:",
+                            style: tt.bodyMedium?.copyWith(
+                              color: cs.onSurface,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          ...widget.pedido.itens.asMap().entries.map((entry) {
+                            final item = entry.value;
+                            return Padding(
+                              padding: const EdgeInsets.only(left: 8, bottom: 4),
+                              child: Text(
+                                "${item.quantidade}x ${item.nome} - R\$ ${(item.preco * item.quantidade).toStringAsFixed(2)}",
+                                style: tt.bodyMedium?.copyWith(
+                                  color: cs.onSurface,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                            );
+                          }).toList(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               _infoRow(Icons.attach_money,
-                  "Valor: R\$ ${widget.pedido.valorTotal.toStringAsFixed(2)}", cs, tt),
+                  "Valor: R\$ ${valorTotal.toStringAsFixed(2)}", cs, tt),
               if (widget.pedido.observacoes.isNotEmpty)
                 _infoRow(Icons.note_outlined,
                     "Obs: ${widget.pedido.observacoes}", cs, tt),
@@ -192,8 +234,7 @@ class _PedidoCardState extends State<PedidoCard> {
     );
   }
 
-  Widget _infoRow(
-      IconData icon, String text, ColorScheme cs, TextTheme tt) {
+  Widget _infoRow(IconData icon, String text, ColorScheme cs, TextTheme tt) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0),
       child: Row(

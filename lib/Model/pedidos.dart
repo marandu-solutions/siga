@@ -69,19 +69,40 @@ class FeedbackEntry {
   };
 }
 
+class Item {
+  final String nome;
+  final double preco;
+  final int quantidade;
+
+  Item({
+    required this.nome,
+    required this.preco,
+    required this.quantidade,
+  });
+
+  factory Item.fromJson(Map<String, dynamic> json) => Item(
+    nome: json['nome'] as String? ?? '',
+    preco: (json['preco'] as num?)?.toDouble() ?? 0.0,
+    quantidade: (json['quantidade'] as num?)?.toInt() ?? 0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'nome': nome,
+    'preco': preco,
+    'quantidade': quantidade,
+  };
+}
+
 class Pedido {
   final String id;
   final String numeroPedido;
   final String nomeCliente;
   final String telefoneCliente;
-  final String servico;
-  final int quantidade;
+  final List<Item> itens;
   final String observacoes;
-  final double valorTotal;
   final DateTime dataEntrega;
   final DateTime dataPedido;
   final EstadoPedido estado;
-  final bool atendimentoHumano;
   final String? fotoUrl;
   final List<FeedbackEntry> feedbacks;
 
@@ -90,36 +111,34 @@ class Pedido {
     required this.numeroPedido,
     required this.nomeCliente,
     required this.telefoneCliente,
-    required this.servico,
-    required this.quantidade,
+    required this.itens,
     required this.observacoes,
-    required this.valorTotal,
     required this.dataEntrega,
     required this.dataPedido,
     required this.estado,
-    required this.atendimentoHumano,
     this.fotoUrl,
     List<FeedbackEntry>? feedbacks,
   }) : feedbacks = feedbacks ?? [];
 
   factory Pedido.fromJson(Map<String, dynamic> json) {
-    // Desserializa a string JSON do campo detalhes para um Map
     final detalhesString = json['detalhes'] as String? ?? '{}';
     final Map<String, dynamic> detalhes = jsonDecode(detalhesString);
+    final List<dynamic> itensJson = detalhes['itens'] as List<dynamic>? ?? [];
+
+    // Verificação para dataEntrega e dataPedido
+    final dataEntregaStr = json['data_entrega'] as String?;
+    final dataPedidoStr = json['xata'] != null ? json['xata']['createdAt'] as String? : null;
 
     return Pedido(
-      id: json['id'] as String,
+      id: json['id'] as String? ?? '',
       numeroPedido: detalhes['numeroPedido']?.toString() ?? '',
       nomeCliente: json['cliente_nome'] as String? ?? '',
       telefoneCliente: json['ccliente_contato'] as String? ?? '',
-      servico: detalhes['servico'] as String? ?? '',
-      quantidade: (detalhes['quantidade'] as num?)?.toInt() ?? 0,
+      itens: itensJson.map((e) => Item.fromJson(e as Map<String, dynamic>)).toList(),
       observacoes: detalhes['observacoes'] as String? ?? '',
-      valorTotal: (detalhes['valor_total'] as num?)?.toDouble() ?? 0.0,
-      dataEntrega: DateTime.parse(json['data_entrega'] as String),
-      dataPedido: DateTime.parse(json['xata']['createdAt'] as String),
+      dataEntrega: dataEntregaStr != null ? DateTime.parse(dataEntregaStr) : DateTime.now(),
+      dataPedido: dataPedidoStr != null ? DateTime.parse(dataPedidoStr) : DateTime.now(),
       estado: EstadoPedido.fromString(json['status'] as String? ?? 'Em aberto'),
-      atendimentoHumano: json['atendimento_humano'] as bool? ?? false,
       fotoUrl: json['foto_url'] as String?,
       feedbacks: (json['feedbacks'] as List<dynamic>?)
           ?.map((e) => FeedbackEntry.fromJson(e as Map<String, dynamic>))
@@ -136,14 +155,10 @@ class Pedido {
       'status': estado.label,
       'detalhes': jsonEncode({
         'numeroPedido': numeroPedido,
-        'servico': servico,
-        'quantidade': quantidade,
+        'itens': itens.map((item) => item.toJson()).toList(),
         'observacoes': observacoes,
-        'valor_total': valorTotal,
-        'dataPedido': dataPedido.toIso8601String(),
       }),
       'data_entrega': "${dataEntrega.toIso8601String()}Z",
-      'atendimento_humano': atendimentoHumano,
       'foto_url': fotoUrl,
       'feedbacks': feedbacks.map((f) => f.toJson()).toList(),
     };
@@ -154,14 +169,11 @@ class Pedido {
     String? numeroPedido,
     String? nomeCliente,
     String? telefoneCliente,
-    String? servico,
-    int? quantidade,
+    List<Item>? itens,
     String? observacoes,
-    double? valorTotal,
     DateTime? dataEntrega,
     DateTime? dataPedido,
     EstadoPedido? estado,
-    bool? atendimentoHumano,
     String? fotoUrl,
     List<FeedbackEntry>? feedbacks,
   }) {
@@ -170,14 +182,11 @@ class Pedido {
       numeroPedido: numeroPedido ?? this.numeroPedido,
       nomeCliente: nomeCliente ?? this.nomeCliente,
       telefoneCliente: telefoneCliente ?? this.telefoneCliente,
-      servico: servico ?? this.servico,
-      quantidade: quantidade ?? this.quantidade,
+      itens: itens ?? this.itens,
       observacoes: observacoes ?? this.observacoes,
-      valorTotal: valorTotal ?? this.valorTotal,
       dataEntrega: dataEntrega ?? this.dataEntrega,
       dataPedido: dataPedido ?? this.dataPedido,
       estado: estado ?? this.estado,
-      atendimentoHumano: atendimentoHumano ?? this.atendimentoHumano,
       fotoUrl: fotoUrl ?? this.fotoUrl,
       feedbacks: feedbacks ?? List.from(this.feedbacks),
     );

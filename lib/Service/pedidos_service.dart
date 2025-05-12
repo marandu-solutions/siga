@@ -54,17 +54,13 @@ class PedidoService {
       },
       body: jsonEncode({
         'cliente_nome': pedido.nomeCliente,
-        'cliente_contato': pedido.telefoneCliente, // Corrigido de cliente_contato para ccliente_contato
+        'cliente_contato': pedido.telefoneCliente,
         'status': pedido.estado.label,
         'detalhes': jsonEncode({
           'numeroPedido': pedido.numeroPedido,
-          'servico': pedido.servico,
-          'quantidade': pedido.quantidade,
+          'itens': pedido.itens.map((item) => item.toJson()).toList(),
           'observacoes': pedido.observacoes,
-          'valor_total': pedido.valorTotal,
-          'dataPedido': pedido.dataPedido.toIso8601String(),
         }),
-        'atendimento_humano': pedido.atendimentoHumano,
         'data_entrega': "${pedido.dataEntrega.toIso8601String()}Z",
       }),
     );
@@ -93,17 +89,13 @@ class PedidoService {
     final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data');
     final body = jsonEncode({
       'cliente_nome': pedido.nomeCliente,
-      'cliente_contato': pedido.telefoneCliente, // Corrigido de cliente_contato para ccliente_contato
+      'cliente_contato': pedido.telefoneCliente,
       'status': pedido.estado.label,
       'detalhes': jsonEncode({
         'numeroPedido': pedido.numeroPedido,
-        'servico': pedido.servico,
-        'quantidade': pedido.quantidade,
+        'itens': pedido.itens.map((item) => item.toJson()).toList(),
         'observacoes': pedido.observacoes,
-        'valor_total': pedido.valorTotal,
-        'dataPedido': pedido.dataPedido.toIso8601String(),
       }),
-      'atendimento_humano': pedido.atendimentoHumano,
       'data_entrega': "${pedido.dataEntrega.toIso8601String()}Z",
     });
 

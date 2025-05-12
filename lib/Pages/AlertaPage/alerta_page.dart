@@ -13,7 +13,7 @@ class AlertaPage extends StatefulWidget {
 
 class _AlertaPageState extends State<AlertaPage> {
   final motivoController = TextEditingController();
-  final List<String> pedidosSelecionados = []; // Alterado de List<int> para List<String>
+  final List<String> pedidosSelecionados = [];
   DateTime? novaData;
 
   @override
@@ -68,14 +68,14 @@ class _AlertaPageState extends State<AlertaPage> {
     final formatted = '${novaData!.day}/${novaData!.month}/${novaData!.year}';
 
     for (final id in pedidosSelecionados) {
-      final p = pedidosModel.buscarPedidoPorId(id); // Agora usa String
+      final p = pedidosModel.buscarPedidoPorId(id);
       final msg = motivoController.text
           .replaceAll('{{nome}}', p.nomeCliente)
           .replaceAll('{{data}}', formatted);
 
       pedidosModel.adicionarNotificacao(
-        pedidoId: id, // Usa String
-        mensagem: 'Pedido #${p.id.substring(0, 8)}: $msg', // Usa id em vez de numeroPedido
+        pedidoId: id,
+        mensagem: 'Pedido #${p.id.substring(0, 8)}: $msg',
       );
 
       debugPrint('Enviar para ${p.telefoneCliente}: $msg');
@@ -159,7 +159,7 @@ class _PedidosPanel extends StatelessWidget {
       );
 
   final List<Pedido> pedidos;
-  final List<String> selecionados; // Alterado para List<String>
+  final List<String> selecionados;
   final VoidCallback onLimpar;
 
   @override
@@ -195,6 +195,20 @@ class _PedidosPanel extends StatelessWidget {
                 itemBuilder: (ctx, i) {
                   final p = pedidos[i];
                   final isSel = selecionados.contains(p.id);
+
+                  // Calcular a quantidade total de itens
+                  final quantidadeTotal = p.itens.fold<int>(
+                    0,
+                        (sum, item) => sum + item.quantidade,
+                  );
+
+                  // Representação dos itens (ex.: "Hambúrguer e mais 2 itens")
+                  final itensText = p.itens.isNotEmpty
+                      ? p.itens.length == 1
+                      ? p.itens[0].nome
+                      : "${p.itens[0].nome} e mais ${p.itens.length - 1} item${p.itens.length > 2 ? 's' : ''}"
+                      : "Nenhum item";
+
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 300),
                     margin: const EdgeInsets.symmetric(vertical: 6),
@@ -211,8 +225,8 @@ class _PedidosPanel extends StatelessWidget {
                         color: isSel ? cs.primary : cs.onSurfaceVariant,
                       ),
                       title: Text(p.nomeCliente),
-                      subtitle: Text('${p.quantidade} x ${p.servico}'),
-                      trailing: Text('#${p.id.substring(0, 8)}'), // Usa id em vez de numeroPedido
+                      subtitle: Text('$quantidadeTotal x $itensText'),
+                      trailing: Text('#${p.id.substring(0, 8)}'),
                       onTap: () {
                         if (isSel) {
                           selecionados.remove(p.id);
@@ -294,7 +308,7 @@ class _NotificarPanel extends StatelessWidget {
             TextField(
               controller: controller,
               maxLines: 6,
-              onChanged: (_) => {}, // Gatilho visualizador já adicionado no initState
+              onChanged: (_) => {},
               decoration: InputDecoration(
                 hintText: 'Olá {{nome}}, seu pedido foi reagendado para {{data}}',
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),

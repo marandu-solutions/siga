@@ -63,10 +63,10 @@ class PedidoDetailsPage extends StatefulWidget {
 class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
   late TextEditingController _nomeController;
   late TextEditingController _telefoneController;
-  late TextEditingController _servicoController;
-  late TextEditingController _quantidadeController;
-  late TextEditingController _valorController;
+  late TextEditingController _observacoesController;
   late EstadoPedido _estado;
+  late List<Map<String, TextEditingController>> _itens;
+  late List<GlobalKey<FormState>> _itensFormKeys;
 
   @override
   void initState() {
@@ -76,10 +76,18 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     // Formata número inicial
     var tel = p.telefoneCliente.replaceAll(RegExp(r'\D'), '');
     _telefoneController = TextEditingController(text: _formatInitial(tel));
-    _servicoController = TextEditingController(text: p.servico);
-    _quantidadeController = TextEditingController(text: p.quantidade.toString());
-    _valorController = TextEditingController(text: p.valorTotal.toString());
+    _observacoesController = TextEditingController(text: p.observacoes);
     _estado = p.estado;
+
+    // Inicializar a lista de itens a partir do pedido
+    _itens = p.itens.map((item) {
+      return {
+        'nome': TextEditingController(text: item.nome),
+        'preco': TextEditingController(text: item.preco.toString()),
+        'quantidade': TextEditingController(text: item.quantidade.toString()),
+      };
+    }).toList();
+    _itensFormKeys = List.generate(_itens.length, (_) => GlobalKey<FormState>());
   }
 
   String _formatInitial(String digits) {
@@ -102,25 +110,64 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     return buffer.toString();
   }
 
+  void _addItem() {
+    setState(() {
+      _itens.add({
+        'nome': TextEditingController(),
+        'preco': TextEditingController(),
+        'quantidade': TextEditingController(text: '1'),
+      });
+      _itensFormKeys.add(GlobalKey<FormState>());
+    });
+  }
+
+  void _removeItem(int index) {
+    setState(() {
+      _itens[index].forEach((key, controller) => controller.dispose());
+      _itens.removeAt(index);
+      _itensFormKeys.removeAt(index);
+    });
+  }
+
   @override
   void dispose() {
     _nomeController.dispose();
     _telefoneController.dispose();
-    _servicoController.dispose();
-    _quantidadeController.dispose();
-    _valorController.dispose();
+    _observacoesController.dispose();
+    for (var item in _itens) {
+      item['nome']!.dispose();
+      item['preco']!.dispose();
+      item['quantidade']!.dispose();
+    }
     super.dispose();
   }
 
   void _save() {
+    bool allValid = true;
+    for (var formKey in _itensFormKeys) {
+      if (!formKey.currentState!.validate()) {
+        allValid = false;
+      }
+    }
+
+    if (!allValid) return;
+
     // Remove máscara e salva apenas dígitos
     final digits = _telefoneController.text.replaceAll(RegExp(r'\D'), '');
+    final List<Item> updatedItens = _itens.asMap().entries.map((entry) {
+      final item = entry.value;
+      return Item(
+        nome: item['nome']!.text,
+        preco: double.parse(item['preco']!.text),
+        quantidade: int.parse(item['quantidade']!.text),
+      );
+    }).toList();
+
     final atualizado = widget.pedido.copyWith(
       nomeCliente: _nomeController.text,
       telefoneCliente: digits,
-      servico: _servicoController.text,
-      quantidade: int.tryParse(_quantidadeController.text) ?? widget.pedido.quantidade,
-      valorTotal: double.tryParse(_valorController.text) ?? widget.pedido.valorTotal,
+      itens: updatedItens,
+      observacoes: _observacoesController.text,
       estado: _estado,
     );
     context.read<PedidoModel>().atualizarPedido(widget.pedido.id, atualizado);
@@ -156,29 +203,12 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
               ],
             ),
             const SizedBox(height: 12),
-            TextField(
-              controller: _servicoController,
-              decoration: InputDecoration(labelText: 'Serviço'),
-            ),
+            ..._buildItensFields(),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _quantidadeController,
-                    decoration: InputDecoration(labelText: 'Quantidade'),
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: TextField(
-                    controller: _valorController,
-                    decoration: InputDecoration(labelText: 'Valor Total'),
-                    keyboardType: TextInputType.numberWithOptions(decimal: true),
-                  ),
-                ),
-              ],
+            TextField(
+              controller: _observacoesController,
+              decoration: InputDecoration(labelText: 'Observações'),
+              maxLines: 3,
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<EstadoPedido>(
@@ -200,5 +230,95 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
         ),
       ),
     );
+  }
+
+  List<Widget> _buildItensFields() {
+    List<Widget> widgets = [];
+    for (int i = 0; i < _itens.length; i++) {
+      widgets.add(
+        Form(
+          key: _itensFormKeys[i],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Item ${i + 1}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (_itens.length > 1)
+                    IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => _removeItem(i),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                controller: _itens[i]['nome'],
+                decoration: InputDecoration(labelText: 'Nome do Item'),
+                validator: (value) =>
+                value == null || value.isEmpty ? 'Nome do item é obrigatório' : null,
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _itens[i]['quantidade'],
+                      decoration: InputDecoration(labelText: 'Quantidade'),
+                      keyboardType: TextInputType.number,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Quantidade é obrigatória';
+                        }
+                        if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                          return 'Quantidade deve ser um número positivo';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _itens[i]['preco'],
+                      decoration: InputDecoration(labelText: 'Preço (R\$)'),
+                      keyboardType: TextInputType.numberWithOptions(decimal: true),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Preço é obrigatório';
+                        }
+                        if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                          return 'Preço deve ser um número positivo';
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      );
+    }
+    widgets.add(
+      ElevatedButton.icon(
+        onPressed: _addItem,
+        icon: const Icon(Icons.add),
+        label: const Text('Adicionar Item'),
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+        ),
+      ),
+    );
+    return widgets;
   }
 }

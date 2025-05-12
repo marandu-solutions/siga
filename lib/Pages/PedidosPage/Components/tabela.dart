@@ -1,4 +1,3 @@
-// lib/Pages/Components/tabela.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -93,8 +92,7 @@ class _TabelaState extends State<Tabela> {
                   ...EstadoPedido.values.map((e) => DropdownMenuItem(
                     value: e,
                     child: Text(e.label,
-                        style:
-                        tt.bodyMedium?.copyWith(color: cs.onSurface)),
+                        style: tt.bodyMedium?.copyWith(color: cs.onSurface)),
                   )),
                 ],
                 onChanged: (v) => setState(() => _filtroEstado = v),
@@ -104,7 +102,6 @@ class _TabelaState extends State<Tabela> {
             ],
           ),
           const SizedBox(height: 20),
-
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -153,7 +150,7 @@ class _TabelaState extends State<Tabela> {
                           columns: [
                             _buildColumn("Pedido"),
                             _buildColumn("Cliente"),
-                            _buildColumn("Serviço"),
+                            _buildColumn("Itens"),
                             _buildColumn("Quantidade"),
                             _buildColumn("Valor"),
                             _buildColumn("Data"),
@@ -161,24 +158,41 @@ class _TabelaState extends State<Tabela> {
                             _buildColumn("Ações"),
                           ],
                           rows: pedidosFiltrados.map((pedido) {
+                            // Calcular a quantidade total somando as quantidades dos itens
+                            final quantidadeTotal = pedido.itens.fold<int>(
+                              0,
+                                  (sum, item) => sum + item.quantidade,
+                            );
+
+                            // Calcular o valor total somando os preços dos itens
+                            final valorTotal = pedido.itens.fold<double>(
+                              0.0,
+                                  (sum, item) => sum + (item.preco * item.quantidade),
+                            );
+
+                            // Representação dos itens (ex.: "Hambúrguer e mais 2 itens")
+                            final itensText = pedido.itens.isNotEmpty
+                                ? pedido.itens.length == 1
+                                ? pedido.itens[0].nome
+                                : "${pedido.itens[0].nome} e mais ${pedido.itens.length - 1} item${pedido.itens.length > 2 ? 's' : ''}"
+                                : "Nenhum item";
+
                             return DataRow(cells: [
                               _buildCell(pedido.numeroPedido, cs, tt,
                                   semantics:
                                   "Número do pedido ${pedido.numeroPedido}"),
                               _buildCell(pedido.nomeCliente, cs, tt,
-                                  semantics:
-                                  "Cliente ${pedido.nomeCliente}"),
-                              _buildCell(pedido.servico, cs, tt,
-                                  semantics: "Serviço ${pedido.servico}"),
-                              _buildCell(pedido.quantidade.toString(), cs, tt,
-                                  semantics:
-                                  "Quantidade ${pedido.quantidade}"),
+                                  semantics: "Cliente ${pedido.nomeCliente}"),
+                              _buildCell(itensText, cs, tt,
+                                  semantics: "Itens $itensText"),
+                              _buildCell(quantidadeTotal.toString(), cs, tt,
+                                  semantics: "Quantidade $quantidadeTotal"),
                               _buildCell(
-                                  "R\$ ${pedido.valorTotal.toStringAsFixed(2)}",
+                                  "R\$ ${valorTotal.toStringAsFixed(2)}",
                                   cs,
                                   tt,
                                   semantics:
-                                  "Valor R\$ ${pedido.valorTotal.toStringAsFixed(2)}"),
+                                  "Valor R\$ ${valorTotal.toStringAsFixed(2)}"),
                               _buildCell(
                                   DateFormat('dd/MM/yyyy')
                                       .format(pedido.dataPedido),
@@ -201,8 +215,7 @@ class _TabelaState extends State<Tabela> {
                                       .map((e) => DropdownMenuItem(
                                     value: e,
                                     child: Text(e.label,
-                                        style: tt.bodyMedium
-                                            ?.copyWith(
+                                        style: tt.bodyMedium?.copyWith(
                                             color: cs.onSurface)),
                                   ))
                                       .toList(),
@@ -225,56 +238,44 @@ class _TabelaState extends State<Tabela> {
                                         color: cs.error),
                                     tooltip: "Excluir",
                                     onPressed: () async {
-                                      final confirma =
-                                          await showDialog<bool>(
-                                            context: context,
-                                            builder: (_) => AlertDialog(
-                                              title: Text(
-                                                  "Confirmar exclusão",
-                                                  style: tt.titleMedium
-                                                      ?.copyWith(
-                                                      color: cs
-                                                          .onSurface)),
-                                              content: Text(
-                                                "Excluir pedido #${pedido.numeroPedido}?",
-                                                style: tt.bodyMedium
-                                                    ?.copyWith(
-                                                    color:
-                                                    cs.onSurface),
-                                              ),
-                                              backgroundColor: cs.surface,
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(
-                                                          context, false),
-                                                  child: Text("Cancelar",
-                                                      style: TextStyle(
-                                                          color:
-                                                          cs.primary)),
-                                                ),
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.pop(
-                                                          context, true),
-                                                  child: Text("Excluir",
-                                                      style: TextStyle(
-                                                          color: cs
-                                                              .error)),
-                                                ),
-                                              ],
+                                      final confirma = await showDialog<bool>(
+                                        context: context,
+                                        builder: (_) => AlertDialog(
+                                          title: Text("Confirmar exclusão",
+                                              style: tt.titleMedium?.copyWith(
+                                                  color: cs.onSurface)),
+                                          content: Text(
+                                            "Excluir pedido #${pedido.numeroPedido}?",
+                                            style: tt.bodyMedium?.copyWith(
+                                                color: cs.onSurface),
+                                          ),
+                                          backgroundColor: cs.surface,
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, false),
+                                              child: Text("Cancelar",
+                                                  style: TextStyle(
+                                                      color: cs.primary)),
                                             ),
-                                          ) ??
-                                              false;
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.pop(context, true),
+                                              child: Text("Excluir",
+                                                  style: TextStyle(
+                                                      color: cs.error)),
+                                            ),
+                                          ],
+                                        ),
+                                      ) ??
+                                          false;
                                       if (confirma) {
                                         widget.onDelete(pedido);
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(
+                                        ScaffoldMessenger.of(context).showSnackBar(
                                           SnackBar(
                                             content: Text(
                                               "Pedido #${pedido.numeroPedido} excluído",
-                                              style: tt.bodyMedium
-                                                  ?.copyWith(
+                                              style: tt.bodyMedium?.copyWith(
                                                   color: cs.onSurface),
                                             ),
                                             backgroundColor: cs.surface,
@@ -300,8 +301,7 @@ class _TabelaState extends State<Tabela> {
     );
   }
 
-  DataColumn _buildColumn(String label) =>
-      DataColumn(label: Text(label));
+  DataColumn _buildColumn(String label) => DataColumn(label: Text(label));
 
   DataCell _buildCell(String text, ColorScheme cs, TextTheme tt,
       {required String semantics}) =>

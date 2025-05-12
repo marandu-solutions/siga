@@ -4,7 +4,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../Model/pedidos.dart';
 import '../../../Service/pedidos_service.dart';
 
-
 class AddPedidoDialog extends StatefulWidget {
   final Function(Pedido) onAdd;
 
@@ -18,19 +17,19 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
   final _formKey = GlobalKey<FormState>();
   final _nomeClienteController = TextEditingController();
   final _telefoneClienteController = TextEditingController();
-  final _servicoController = TextEditingController();
-  final _quantidadeController = TextEditingController(text: '1');
   final _observacoesController = TextEditingController();
-  final _valorTotalController = TextEditingController();
   EstadoPedido _estado = EstadoPedido.emAberto;
   DateTime _dataPedido = DateTime.now();
   DateTime _dataEntrega = DateTime.now().add(const Duration(days: 1));
-  bool _atendimentoHumano = false;
   bool _isLoading = false;
   final PedidoService _pedidoService = PedidoService();
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
+
+  // Lista de itens do pedido
+  final List<Map<String, TextEditingController>> _itens = [];
+  final List<GlobalKey<FormState>> _itensFormKeys = [];
 
   @override
   void initState() {
@@ -46,6 +45,28 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
     _animationController.forward();
+
+    // Adicionar um item inicial
+    _addItem();
+  }
+
+  void _addItem() {
+    setState(() {
+      _itens.add({
+        'nome': TextEditingController(),
+        'preco': TextEditingController(),
+        'quantidade': TextEditingController(text: '1'),
+      });
+      _itensFormKeys.add(GlobalKey<FormState>());
+    });
+  }
+
+  void _removeItem(int index) {
+    setState(() {
+      _itens[index].forEach((key, controller) => controller.dispose());
+      _itens.removeAt(index);
+      _itensFormKeys.removeAt(index);
+    });
   }
 
   Future<void> _selectDate(BuildContext context, bool isDataPedido) async {
@@ -83,23 +104,38 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
   }
 
   Future<void> _submit() async {
-    if (_formKey.currentState!.validate()) {
+    bool allValid = true;
+    for (var formKey in _itensFormKeys) {
+      if (!formKey.currentState!.validate()) {
+        allValid = false;
+      }
+    }
+
+    if (_formKey.currentState!.validate() && allValid) {
       setState(() {
         _isLoading = true;
       });
+
+      // Criar a lista de itens a partir dos controladores
+      final List<Item> itens = _itens.asMap().entries.map((entry) {
+        final item = entry.value;
+        return Item(
+          nome: item['nome']!.text,
+          preco: double.parse(item['preco']!.text),
+          quantidade: int.parse(item['quantidade']!.text),
+        );
+      }).toList();
+
       final novoPedido = Pedido(
         id: '', // Será preenchido pelo Xata
         numeroPedido: DateTime.now().millisecondsSinceEpoch.toString(),
         nomeCliente: _nomeClienteController.text,
         telefoneCliente: _telefoneClienteController.text,
-        servico: _servicoController.text,
-        quantidade: int.parse(_quantidadeController.text),
+        itens: itens,
         observacoes: _observacoesController.text,
-        valorTotal: double.parse(_valorTotalController.text),
         dataEntrega: _dataEntrega,
         dataPedido: _dataPedido,
         estado: _estado,
-        atendimentoHumano: _atendimentoHumano,
       );
 
       try {
@@ -120,10 +156,12 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
   void dispose() {
     _nomeClienteController.dispose();
     _telefoneClienteController.dispose();
-    _servicoController.dispose();
-    _quantidadeController.dispose();
     _observacoesController.dispose();
-    _valorTotalController.dispose();
+    for (var item in _itens) {
+      item['nome']!.dispose();
+      item['preco']!.dispose();
+      item['quantidade']!.dispose();
+    }
     _animationController.dispose();
     super.dispose();
   }
@@ -193,29 +231,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
                     value == null || value.isEmpty ? 'Telefone é obrigatório' : null,
                   ),
                   const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _servicoController,
-                    label: 'Serviço',
-                    icon: LucideIcons.briefcase,
-                    validator: (value) =>
-                    value == null || value.isEmpty ? 'Serviço é obrigatório' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _quantidadeController,
-                    label: 'Quantidade',
-                    icon: LucideIcons.hash,
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Quantidade é obrigatória';
-                      }
-                      if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                        return 'Quantidade deve ser um número positivo';
-                      }
-                      return null;
-                    },
-                  ),
+                  ..._buildItensFields(),
                   const SizedBox(height: 16),
                   _buildTextField(
                     controller: _observacoesController,
@@ -224,29 +240,11 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
                     maxLines: 2,
                   ),
                   const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _valorTotalController,
-                    label: 'Valor Total (R\$)',
-                    icon: LucideIcons.dollarSign,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Valor total é obrigatório';
-                      }
-                      if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                        return 'Valor total deve ser um número positivo';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
                   _buildDropdownField(),
                   const SizedBox(height: 16),
                   _buildDateField(context, 'Data do Pedido', _dataPedido, true),
                   const SizedBox(height: 16),
                   _buildDateField(context, 'Data de Entrega', _dataEntrega, false),
-                  const SizedBox(height: 16),
-                  _buildSwitchField(),
                 ],
               ),
             ),
@@ -293,6 +291,91 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
         ),
       ),
     );
+  }
+
+  List<Widget> _buildItensFields() {
+    List<Widget> widgets = [];
+    for (int i = 0; i < _itens.length; i++) {
+      widgets.add(
+        Form(
+          key: _itensFormKeys[i],
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Item ${i + 1}',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (_itens.length > 1)
+                    IconButton(
+                      icon: const Icon(LucideIcons.trash2, color: Colors.red),
+                      onPressed: () => _removeItem(i),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildTextField(
+                controller: _itens[i]['nome']!,
+                label: 'Nome do Item',
+                icon: LucideIcons.briefcase,
+                validator: (value) =>
+                value == null || value.isEmpty ? 'Nome do item é obrigatório' : null,
+              ),
+              const SizedBox(height: 8),
+              _buildTextField(
+                controller: _itens[i]['preco']!,
+                label: 'Preço (R\$)',
+                icon: LucideIcons.dollarSign,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Preço é obrigatório';
+                  }
+                  if (double.tryParse(value) == null || double.parse(value) <= 0) {
+                    return 'Preço deve ser um número positivo';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 8),
+              _buildTextField(
+                controller: _itens[i]['quantidade']!,
+                label: 'Quantidade',
+                icon: LucideIcons.hash,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Quantidade é obrigatória';
+                  }
+                  if (int.tryParse(value) == null || int.parse(value) <= 0) {
+                    return 'Quantidade deve ser um número positivo';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        ),
+      );
+    }
+    widgets.add(
+      ElevatedButton.icon(
+        onPressed: _addItem,
+        icon: const Icon(LucideIcons.plus),
+        label: const Text('Adicionar Item'),
+        style: ElevatedButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.primary,
+          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+        ),
+      ),
+    );
+    return widgets;
   }
 
   Widget _buildTextField({
@@ -388,25 +471,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
         side: BorderSide(color: theme.colorScheme.outline),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-    );
-  }
-
-  Widget _buildSwitchField() {
-    final theme = Theme.of(context);
-    return SwitchListTile(
-      title: Text('Atendimento Humano', style: theme.textTheme.labelLarge),
-      value: _atendimentoHumano,
-      onChanged: (value) {
-        setState(() {
-          _atendimentoHumano = value;
-        });
-      },
-      activeColor: theme.colorScheme.primary,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outline),
-      ),
     );
   }
 }

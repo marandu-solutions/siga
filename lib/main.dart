@@ -10,7 +10,6 @@ import 'Pages/Auth/Register/register_page.dart';
 import 'Pages/HomePage/home_page.dart';
 import 'Themes/themes.dart';
 import 'Model/atendimento.dart';
-import 'Service/pedidos_service.dart'; // Importe o PedidoService
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();

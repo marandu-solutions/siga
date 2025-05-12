@@ -1,4 +1,3 @@
-// lib/Pages/FeedbacksPage/feedbacks_page.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -241,11 +240,11 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
         ? ((posCount / totalFeedbacks * 100).toStringAsFixed(0) + '%')
         : '0%';
 
-// Average response time: difference between feedback and order date, in minutes
+    // Average response time: difference between feedback and order date, in minutes
     int totalMinutes = 0;
     int countResponse = 0;
     for (var f in allFeedbacks) {
-      final pid = f['pedidoId'] as int;
+      final pid = f['pedidoId'] as String; // Corrigido para String (ID do pedido)
       final pedido = pedidos.firstWhere((p) => p.id == pid);
       final diff = (f['data'] as DateTime).difference(pedido.dataPedido).inMinutes;
       totalMinutes += diff;
@@ -254,21 +253,26 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     final avgMinutes = countResponse > 0 ? (totalMinutes ~/ countResponse) : 0;
     final avgResponse = '${avgMinutes}m';
 
-// Cost savings: sum of valorTotal for pedidos with positive feedback
-    final positivePedidoIds = <int>{};
+    // Cost savings: sum of valorTotal for pedidos with positive feedback
+    final positivePedidoIds = <String>{}; // Corrigido para String (ID do pedido)
     for (var f in allFeedbacks) {
-      if (f['positive'] == true) positivePedidoIds.add(f['pedidoId'] as int);
+      if (f['positive'] == true) positivePedidoIds.add(f['pedidoId'] as String);
     }
     double costSavings = 0;
     for (var pid in positivePedidoIds) {
       final p = pedidos.firstWhere((p) => p.id == pid);
-      costSavings += p.valorTotal;
+      // Calcular valor total a partir dos itens
+      final valorTotal = p.itens.fold<double>(
+        0.0,
+            (sum, item) => sum + (item.preco * item.quantidade),
+      );
+      costSavings += valorTotal;
     }
     final costSavingsLabel = '\$${costSavings.toStringAsFixed(2)}';
 
     final metrics = [
-      {'icon': Icons.people, 'number': '\$customersServed', 'label': 'Clientes Atendidos'},
-      {'icon': Icons.shopping_cart, 'number': '\$ordersProcessed', 'label': 'Pedidos Processados'},
+      {'icon': Icons.people, 'number': customersServed.toString(), 'label': 'Clientes Atendidos'},
+      {'icon': Icons.shopping_cart, 'number': ordersProcessed.toString(), 'label': 'Pedidos Processados'},
       {'icon': Icons.sentiment_satisfied, 'number': satisfactionRate, 'label': 'Taxa de Satisfação'},
       {'icon': Icons.timer, 'number': avgResponse, 'label': 'Tempo Médio de Resposta'},
       {'icon': Icons.attach_money, 'number': costSavingsLabel, 'label': 'Economia Gerada'},
@@ -283,10 +287,8 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
       body: Padding(
         padding: EdgeInsets.all(isMobile ? 12 : 24),
         child: isMobile
-            ? _buildMobile(
-            cs, metrics, satisfactionData, posCount, negCount, filtered)
-            : _buildDesktop(
-            cs, metrics, satisfactionData, posCount, negCount, filtered),
+            ? _buildMobile(cs, metrics, satisfactionData, posCount, negCount, filtered)
+            : _buildDesktop(cs, metrics, satisfactionData, posCount, negCount, filtered),
       ),
     );
   }
@@ -403,7 +405,10 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
             runSpacing: 12,
             children: metrics
                 .map((m) => MetricCard(
-                icon: m['icon'], number: m['number'], label: m['label']))
+              icon: m['icon'],
+              number: m['number'],
+              label: m['label'],
+            ))
                 .toList(),
           ),
           const SizedBox(height: 20),
@@ -478,7 +483,10 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
             runSpacing: 16,
             children: metrics
                 .map((m) => MetricCard(
-                icon: m['icon'], number: m['number'], label: m['label']))
+              icon: m['icon'],
+              number: m['number'],
+              label: m['label'],
+            ))
                 .toList(),
           ),
         ),

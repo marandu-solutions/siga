@@ -60,7 +60,7 @@ class _KanbanState extends State<Kanban> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: EstadoPedido.values.map((estado) {
               final pedidosEstado = pedidosPorEstado[estado]!;
-              final corFundo = widget.corColuna[estado]!; // Mantém a cor de fundo da coluna
+              final corFundo = widget.corColuna[estado]!;
               final ScrollController verticalScrollController = ScrollController();
 
               return DragTarget<Pedido>(
@@ -146,8 +146,7 @@ class _KanbanState extends State<Kanban> {
                                     background: Container(
                                       color: theme.colorScheme.error,
                                       alignment: Alignment.centerRight,
-                                      padding:
-                                      const EdgeInsets.only(right: 16),
+                                      padding: const EdgeInsets.only(right: 16),
                                       child: Icon(
                                         Icons.delete,
                                         color: theme.colorScheme.onError,
@@ -198,12 +197,13 @@ class _KanbanState extends State<Kanban> {
                                     ),
                                     onDismissed: (direction) {
                                       widget.onDelete(pedido);
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                        content: Text(
-                                          'Pedido #${pedido.numeroPedido} excluído',
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Pedido #${pedido.numeroPedido} excluído',
+                                          ),
                                         ),
-                                      ));
+                                      );
                                     },
                                     child: Draggable<Pedido>(
                                       data: pedido,
@@ -213,10 +213,8 @@ class _KanbanState extends State<Kanban> {
                                           opacity: 0.75,
                                           child: PedidoCard(
                                             pedido: pedido,
-                                            onDelete: () =>
-                                                widget.onDelete(pedido),
-                                            onTapDetails: () => widget
-                                                .onTapDetails(pedido),
+                                            onDelete: () => widget.onDelete(pedido),
+                                            onTapDetails: () => widget.onTapDetails(pedido),
                                           ),
                                         ),
                                       ),
@@ -226,10 +224,8 @@ class _KanbanState extends State<Kanban> {
                                       ),
                                       child: PedidoCard(
                                         pedido: pedido,
-                                        onDelete: () =>
-                                            widget.onDelete(pedido),
-                                        onTapDetails: () => widget
-                                            .onTapDetails(pedido),
+                                        onDelete: () => widget.onDelete(pedido),
+                                        onTapDetails: () => widget.onTapDetails(pedido),
                                       ),
                                     ),
                                   ),
