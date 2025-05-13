@@ -70,11 +70,14 @@ class _PedidoCardState extends State<PedidoCard> {
   }
 
   Widget _buildCard(int minutos, ColorScheme cs, TextTheme tt) {
-    // Calcular o valor total somando os preços dos itens
     final valorTotal = widget.pedido.itens.fold<double>(
       0.0,
           (sum, item) => sum + (item.preco * item.quantidade),
     );
+
+    final resumoPedido = widget.pedido.itens
+        .map((e) => "${e.quantidade}x ${e.nome}")
+        .join(", ");
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -86,6 +89,7 @@ class _PedidoCardState extends State<PedidoCard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Cabeçalho com número do pedido e tempo
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -128,11 +132,34 @@ class _PedidoCardState extends State<PedidoCard> {
                 ),
               ],
             ),
+
+            const SizedBox(height: 8),
+
+            // Nome do cliente (sempre visível)
+            Text(
+              "Cliente: ${widget.pedido.nomeCliente}",
+              style: tt.bodyMedium?.copyWith(
+                color: cs.onSurface,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+
+            const SizedBox(height: 4),
+
+            // Resumo do pedido (sempre visível)
+            Text(
+              "Pedido: $resumoPedido",
+              style: tt.bodySmall?.copyWith(
+                color: cs.onSurfaceVariant,
+              ),
+              overflow: TextOverflow.ellipsis,
+              maxLines: 2,
+            ),
+
+            // Conteúdo expandido
             if (_isExpanded) ...[
               const SizedBox(height: 8),
-              _infoRow(Icons.person_outline,
-                  "Cliente: ${widget.pedido.nomeCliente}", cs, tt),
-              // Exibir a lista de itens
+              // Detalhes completos dos itens
               Padding(
                 padding: const EdgeInsets.only(bottom: 6.0),
                 child: Row(
@@ -197,6 +224,8 @@ class _PedidoCardState extends State<PedidoCard> {
                 ),
               ),
             ],
+
+            // Rodapé com botões
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

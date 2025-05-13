@@ -46,6 +46,18 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
 
     // Adicionar um item inicial
     _addItem();
+
+    _telefoneClienteController.addListener(() {
+      final txt = _telefoneClienteController.text;
+      if (txt.length > 11) {
+        // corta para os 11 primeiros caracteres
+        _telefoneClienteController.text = txt.substring(0, 11);
+        // reposiciona o cursor no fim
+        _telefoneClienteController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _telefoneClienteController.text.length),
+        );
+      }
+    });
   }
 
   void _addItem() {
@@ -126,7 +138,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
 
       final novoPedido = Pedido(
         id: '', // Será preenchido pelo backend
-        numeroPedido: DateTime.now().millisecondsSinceEpoch.toString(),
+        numeroPedido: (DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5, '0'),
         nomeCliente: _nomeClienteController.text,
         telefoneCliente: _telefoneClienteController.text,
         itens: itens,
@@ -220,8 +232,15 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
                     label: 'Telefone do Cliente',
                     icon: LucideIcons.phone,
                     keyboardType: TextInputType.phone,
-                    validator: (value) =>
-                    value == null || value.isEmpty ? 'Telefone é obrigatório' : null,
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Telefone é obrigatório';
+                      }
+                      if (value.length < 10) {
+                        return 'Digite o DDD + número (pelo menos 10 dígitos)';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   ..._buildItensFields(),

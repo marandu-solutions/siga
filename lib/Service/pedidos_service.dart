@@ -55,7 +55,9 @@ class PedidoService {
       body: jsonEncode({
         'cliente_nome': pedido.nomeCliente,
         'cliente_contato': pedido.telefoneCliente,
+        'empresa': "12835262474",
         'status': pedido.estado.label,
+        'numero': int.tryParse(pedido.numeroPedido),
         'detalhes': jsonEncode({
           'numeroPedido': pedido.numeroPedido,
           'itens': pedido.itens.map((item) => item.toJson()).toList(),
@@ -90,7 +92,9 @@ class PedidoService {
     final body = jsonEncode({
       'cliente_nome': pedido.nomeCliente,
       'cliente_contato': pedido.telefoneCliente,
+      'empresa': "12835262474",
       'status': pedido.estado.label,
+      'numero': int.tryParse(pedido.numeroPedido),
       'detalhes': jsonEncode({
         'numeroPedido': pedido.numeroPedido,
         'itens': pedido.itens.map((item) => item.toJson()).toList(),
