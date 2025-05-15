@@ -176,6 +176,7 @@ class _PedidosPageState extends State<PedidosPage> {
             MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: pedidos[i])),
           ),
           onDelete: () => _deletarPedido(pedidos[i]),
+          onStatusChanged: (novoEstado) => _atualizarEstadoPedido(pedidos[i], novoEstado),
         ),
       ),
     );

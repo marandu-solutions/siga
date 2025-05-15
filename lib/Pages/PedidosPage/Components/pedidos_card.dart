@@ -5,12 +5,14 @@ class PedidoCard extends StatefulWidget {
   final Pedido pedido;
   final VoidCallback? onDelete;
   final VoidCallback? onTapDetails;
+  final ValueChanged<EstadoPedido>? onStatusChanged; // Novo callback
 
   const PedidoCard({
     super.key,
     required this.pedido,
     this.onDelete,
     this.onTapDetails,
+    this.onStatusChanged,
   });
 
   @override
@@ -50,7 +52,39 @@ class _PedidoCardState extends State<PedidoCard> {
           ),
         ],
       ),
-    ) ?? false;
+    ) ??
+        false;
+  }
+
+  Color _statusColor(EstadoPedido status) {
+    final brightness = Theme.of(context).brightness;
+    if (brightness == Brightness.dark) {
+      switch (status) {
+        case EstadoPedido.emAberto:
+          return const Color(0xFF7016BD);
+        case EstadoPedido.emAndamento:
+          return const Color(0xFFC5960D);
+        case EstadoPedido.entregaRetirada:
+          return const Color(0xFFB13D10);
+        case EstadoPedido.finalizado:
+          return const Color(0xFF059E05);
+        case EstadoPedido.cancelado:
+          return const Color(0xFF9E051C);
+      }
+    } else {
+      switch (status) {
+        case EstadoPedido.emAberto:
+          return Colors.purple.shade500;
+        case EstadoPedido.emAndamento:
+          return Colors.amber.shade600;
+        case EstadoPedido.entregaRetirada:
+          return Colors.orange.shade700;
+        case EstadoPedido.finalizado:
+          return Colors.green.shade800;
+        case EstadoPedido.cancelado:
+          return Colors.red.shade800;
+      }
+    }
   }
 
   @override
@@ -58,18 +92,19 @@ class _PedidoCardState extends State<PedidoCard> {
     final minutos = DateTime.now().difference(widget.pedido.dataPedido).inMinutes;
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return GestureDetector(
       onTap: () => setState(() => _isExpanded = !_isExpanded),
       child: Semantics(
         label:
         "Pedido #${widget.pedido.numeroPedido}, $minutos minutos, clique para ${_isExpanded ? 'retrair' : 'expandir'}",
-        child: _buildCard(minutos, cs, tt),
+        child: _buildCard(minutos, cs, tt, isMobile),
       ),
     );
   }
 
-  Widget _buildCard(int minutos, ColorScheme cs, TextTheme tt) {
+  Widget _buildCard(int minutos, ColorScheme cs, TextTheme tt, bool isMobile) {
     final valorTotal = widget.pedido.itens.fold<double>(
       0.0,
           (sum, item) => sum + (item.preco * item.quantidade),
@@ -84,180 +119,216 @@ class _PedidoCardState extends State<PedidoCard> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Cabeçalho com número do pedido e tempo
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: cs.onSurface.withOpacity(0.2)),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      "#${widget.pedido.numeroPedido}",
-                      overflow: TextOverflow.ellipsis,
-                      style: tt.bodyLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: cs.onSurface,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+              color: _statusColor(widget.pedido.estado),
+              width: 4,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Cabeçalho com número do pedido e tempo
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: cs.onSurface.withOpacity(0.2)),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        "#${widget.pedido.numeroPedido}",
+                        overflow: TextOverflow.ellipsis,
+                        style: tt.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: cs.onSurface,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: cs.surfaceVariant.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: cs.surfaceVariant.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time,
+                            size: 14, color: Colors.black54),
+                        const SizedBox(width: 4),
+                        Text(
+                          "$minutos min",
+                          style: tt.bodySmall?.copyWith(
+                            color: cs.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  if (isMobile && widget.onStatusChanged != null) ...[
+                    PopupMenuButton<EstadoPedido>(
+                      icon: Icon(
+                        Icons.more_vert,
+                        color: _statusColor(widget.pedido.estado),
+                      ),
+                      onSelected: widget.onStatusChanged,
+                      itemBuilder: (_) => EstadoPedido.values
+                          .map((st) => PopupMenuItem(
+                        value: st,
+                        child: Text(st.label),
+                      ))
+                          .toList(),
+                    ),
+                  ],
+                ],
+              ),
+
+              const SizedBox(height: 8),
+
+              // Nome do cliente (sempre visível)
+              Text(
+                "Cliente: ${widget.pedido.nomeCliente}",
+                style: tt.bodyMedium?.copyWith(
+                  color: cs.onSurface,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+
+              const SizedBox(height: 4),
+
+              // Resumo do pedido (sempre visível)
+              Text(
+                "Pedido: $resumoPedido",
+                style: tt.bodySmall?.copyWith(
+                  color: cs.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 2,
+              ),
+
+              // Conteúdo expandido
+              if (_isExpanded) ...[
+                const SizedBox(height: 8),
+                // Detalhes completos dos itens
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6.0),
                   child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.access_time, size: 14, color: Colors.black54),
-                      const SizedBox(width: 4),
-                      Text(
-                        "$minutos min",
-                        style: tt.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant,
+                      Icon(Icons.fastfood,
+                          size: 16, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Itens:",
+                              style: tt.bodyMedium?.copyWith(
+                                color: cs.onSurface,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            ...widget.pedido.itens.asMap().entries.map((entry) {
+                              final item = entry.value;
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 4),
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: _statusColor(widget.pedido.estado)
+                                      .withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  "${item.quantidade}x ${item.nome} - R\$ ${(item.preco * item.quantidade).toStringAsFixed(2)}",
+                                  style: tt.bodyMedium?.copyWith(
+                                    color: cs.onSurface,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 2,
+                                ),
+                              );
+                            }).toList(),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
+                _infoRow(Icons.attach_money,
+                    "Valor: R\$ ${valorTotal.toStringAsFixed(2)}", cs, tt),
+                if (widget.pedido.observacoes.isNotEmpty)
+                  _infoRow(Icons.note_outlined,
+                      "Obs: ${widget.pedido.observacoes}", cs, tt),
+                const SizedBox(height: 8),
+                Center(
+                  child: TextButton(
+                    onPressed: widget.onTapDetails,
+                    style: TextButton.styleFrom(
+                      foregroundColor: cs.primary,
+                      padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        side: BorderSide(color: cs.primary),
+                      ),
+                    ),
+                    child: const Text(
+                      "Ver detalhes",
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
               ],
-            ),
 
-            const SizedBox(height: 8),
-
-            // Nome do cliente (sempre visível)
-            Text(
-              "Cliente: ${widget.pedido.nomeCliente}",
-              style: tt.bodyMedium?.copyWith(
-                color: cs.onSurface,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-
-            const SizedBox(height: 4),
-
-            // Resumo do pedido (sempre visível)
-            Text(
-              "Pedido: $resumoPedido",
-              style: tt.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant,
-              ),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 2,
-            ),
-
-            // Conteúdo expandido
-            if (_isExpanded) ...[
-              const SizedBox(height: 8),
-              // Detalhes completos dos itens
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.fastfood, size: 16, color: cs.onSurfaceVariant),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Itens:",
-                            style: tt.bodyMedium?.copyWith(
-                              color: cs.onSurface,
-                              fontWeight: FontWeight.bold,
+              // Rodapé com botões
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Icon(
+                    _isExpanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: cs.onSurfaceVariant,
+                  ),
+                  if (widget.onDelete != null) ...[
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () async {
+                        if (await _confirmDelete(context)) {
+                          widget.onDelete!();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  "Pedido #${widget.pedido.numeroPedido} excluído"),
                             ),
-                          ),
-                          const SizedBox(height: 4),
-                          ...widget.pedido.itens.asMap().entries.map((entry) {
-                            final item = entry.value;
-                            return Padding(
-                              padding: const EdgeInsets.only(left: 8, bottom: 4),
-                              child: Text(
-                                "${item.quantidade}x ${item.nome} - R\$ ${(item.preco * item.quantidade).toStringAsFixed(2)}",
-                                style: tt.bodyMedium?.copyWith(
-                                  color: cs.onSurface,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                              ),
-                            );
-                          }).toList(),
-                        ],
+                          );
+                        }
+                      },
+                      child: Icon(
+                        Icons.delete,
+                        size: 20,
+                        color: cs.error,
                       ),
                     ),
                   ],
-                ),
-              ),
-              _infoRow(Icons.attach_money,
-                  "Valor: R\$ ${valorTotal.toStringAsFixed(2)}", cs, tt),
-              if (widget.pedido.observacoes.isNotEmpty)
-                _infoRow(Icons.note_outlined,
-                    "Obs: ${widget.pedido.observacoes}", cs, tt),
-              const SizedBox(height: 8),
-              Center(
-                child: TextButton(
-                  onPressed: widget.onTapDetails,
-                  style: TextButton.styleFrom(
-                    foregroundColor: cs.primary,
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      side: BorderSide(color: cs.primary),
-                    ),
-                  ),
-                  child: const Text(
-                    "Ver detalhes",
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
+                ],
               ),
             ],
-
-            // Rodapé com botões
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Icon(
-                  _isExpanded ? Icons.expand_less : Icons.expand_more,
-                  size: 20,
-                  color: cs.onSurfaceVariant,
-                ),
-                if (widget.onDelete != null) ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () async {
-                      if (await _confirmDelete(context)) {
-                        widget.onDelete!();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                                "Pedido #${widget.pedido.numeroPedido} excluído"),
-                          ),
-                        );
-                      }
-                    },
-                    child: Icon(
-                      Icons.delete,
-                      size: 20,
-                      color: cs.error,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
