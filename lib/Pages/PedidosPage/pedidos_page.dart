@@ -6,6 +6,7 @@ import '../../Service/pedidos_service.dart';
 import 'Components/add_pedido.dart';
 import 'Components/pedido_details_page.dart';
 import 'Components/kanban.dart';
+import 'Components/pedidos_card.dart';
 import 'Components/tabela.dart';
 
 class PedidosPage extends StatefulWidget {
@@ -28,135 +29,25 @@ class _PedidosPageState extends State<PedidosPage> {
   void initState() {
     super.initState();
     _fetchPedidos();
-    _searchController.addListener(() {
-      setState(() => _searchQuery = _searchController.text);
-    });
-  }
-
-  Future<void> _fetchPedidos() async {
-    setState(() {
-      _isLoading = true;
-    });
-    try {
-      final pedidos = await _pedidoService.getPedidos();
-      if (mounted) {
-        final pedidoModel = context.read<PedidoModel>();
-        pedidoModel.limparPedidos();
-        for (var pedido in pedidos) {
-          pedidoModel.adicionarPedido(pedido);
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar pedidos: $e')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _adicionarPedido(Pedido pedido) async {
-    try {
-      final pedidoCriado = await _pedidoService.adicionarPedido(pedido);
-      if (mounted) {
-        context.read<PedidoModel>().adicionarPedido(pedidoCriado);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pedido #${pedidoCriado.numeroPedido} adicionado')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao adicionar pedido: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _editarPedido(Pedido pedido) async {
-    try {
-      await _pedidoService.editarPedido(pedido);
-      if (mounted) {
-        context.read<PedidoModel>().atualizarPedido(pedido.id, pedido);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pedido #${pedido.numeroPedido} atualizado')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao editar pedido: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _deletarPedido(Pedido pedido) async {
-    try {
-      await _pedidoService.deletarPedido(pedido.id);
-      if (mounted) {
-        context.read<PedidoModel>().removerPedido(pedido.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pedido #${pedido.numeroPedido} excluído')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao excluir pedido: $e')),
-        );
-      }
-    }
-  }
-
-  Future<void> _atualizarEstadoPedido(Pedido pedido, EstadoPedido novoEstado) async {
-    try {
-      await _pedidoService.atualizarEstadoPedido(pedido.id, novoEstado);
-      if (mounted) {
-        final atualizado = pedido.copyWith(estado: novoEstado);
-        context.read<PedidoModel>().atualizarPedido(pedido.id, atualizado);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao atualizar estado: $e')),
-        );
-      }
-    }
+    _searchController.addListener(() => setState(() => _searchQuery = _searchController.text));
   }
 
   @override
-  Widget build(BuildContext context) {
-    bool isMobile(BuildContext ctx) =>
-        MediaQuery.of(ctx).size.width < 600;
-    final pedidos = context.watch<PedidoModel>().pedidos;
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
-    // Definindo as cores para cada estado
-    final corColuna = Theme.of(context).brightness == Brightness.dark
-         ? <EstadoPedido, Color>{
-             EstadoPedido.emAberto: const Color(0xFF7016BD),
-             EstadoPedido.emAndamento: const Color(0xFFC5960D),
-             EstadoPedido.entregaRetirada: const Color(0xFFB13D10),
-             EstadoPedido.finalizado: const Color(0xFF059E05),
-             EstadoPedido.cancelado: const Color(0xFF9E051C),
-           }
-         : <EstadoPedido, Color>{
-             EstadoPedido.emAberto: Colors.purple.shade500,
-             EstadoPedido.emAndamento: Colors.amber.shade600,
-             EstadoPedido.entregaRetirada: Colors.orange.shade700,
-             EstadoPedido.finalizado: Colors.green.shade800,
-             EstadoPedido.cancelado: Colors.red.shade800,
-           };
+  bool get isMobile => MediaQuery.of(context).size.width < 600;
+
+  @override
+  Widget build(BuildContext context) {
+    final pedidos = context.watch<PedidoModel>().pedidos;
+    final corColuna = _mapCorColuna(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: isMobile(context) && _isSearching
+        title: isMobile && _isSearching
             ? TextField(
           controller: _searchController,
           decoration: const InputDecoration(
@@ -165,9 +56,12 @@ class _PedidosPageState extends State<PedidosPage> {
           ),
           textInputAction: TextInputAction.search,
         )
-            : const Text('Pedidos'),
+            : const Padding(
+          padding: EdgeInsets.only(left: 8.0),
+          child: Text('Pedidos'),
+        ),
         actions: [
-          if (isMobile(context)) ...[
+          if (isMobile) ...[
             IconButton(
               icon: Icon(_isSearching ? LucideIcons.x : LucideIcons.search),
               onPressed: () => setState(() {
@@ -190,6 +84,11 @@ class _PedidosPageState extends State<PedidosPage> {
               onChanged: (v) => setState(() => _statusFilter = v),
             ),
           ] else ...[
+            IconButton(
+              icon: const Icon(LucideIcons.search),
+              onPressed: () => setState(() => _isSearching = !_isSearching),
+            ),
+            const SizedBox(width: 8),
             ViewToggleButton(
               theme: Theme.of(context),
               isKanbanView: _isKanbanView,
@@ -200,66 +99,185 @@ class _PedidosPageState extends State<PedidosPage> {
               onPressed: _fetchPedidos,
               tooltip: 'Atualizar',
             ),
+            const SizedBox(width: 8),
           ],
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : pedidos.isEmpty
-          ? const Center(child: Text('Nenhum pedido encontrado'))
-          : _isKanbanView
-          ? Kanban(
-        pedidos: pedidos,
-        corColuna: corColuna,
-        onPedidoEstadoChanged: (p) async {
-          await _atualizarEstadoPedido(p, p.estado);
-        },
-        onDelete: (p) async {
-          await _deletarPedido(p);
-        },
-        onTapDetails: (p) => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PedidoDetailsPage(pedido: p),
-          ),
-        ),
-      )
-          : Tabela(
-        pedidos: pedidos,
-        onEstadoChanged: (p) async {
-          await _atualizarEstadoPedido(p, p.estado);
-        },
-        onDelete: (p) async {
-          await _deletarPedido(p);
-        },
-        onEdit: (p) => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PedidoDetailsPage(pedido: p),
-          ),
-        ),
-      ),
+          : _buildBody(pedidos, corColuna),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          showDialog(
-            context: context,
-            builder: (context) => AddPedidoDialog(
-              onAdd: (pedido) async {
-                await _adicionarPedido(pedido);
-              },
-            ),
-          );
-        },
+        onPressed: () => showDialog(
+          context: context,
+          builder: (_) => AddPedidoDialog(onAdd: _adicionarPedido),
+        ),
         child: const Icon(Icons.add),
         tooltip: 'Adicionar Pedido',
       ),
     );
   }
 
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
+  Widget _buildBody(List<Pedido> pedidos, Map<EstadoPedido, Color> corColuna) {
+    var displayed = pedidos;
+
+    if (isMobile) {
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        displayed = displayed.where((p) =>
+        p.numeroPedido.toLowerCase().contains(q) ||
+            p.nomeCliente.toLowerCase().contains(q)
+        ).toList();
+      }
+      if (_statusFilter != null) {
+        displayed = displayed.where((p) => p.estado == _statusFilter).toList();
+      }
+      return _buildMobileList(displayed);
+    }
+
+    if (displayed.isEmpty) {
+      return const Center(child: Text('Nenhum pedido encontrado'));
+    }
+
+    return _isKanbanView
+        ? Kanban(
+      pedidos: displayed,
+      corColuna: corColuna,
+      onPedidoEstadoChanged: (p) => _atualizarEstadoPedido(p, p.estado),
+      onDelete: (p) => _deletarPedido(p),
+      onTapDetails: (p) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
+      ),
+    )
+        : Tabela(
+      pedidos: displayed,
+      onEstadoChanged: (p) => _atualizarEstadoPedido(p, p.estado),
+      onDelete: (p) => _deletarPedido(p),
+      onEdit: (p) => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
+      ),
+    );
+  }
+
+  Widget _buildMobileList(List<Pedido> pedidos) {
+    if (pedidos.isEmpty) {
+      return const Center(child: Text('Nenhum pedido encontrado'));
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: pedidos.length,
+      itemBuilder: (_, i) => Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: PedidoCard(
+          pedido: pedidos[i],
+          onTapDetails: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: pedidos[i])),
+          ),
+          onDelete: () => _deletarPedido(pedidos[i]),
+        ),
+      ),
+    );
+  }
+
+  Map<EstadoPedido, Color> _mapCorColuna(BuildContext context) =>
+      Theme.of(context).brightness == Brightness.dark
+          ? {
+        EstadoPedido.emAberto: const Color(0xFF7016BD),
+        EstadoPedido.emAndamento: const Color(0xFFC5960D),
+        EstadoPedido.entregaRetirada: const Color(0xFFB13D10),
+        EstadoPedido.finalizado: const Color(0xFF059E05),
+        EstadoPedido.cancelado: const Color(0xFF9E051C),
+      }
+          : {
+        EstadoPedido.emAberto: Colors.purple.shade500,
+        EstadoPedido.emAndamento: Colors.amber.shade600,
+        EstadoPedido.entregaRetirada: Colors.orange.shade700,
+        EstadoPedido.finalizado: Colors.green.shade800,
+        EstadoPedido.cancelado: Colors.red.shade800,
+      };
+
+  Future<void> _fetchPedidos() async {
+    setState(() => _isLoading = true);
+    try {
+      final pedidos = await _pedidoService.getPedidos();
+      if (mounted) {
+        final model = context.read<PedidoModel>();
+        model.limparPedidos();
+        for (var p in pedidos) model.adicionarPedido(p);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao carregar pedidos: \$e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _adicionarPedido(Pedido pedido) async {
+    try {
+      final criado = await _pedidoService.adicionarPedido(pedido);
+      if (mounted) {
+        context.read<PedidoModel>().adicionarPedido(criado);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pedido #\${criado.numeroPedido} adicionado')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao adicionar pedido: \$e')),
+      );
+    }
+  }
+
+  Future<void> _editarPedido(Pedido pedido) async {
+    try {
+      await _pedidoService.editarPedido(pedido);
+      if (mounted) {
+        context.read<PedidoModel>().atualizarPedido(pedido.id, pedido);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pedido #\${pedido.numeroPedido} atualizado')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao editar pedido: \$e')),
+      );
+    }
+  }
+
+  Future<void> _deletarPedido(Pedido pedido) async {
+    try {
+      await _pedidoService.deletarPedido(pedido.id);
+      if (mounted) {
+        context.read<PedidoModel>().removerPedido(pedido.id);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Pedido #\${pedido.numeroPedido} excluído')),
+        );
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao excluir pedido: \$e')),
+      );
+    }
+  }
+
+  Future<void> _atualizarEstadoPedido(Pedido pedido, EstadoPedido novoEstado) async {
+    try {
+      await _pedidoService.atualizarEstadoPedido(pedido.id, novoEstado);
+      if (mounted) {
+        final updated = pedido.copyWith(estado: novoEstado);
+        context.read<PedidoModel>().atualizarPedido(pedido.id, updated);
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erro ao atualizar estado: \$e')),
+      );
+    }
   }
 }
 
