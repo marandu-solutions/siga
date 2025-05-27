@@ -6,6 +6,7 @@ class Usuario {
   final String proprietario;
   final String email;
   final String telefone;
+  final String cpf; // NOVO CAMPO CPF
 
   Usuario({
     required this.id,
@@ -13,6 +14,7 @@ class Usuario {
     required this.proprietario,
     required this.email,
     required this.telefone,
+    required this.cpf, // Adicione ao construtor
   });
 
   factory Usuario.fromMap(Map<String, dynamic> map) {
@@ -22,6 +24,7 @@ class Usuario {
       proprietario: map['proprietario'] ?? '',
       email: map['email'] ?? '',
       telefone: map['telefone'] ?? '',
+      cpf: map['cpf'] ?? '', // Mapeie o CPF
     );
   }
 
@@ -32,10 +35,13 @@ class Usuario {
       'proprietario': proprietario,
       'email': email,
       'telefone': telefone,
+      'cpf': cpf, // Inclua o CPF no toMap
     };
   }
 }
 
+// O UsuarioProvider não precisa de mudanças, pois ele gerencia uma lista de objetos Usuario,
+// e o objeto Usuario já terá o campo CPF.
 class UsuarioProvider with ChangeNotifier {
   final List<Usuario> _usuarios = [];
 
