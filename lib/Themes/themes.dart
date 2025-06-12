@@ -97,11 +97,17 @@ class AppThemes {
   static final InputDecorationTheme _inputDecorationTheme = InputDecorationTheme(
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFFBDBDBD)),
     ),
-    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(12),
+      borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 2.0),
+    ),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     filled: true,
-    fillColor: Colors.transparent,
+    fillColor: const Color(0xFFECEFF1),
   );
+
 
   static final FilledButtonThemeData _filledButtonTheme = FilledButtonThemeData(
     style: FilledButton.styleFrom(

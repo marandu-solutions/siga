@@ -96,48 +96,45 @@ class BottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final width = MediaQuery.of(context).size.width;
     final isCompact = width < 350;
 
-    final hPad = isCompact ? 6.0 : 10.0;
-    final vPad = isCompact ? 14.0 : 18.0;
-    final navH = isCompact ? 56.0 : 72.0;
+    // Ajustes de padding e altura como você já fez
+    final hPad = isCompact ? 8.0 : 12.0;
+    final vPad = isCompact ? 10.0 : 12.0;
+    final navH = isCompact ? 60.0 : 72.0;
 
-    final containerColor = theme.colorScheme.surfaceVariant.withOpacity(isDark ? 0.8 : 0.5);
-    final shadowColor = theme.colorScheme.shadow.withOpacity(0.15);
+    return Card(
+      // Card é a forma ideal de criar um container flutuante
+      // que respeita o tema.
+      elevation: 10.0, // Elevação pronunciada para o efeito flutuante
+      shadowColor: theme.colorScheme.shadow.withOpacity(0.25),
+      margin: const EdgeInsets.all(0), // Removemos a margem padrão do Card
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(32),
+      ),
+      // Usamos o surfaceColor do NavigationBarTheme para consistência com o Material 3,
+      // ou um fallback para a cor de superfície do tema.
+      color: theme.navigationBarTheme.backgroundColor ?? theme.colorScheme.surface,
+      clipBehavior: Clip.antiAlias, // Previne que o InkWell vaze
+      child: Container(
+        height: navH,
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: List.generate(_navItems.length, (index) {
+            final item = _navItems[index];
+            final selected = index == selectedIndex;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(32),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          height: navH,
-          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
-          decoration: BoxDecoration(
-            color: containerColor,
-            boxShadow: [
-              BoxShadow(
-                color: shadowColor,
-                blurRadius: 20,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(_navItems.length, (index) {
-              final item = _navItems[index];
-              final selected = index == selectedIndex;
-              return _NavButton(
-                icon: item.icon,
-                label: item.label,
-                selected: selected,
-                isCompact: isCompact,
-                onTap: () => onItemSelected(index),
-              );
-            }),
-          ),
+            // O _NavButton continua funcionando perfeitamente aqui!
+            return _NavButton(
+              icon: item.icon,
+              label: item.label,
+              selected: selected,
+              isCompact: isCompact,
+              onTap: () => onItemSelected(index),
+            );
+          }),
         ),
       ),
     );

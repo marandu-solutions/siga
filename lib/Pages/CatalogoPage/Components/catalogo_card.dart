@@ -1,99 +1,79 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../../../Model/catalogo.dart';
 
-/// Um card reutilizável que exibe os detalhes de um item do catálogo.
 class CatalogoCard extends StatelessWidget {
-  /// O item do catálogo a ser exibido.
   final CatalogoItem item;
-
-  /// Callback para quando o checkbox é alterado.
-  final ValueChanged<bool?>? onCheckboxChanged;
-
-  /// Callback para quando o botão de editar é pressionado.
-  final VoidCallback? onEdit;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete; // Callback para a exclusão
 
   const CatalogoCard({
     Key? key,
     required this.item,
-    this.onCheckboxChanged,
-    this.onEdit,
+    this.onTap,
+    this.onDelete,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final currencyFormatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
     return Card(
-      color: cs.surface,
+      elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: cs.outline.withOpacity(0.3)),
       ),
       margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            // Miniatura da foto, se existir
-            if (item.getFotoBytes() != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(
-                  Uint8List.fromList(item.getFotoBytes()!),
-                  width: 48,
-                  height: 48,
-                  fit: BoxFit.cover,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 8, 16), // Ajusta o padding direito
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (item.getFotoBytes() != null)
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.memory(
+                    Uint8List.fromList(item.getFotoBytes()!),
+                    width: 72, height: 72, fit: BoxFit.cover,
+                  ),
+                )
+              else
+                Container(
+                  width: 72, height: 72,
+                  decoration: BoxDecoration(color: cs.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+                  child: Icon(Icons.inventory_2_outlined, size: 32, color: cs.onSurfaceVariant),
+                ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.nome, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Text(currencyFormatter.format(item.preco), style: textTheme.titleSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    Text('Estoque: ${item.quantidade}', style: textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant)),
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 8),
+              // BOTÃO DE EXCLUIR VISÍVEL E FUNCIONAL
+              if (onDelete != null)
+                IconButton(
+                  icon: Icon(Icons.delete_outline, color: cs.error),
+                  tooltip: 'Excluir Item',
+                  onPressed: onDelete,
+                ),
             ],
-
-            // Checkbox customizado
-            Checkbox(
-              value: false,
-              onChanged: onCheckboxChanged,
-              side: BorderSide(color: cs.primary),
-              fillColor: MaterialStateProperty.all(cs.primary),
-            ),
-            const SizedBox(width: 12),
-
-            // Detalhes do produto
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.nome,
-                    style: TextStyle(
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Preço: R\$${item.preco.toStringAsFixed(2)}',
-                    style: TextStyle(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Quantidade: ${item.quantidade}',
-                    style: TextStyle(
-                      color: cs.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Botão de editar
-            IconButton(
-              icon: Icon(Icons.edit, color: cs.primary),
-              onPressed: onEdit,
-            ),
-          ],
+          ),
         ),
       ),
     );

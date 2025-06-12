@@ -87,6 +87,16 @@ class _AlertaPageState extends State<AlertaPage> {
     _limparSelecao();
   }
 
+  void _onPedidoToggled(String pedidoId) {
+    setState(() {
+      if (pedidosSelecionados.contains(pedidoId)) {
+        pedidosSelecionados.remove(pedidoId);
+      } else {
+        pedidosSelecionados.add(pedidoId);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -97,7 +107,12 @@ class _AlertaPageState extends State<AlertaPage> {
           p.estado == EstadoPedido.entregaRetirada;
     }).toList();
 
-    final pedidosPanel = _PedidosPanel(pedidos, pedidosSelecionados, _limparSelecao);
+    final pedidosPanel = _PedidosPanel(
+      pedidos,
+      pedidosSelecionados,
+      _limparSelecao,
+      _onPedidoToggled,
+    );
     final notificarPanel = _NotificarPanel(
       motivoController,
       novaData,
@@ -156,11 +171,13 @@ class _PedidosPanel extends StatelessWidget {
       this.pedidos,
       this.selecionados,
       this.onLimpar,
+      this.onPedidoToggled,
       );
 
   final List<Pedido> pedidos;
   final List<String> selecionados;
   final VoidCallback onLimpar;
+  final Function(String) onPedidoToggled;
 
   @override
   Widget build(BuildContext context) {
@@ -228,12 +245,7 @@ class _PedidosPanel extends StatelessWidget {
                       subtitle: Text('$quantidadeTotal x $itensText'),
                       trailing: Text('#${p.id.substring(0, 8)}'),
                       onTap: () {
-                        if (isSel) {
-                          selecionados.remove(p.id);
-                        } else {
-                          selecionados.add(p.id);
-                        }
-                        (context as Element).markNeedsBuild();
+                        onPedidoToggled(p.id);
                       },
                     ),
                   );

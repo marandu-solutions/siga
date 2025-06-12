@@ -16,6 +16,31 @@ class CatalogoPage extends StatefulWidget {
 class _CatalogoPageState extends State<CatalogoPage> {
   final ImagePicker _picker = ImagePicker();
 
+  Future<void> _showDeleteConfirmation(BuildContext context, int index, String itemName) async { // <-- Recebe o 'index'
+    return showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Confirmar Exclusão'),
+        content: Text('Tem certeza que deseja excluir o item "$itemName"?'),
+        actions: [
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.of(ctx).pop(),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            child: const Text('Excluir'),
+            onPressed: () {
+              // Chama a sua função original usando o índice
+              context.read<CatalogoModel>().remover(index);
+              Navigator.of(ctx).pop();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _showItemDialog(BuildContext context, {int? index}) async {
     final cs = Theme.of(context).colorScheme;
     final isEdit = index != null;
@@ -47,42 +72,26 @@ class _CatalogoPageState extends State<CatalogoPage> {
                   children: [
                     Text(
                       isEdit ? 'Editar Produto' : 'Novo Produto',
-                      style:
-                      Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 20),
                     Center(
                       child: fotoBase64 != null
-                          ? Image.memory(
-                        base64Decode(fotoBase64!),
-                        width: 120,
-                        height: 120,
-                        fit: BoxFit.cover,
-                      )
+                          ? Image.memory(base64Decode(fotoBase64!), width: 120, height: 120, fit: BoxFit.cover)
                           : Container(
-                        width: 120,
-                        height: 120,
-                        decoration: BoxDecoration(
-                          color: cs.surfaceVariant,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          Icons.camera_alt,
-                          size: 40,
-                          color: cs.onSurfaceVariant,
-                        ),
+                        width: 120, height: 120,
+                        decoration: BoxDecoration(color: cs.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.camera_alt, size: 40, color: cs.onSurfaceVariant),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Center(
                       child: TextButton.icon(
                         onPressed: () async {
-                          final picked = await _picker.pickImage(source: ImageSource.camera);
+                          final picked = await _picker.pickImage(source: ImageSource.gallery);
                           if (picked != null) {
                             final bytes = await picked.readAsBytes();
-                            setState(() {
-                              fotoBase64 = base64Encode(bytes);
-                            });
+                            setState(() => fotoBase64 = base64Encode(bytes));
                           }
                         },
                         icon: Icon(Icons.add_a_photo, color: cs.primary),
@@ -94,53 +103,19 @@ class _CatalogoPageState extends State<CatalogoPage> {
                       key: formKey,
                       child: Column(
                         children: [
-                          _buildTextField(
-                            controller: nomeCtrl,
-                            icon: Icons.shopping_bag_outlined,
-                            label: 'Nome do produto',
-                            context: context,
-                          ),
+                          _buildTextField(controller: nomeCtrl, icon: Icons.shopping_bag_outlined, label: 'Nome do produto', context: context),
                           const SizedBox(height: 16),
                           Row(
                             children: [
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: quantidadeCtrl,
-                                  icon: Icons.format_list_numbered,
-                                  label: 'Quantidade',
-                                  keyboardType: TextInputType.number,
-                                  context: context,
-                                  validator: (v) => int.tryParse(v ?? '') == null ? 'Número inválido' : null,
-                                ),
-                              ),
+                              Expanded(child: _buildTextField(controller: quantidadeCtrl, icon: Icons.format_list_numbered, label: 'Quantidade', keyboardType: TextInputType.number, context: context, validator: (v) => int.tryParse(v ?? '') == null ? 'Número inválido' : null)),
                               const SizedBox(width: 16),
-                              Expanded(
-                                child: _buildTextField(
-                                  controller: precoCtrl,
-                                  icon: Icons.attach_money,
-                                  label: 'Preço',
-                                  keyboardType: TextInputType.numberWithOptions(decimal: true),
-                                  context: context,
-                                  validator: (v) => double.tryParse(v ?? '') == null ? 'Número inválido' : null,
-                                ),
-                              ),
+                              Expanded(child: _buildTextField(controller: precoCtrl, icon: Icons.attach_money, label: 'Preço', keyboardType: const TextInputType.numberWithOptions(decimal: true), context: context, validator: (v) => double.tryParse(v?.replaceAll(',', '.') ?? '') == null ? 'Número inválido' : null)),
                             ],
                           ),
                           const SizedBox(height: 16),
                           TextFormField(
                             controller: descricaoCtrl,
-                            style: TextStyle(color: cs.onSurface),
-                            decoration: InputDecoration(
-                              labelText: 'Descrição',
-                              labelStyle: TextStyle(color: cs.onSurfaceVariant),
-                              prefixIcon: Icon(Icons.description, color: cs.onSurfaceVariant),
-                              filled: true,
-                              fillColor: cs.surfaceVariant,
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                                borderSide: BorderSide.none,
-                              ),
-                            ),
+                            decoration: InputDecoration(labelText: 'Descrição', prefixIcon: const Icon(Icons.description_outlined)).applyDefaults(Theme.of(context).inputDecorationTheme),
                             maxLines: 3,
                             validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                           ),
@@ -151,18 +126,15 @@ class _CatalogoPageState extends State<CatalogoPage> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
-                        TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          child: Text('Cancelar', style: TextStyle(color: cs.onSurfaceVariant)),
-                        ),
+                        TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
                         const SizedBox(width: 12),
                         ElevatedButton(
                           onPressed: () {
                             if (formKey.currentState!.validate()) {
-                              final newItem = CatalogoItem(
+                              final newItem = CatalogoItem( // Criando o item sem ID
                                 nome: nomeCtrl.text.trim(),
                                 quantidade: int.parse(quantidadeCtrl.text.trim()),
-                                preco: double.parse(precoCtrl.text.trim()),
+                                preco: double.parse(precoCtrl.text.replaceAll(',', '.').trim()),
                                 descricao: descricaoCtrl.text.trim(),
                                 fotoBase64: fotoBase64, empresa: '',
                               );
@@ -174,12 +146,6 @@ class _CatalogoPageState extends State<CatalogoPage> {
                               Navigator.of(ctx).pop();
                             }
                           },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: cs.primary,
-                            foregroundColor: cs.onPrimary,
-                            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                          ),
                           child: Text(isEdit ? 'Salvar' : 'Adicionar'),
                         ),
                       ],
@@ -194,29 +160,10 @@ class _CatalogoPageState extends State<CatalogoPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String label,
-    required BuildContext context,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-  }) {
-    final cs = Theme.of(context).colorScheme;
+  Widget _buildTextField({required TextEditingController controller, required IconData icon, required String label, required BuildContext context, TextInputType? keyboardType, String? Function(String?)? validator}) {
     return TextFormField(
       controller: controller,
-      style: TextStyle(color: cs.onSurface),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: cs.onSurfaceVariant),
-        prefixIcon: Icon(icon, color: cs.onSurfaceVariant),
-        filled: true,
-        fillColor: cs.surfaceVariant,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-      ),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)).applyDefaults(Theme.of(context).inputDecorationTheme),
       keyboardType: keyboardType,
       validator: validator ?? (v) => v!.isEmpty ? 'Campo obrigatório' : null,
     );
@@ -224,54 +171,29 @@ class _CatalogoPageState extends State<CatalogoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = Theme.of(context).appBarTheme.backgroundColor;
-    final cs = Theme.of(context).colorScheme;
-
     return Scaffold(
-      backgroundColor: bgColor,
+      appBar: AppBar(title: const Text('Catálogo de Produtos')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showItemDialog(context),
-        backgroundColor: cs.primary,
-        child: Icon(Icons.add, color: cs.onPrimary),
+        child: const Icon(Icons.add),
       ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Consumer<CatalogoModel>(
-            builder: (context, model, _) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Catálogo',
-                    style: Theme.of(context)
-                        .textTheme
-                        .headlineSmall
-                        ?.copyWith(
-                      color: cs.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: model.itens.length,
-                      itemBuilder: (context, index) {
-                        final item = model.itens[index];
-                        return CatalogoCard(
-                          item: item,
-                          onCheckboxChanged: (_) {},
-                          onEdit: () => _showItemDialog(context, index: index),
-                        );
-                      },
-                    ),
-                  ),
-                ],
+      body: Consumer<CatalogoModel>(
+        builder: (context, model, _) {
+          if (model.itens.isEmpty) return const Center(child: Text('Nenhum item no catálogo.'));
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: model.itens.length,
+            itemBuilder: (context, index) { // <--- O ListView nos dá o 'index' aqui
+              final item = model.itens[index];
+              return CatalogoCard(
+                item: item,
+                onTap: () => _showItemDialog(context, index: index), // Sua edição por índice já estava correta
+                onDelete: () => _showDeleteConfirmation(context, index, item.nome), // <-- Passa o 'index' e o nome para a confirmação
               );
             },
-          ),
-        ),
+          );
+        },
       ),
     );
   }

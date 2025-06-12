@@ -51,48 +51,37 @@ class _HomePageState extends State<HomePage> {
             ),
             floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
           );
-        } else {
-          return Scaffold(
-            extendBody: true,
-            body: Stack(
-              children: [
-                Row(
-                  children: [
-                    Sidebar(
-                      selectedIndex: _selectedIndex,
-                      onItemSelected: _onItemTapped,
-                    ),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.05),
-                            borderRadius: BorderRadius.circular(20),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.15),
-                                blurRadius: 20,
-                                offset: const Offset(0, 10),
-                              ),
-                            ],
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.08),
-                            ),
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
-                            child: _pages[_selectedIndex],
-                          ),
-                        ),
+        } return Scaffold(
+          body: Row(
+            children: [
+              Sidebar(
+                selectedIndex: _selectedIndex,
+                onItemSelected: _onItemTapped,
+              ),
+              Expanded(
+                // Usamos um padding ao redor da área do conteúdo principal
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(0, 24, 24, 24),
+                  child: Card(
+                    // O widget Card já usa cores do tema (surface) e tem uma elevação sutil
+                    elevation: 8.0, // Aumenta a percepção de profundidade
+                    shadowColor: Colors.black.withOpacity(0.3), // Sombra mais intencional
+                    clipBehavior: Clip.antiAlias, // Garante que o conteúdo não vaze das bordas arredondadas
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      // Adicionamos uma borda sutil que usa a cor 'outline' do tema
+                      side: BorderSide(
+                        color: Theme.of(context).colorScheme.outline.withOpacity(0.3),
+                        width: 1,
                       ),
                     ),
-                  ],
+                    child: _pages[_selectedIndex],
+                  ),
                 ),
-              ],
-            ),
-          );
-        }
+              ),
+            ],
+          ),
+        );
       },
     );
   }

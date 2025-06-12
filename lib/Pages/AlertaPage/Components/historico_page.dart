@@ -29,34 +29,39 @@ class HistoricoPage extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         itemCount: notificacoes.length,
         separatorBuilder: (_, __) => const Divider(),
-        itemBuilder: (context, i) {
-          final entry = notificacoes[i];
-          final data = entry.data;
-          final dataFormatada =
-              '${data.day.toString().padLeft(2, '0')}/'
-              '${data.month.toString().padLeft(2, '0')}/'
-              '${data.year} '
-              '${data.hour.toString().padLeft(2, '0')}:'
-              '${data.minute.toString().padLeft(2, '0')}';
+          itemBuilder: (context, i) {
+            // Pegamos o tema uma vez para reutilizar
+            final theme = Theme.of(context);
+            final colorScheme = theme.colorScheme;
+            final textTheme = theme.textTheme;
 
-          return ListTile(
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            leading: const Icon(Icons.history),
-            title: Text(
-              entry.mensagem,
-              style: const TextStyle(fontWeight: FontWeight.w500),
-            ),
-            subtitle: Text('Pedido ID: ${entry.pedidoId}'),
-            trailing: Text(
-              dataFormatada,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: Colors.grey[600]),
-            ),
-          );
-        },
+            final entry = notificacoes[i];
+            final data = entry.data;
+            final dataFormatada =
+                '${data.day.toString().padLeft(2, '0')}/'
+                '${data.month.toString().padLeft(2, '0')}/'
+                '${data.year.toString().substring(2)} ' // Usando apenas 2 dígitos para o ano, mais compacto
+                '${data.hour.toString().padLeft(2, '0')}:'
+                '${data.minute.toString().padLeft(2, '0')}';
+
+            return ListTile(
+              contentPadding:
+              const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              // Usando um ícone mais específico do tema, se disponível
+              leading: Icon(Icons.history, color: colorScheme.primary),
+              title: Text(
+                entry.mensagem,
+                // 1. Usando um estilo de texto do tema
+                style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              subtitle: Text('Pedido ID: ${entry.pedidoId}'),
+              trailing: Text(
+                dataFormatada,
+                // 2. Usando uma cor do tema que se adapta aos modos claro/escuro
+                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+              ),
+            );
+          },
       ),
     );
   }
