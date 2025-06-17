@@ -1,4 +1,3 @@
-// auth_service.dart (Certifique-se que esta é a versão que você está usando)
 import 'dart:convert';
 import 'dart:html' as html; // Específico para web
 
@@ -6,6 +5,7 @@ class AuthService {
   static const String _tokenKey = 'jwt_token';
   static const String _expiryKey = 'jwt_expiry';
 
+  // ... (os métodos saveToken, getToken, logout, isLoggedIn continuam iguais) ...
   static void saveToken(String token, int expiresInSeconds) {
     html.window.localStorage[_tokenKey] = token;
     final DateTime expiryDate = DateTime.now().add(Duration(seconds: expiresInSeconds));
@@ -46,27 +46,54 @@ class AuthService {
     }
   }
 
-  // Retorna o 'subject' do JWT (xata_id da tabela Users)
+  // ✅ FUNCIONANDO: Retorna o 'subject' do JWT (ID do usuário)
   static Future<String?> getUserId() async {
     final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
     return payloadMap?['subject']?.toString() ?? payloadMap?['sub']?.toString();
   }
 
-  // Retorna o 'issuer' do JWT (para 'admin' ou 'user')
+  // ✅ FUNCIONANDO: Retorna o 'issuer' do JWT ('admin' ou 'user')
   static Future<String?> getIssuer() async {
     final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
     return payloadMap?['issuer']?.toString() ?? payloadMap?['iss']?.toString();
   }
 
-  // NOVO E CRUCIAL: Retorna o 'membro_id' do JWT (ID da tabela Membros)
+  // ✅ NOVO E FUNCIONANDO: Retorna o 'empresa_id' do JWT
+  static Future<String?> getEmpresaId() async {
+    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
+    return payloadMap?['empresa_id']?.toString();
+  }
+
+  // ❌ NÃO FUNCIONA (depende do backend): Retorna o 'membro_id' do JWT
   static Future<String?> getMembroIdDoUsuarioLogado() async {
+    // Este método só funcionará quando o backend adicionar "membro_id" ao payload do token.
     final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
     final String? membroId = payloadMap?['membro_id']?.toString();
-    if (membroId != null) {
-      print('AuthService: ID de Membro (membro_id) do JWT: $membroId');
-    } else {
-      print('AuthService: Campo "membro_id" NÃO encontrado no payload JWT.');
+    if (membroId == null) {
+      print('AVISO: O campo "membro_id" não foi encontrado no token JWT. Verifique o middleware.');
     }
     return membroId;
+  }
+
+  // ❌ NÃO FUNCIONA (depende do backend): Retorna o nome do usuário do JWT
+  static Future<String?> getUserName() async {
+    // Este método só funcionará quando o backend adicionar "name" (ou similar) ao payload do token.
+    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
+    final String? name = payloadMap?['name']?.toString() ?? payloadMap?['given_name']?.toString();
+    if (name == null) {
+      print('AVISO: O campo "name" não foi encontrado no token JWT. Verifique o middleware.');
     }
+    return name;
+  }
+
+  // ❌ NÃO FUNCIONA (depende do backend): Retorna o e-mail do usuário do JWT
+  static Future<String?> getUserEmail() async {
+    // Este método só funcionará quando o backend adicionar "email" ao payload do token.
+    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
+    final String? email = payloadMap?['email']?.toString();
+    if (email == null) {
+      print('AVISO: O campo "email" não foi encontrado no token JWT. Verifique o middleware.');
+    }
+    return email;
+  }
 }

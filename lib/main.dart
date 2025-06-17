@@ -42,7 +42,7 @@ class MaranduApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
-      initialRoute: '/home',
+      initialRoute: '/',
       routes: {
         '/': (_) => const LoginScreen(),
         '/signup': (_) => const SignUpScreen(),

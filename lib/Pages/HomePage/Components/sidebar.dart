@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-class Sidebar extends StatelessWidget {
+import '../../../Service/auth_service.dart';
+
+class Sidebar extends StatefulWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
 
@@ -10,29 +12,73 @@ class Sidebar extends StatelessWidget {
     required this.onItemSelected,
   }) : super(key: key);
 
-  // Mapeamento dos itens de navegação para manter a organização do código original.
+  @override
+  State<Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<Sidebar> {
+  // Variáveis de estado para guardar os dados do usuário.
+  String _userName = 'Carregando...';
+  String _userEmail = '';
+
+  // Lista de itens de navegação.
   static const List<Map<String, dynamic>> _navItems = [
     {'icon': Icons.receipt_long_outlined, 'label': 'Pedidos'},
     {'icon': Icons.support_agent_rounded, 'label': 'Atendimento'},
     {'icon': Icons.warning_amber_rounded, 'label': 'Alerta'},
-    {'icon': Icons.inventory_2_outlined,  'label': 'Catálogo'},
-    {'icon': Icons.reviews_outlined,      'label': 'Feedbacks'},
+    {'icon': Icons.inventory_2_outlined, 'label': 'Catálogo'},
+    {'icon': Icons.reviews_outlined, 'label': 'Feedbacks'},
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  /// Carrega os dados do usuário a partir do token JWT usando o AuthService.
+  Future<void> _loadUserData() async {
+    // Busca o nome e o email do token de forma assíncrona.
+    final name = await AuthService.getUserName();
+    final email = await AuthService.getUserEmail();
+
+    // Garante que o widget ainda está na tela antes de atualizar o estado.
+    if (mounted) {
+      setState(() {
+        _userName = name ?? 'Usuário';
+        _userEmail = email ?? 'Email não informado';
+      });
+    }
+  }
+
+  /// Executa o processo de logout de maneira segura.
+  void _performLogout(BuildContext context) {
+    // Passo 1: Fecha o Drawer. Essencial para liberar o contexto de navegação.
+    Navigator.of(context).pop();
+
+    // Passo 2: Limpa os dados de autenticação do armazenamento.
+    AuthService.logout();
+
+    // Passo 3: Redireciona para a tela de login, removendo todas as telas anteriores.
+    // Garante que o usuário não possa "voltar" para a tela principal.
+    Navigator.of(context)
+        .pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      elevation: 2.0, // Sombra sutil para destacar o Drawer
+      elevation: 2.0,
       child: Column(
         children: [
-          // Um CircleAvatar para o perfil do usuário, adaptado ao novo layout.
-          const UserAccountsDrawerHeader(
+          // Header que exibe os dados do usuário carregados.
+          UserAccountsDrawerHeader(
             accountName: Text(
-              "Nome do Usuário",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              _userName,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            // A linha accountEmail foi removida daqui.
-            currentAccountPicture: CircleAvatar(
+            accountEmail: Text(_userEmail),
+            currentAccountPicture: const CircleAvatar(
               backgroundColor: Colors.white,
               child: Icon(
                 Icons.person,
@@ -40,12 +86,12 @@ class Sidebar extends StatelessWidget {
                 size: 40,
               ),
             ),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.blueAccent,
-            ), accountEmail: null,
+            ),
           ),
 
-          // Gera a lista de itens de navegação dinamicamente
+          // Gera a lista de itens de navegação dinamicamente.
           for (int i = 0; i < _navItems.length; i++)
             _buildNavItem(
               context: context,
@@ -54,9 +100,10 @@ class Sidebar extends StatelessWidget {
               index: i,
             ),
 
-          const Spacer(), // Empurra os itens seguintes para o final
+          // Empurra o item de sair para o final da tela.
+          const Spacer(),
 
-          // Divisor e item de Sair
+          // Divisor e item de Sair com a função de logout funcional.
           const Divider(thickness: 1, indent: 16, endIndent: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
@@ -64,38 +111,34 @@ class Sidebar extends StatelessWidget {
               leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
               title: const Text(
                 'Sair',
-                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+                style:
+                TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
               ),
               hoverColor: Colors.red.withOpacity(0.1),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              onTap: () {
-                // Adicione aqui a sua lógica de logout
-                // Exemplo: Navigator.of(context).pushReplacementNamed('/login');
-                print('Logout solicitado!');
-              },
+              onTap: () => _performLogout(context), // Chama a função de logout corrigida.
             ),
           ),
-          const SizedBox(height: 10), // Espaço inferior para respiro
+          const SizedBox(height: 10),
         ],
       ),
     );
   }
 
-  /// Método auxiliar para construir cada item de navegação, evitando repetição de código.
+  /// Método auxiliar para construir cada item de navegação.
   Widget _buildNavItem({
     required BuildContext context,
     required IconData icon,
     required String title,
     required int index,
   }) {
-    final bool isSelected = selectedIndex == index;
+    final bool isSelected = widget.selectedIndex == index;
     final theme = Theme.of(context);
     final selectedColor = theme.primaryColor;
 
     return Padding(
-      // Adiciona padding horizontal e vertical para cada item.
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
       child: ListTile(
         leading: Icon(icon),
@@ -104,17 +147,13 @@ class Sidebar extends StatelessWidget {
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
         selected: isSelected,
-        // Cor de fundo quando o item está selecionado.
         selectedTileColor: selectedColor.withOpacity(0.15),
-        // Cor do ícone e do texto quando o item está selecionado.
         selectedColor: selectedColor,
-        // Cor ao passar o mouse por cima.
         hoverColor: selectedColor.withOpacity(0.1),
-        // Bordas arredondadas para um visual moderno.
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        onTap: () => onItemSelected(index),
+        onTap: () => widget.onItemSelected(index),
       ),
     );
   }
