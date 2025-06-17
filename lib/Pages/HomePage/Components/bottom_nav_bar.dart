@@ -1,5 +1,7 @@
-import 'dart:ui';
+// main.dart
+
 import 'package:flutter/material.dart';
+import 'package:google_nav_bar/google_nav_bar.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 void main() {
@@ -7,7 +9,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({ Key? key }) : super(key: key);
+  const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +24,7 @@ class MyApp extends StatelessWidget {
 }
 
 class FloatingNavPage extends StatefulWidget {
-  const FloatingNavPage({ Key? key }) : super(key: key);
+  const FloatingNavPage({Key? key}) : super(key: key);
 
   @override
   _FloatingNavPageState createState() => _FloatingNavPageState();
@@ -47,19 +49,19 @@ class _FloatingNavPageState extends State<FloatingNavPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Altura estimada da BottomNavBar (para padding do conteúdo)
-    final navBarHeight = MediaQuery.of(context).size.width < 350 ? 56.0 : 72.0;
+    // A altura não é mais necessária aqui, pois a barra tem seu próprio tamanho.
+    // O padding pode ser ajustado se necessário.
+    const double bottomNavBarHeight = 90.0; // Altura estimada para o padding
 
     return Scaffold(
+      // Você pode adicionar um backgroundColor para ver o contraste da barra flutuante
+      backgroundColor: Colors.grey[100],
       body: Stack(
         children: [
-          // Conteúdo principal com padding para não ficar escondido
-          Padding(
-            padding: EdgeInsets.only(bottom: navBarHeight + 16),
-            child: _pages[_currentIndex],
-          ),
+          // Conteúdo principal
+          _pages[_currentIndex],
 
-          // Barra flutuante
+          // Barra flutuante posicionada na parte inferior
           Positioned(
             left: 16,
             right: 16,
@@ -75,6 +77,13 @@ class _FloatingNavPageState extends State<FloatingNavPage> {
   }
 }
 
+
+// --- INÍCIO DA CLASSE REFATORADA ---
+
+/// Uma barra de navegação inferior flutuante, moderna e animada.
+///
+/// Utiliza o pacote `google_nav_bar` para uma experiência de usuário superior,
+/// mantendo o design flutuante graças ao posicionamento na tela principal.
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -85,135 +94,64 @@ class BottomNavBar extends StatelessWidget {
     required this.onItemSelected,
   }) : super(key: key);
 
-  static const _navItems = <_NavItem>[
-    _NavItem(icon: LucideIcons.package, label: 'Pedidos'),
-    _NavItem(icon: LucideIcons.headphones, label: 'Atendimento'),
-    _NavItem(icon: LucideIcons.alertCircle, label: 'Alerta'),
-    _NavItem(icon: LucideIcons.box, label: 'Catálogo'),
-    _NavItem(icon: LucideIcons.thumbsUp, label: 'Feedbacks'),
+  // Mantemos os dados originais da sua UI
+  static const _navItems = [
+    {'icon': LucideIcons.package, 'label': 'Pedidos'},
+    {'icon': LucideIcons.headphones, 'label': 'Atendimento'},
+    {'icon': LucideIcons.alertCircle, 'label': 'Alerta'},
+    {'icon': LucideIcons.box, 'label': 'Catálogo'},
+    {'icon': LucideIcons.thumbsUp, 'label': 'Feedbacks'},
   ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final width = MediaQuery.of(context).size.width;
-    final isCompact = width < 350;
 
-    // Ajustes de padding e altura como você já fez
-    final hPad = isCompact ? 8.0 : 12.0;
-    final vPad = isCompact ? 10.0 : 12.0;
-    final navH = isCompact ? 60.0 : 72.0;
-
-    return Card(
-      // Card é a forma ideal de criar um container flutuante
-      // que respeita o tema.
-      elevation: 10.0, // Elevação pronunciada para o efeito flutuante
-      shadowColor: theme.colorScheme.shadow.withOpacity(0.25),
-      margin: const EdgeInsets.all(0), // Removemos a margem padrão do Card
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(32),
+    return Container(
+      // O Container cria o efeito de "cartão flutuante" com sombra e bordas arredondadas.
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface, // Cor de fundo da barra
+        borderRadius: BorderRadius.circular(32), // Bordas bem arredondadas
+        boxShadow: [
+          BoxShadow(
+            blurRadius: 20,
+            color: Colors.black.withOpacity(.15),
+            offset: const Offset(0, 5),
+          )
+        ],
       ),
-      // Usamos o surfaceColor do NavigationBarTheme para consistência com o Material 3,
-      // ou um fallback para a cor de superfície do tema.
-      color: theme.navigationBarTheme.backgroundColor ?? theme.colorScheme.surface,
-      clipBehavior: Clip.antiAlias, // Previne que o InkWell vaze
-      child: Container(
-        height: navH,
-        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: List.generate(_navItems.length, (index) {
-            final item = _navItems[index];
-            final selected = index == selectedIndex;
+      // Clip.antiAlias garante que o conteúdo da GNav respeite as bordas arredondadas.
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        // Padding interno para a GNav não ficar colada nas bordas do cartão.
+        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10),
+        child: GNav(
+          // Estilo dos botões e da barra
+          rippleColor: theme.primaryColor.withOpacity(0.1),
+          hoverColor: theme.primaryColor.withOpacity(0.05),
+          gap: 8, // Espaço entre o ícone e o texto quando selecionado
+          activeColor: Colors.white, // Cor do ícone e texto ativos
+          iconSize: 24,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          duration: const Duration(milliseconds: 300), // Duração da animação
+          tabBackgroundColor: theme.primaryColor, // Cor de fundo do item ativo
+          color: theme.colorScheme.onSurface.withOpacity(0.6), // Cor dos ícones inativos
 
-            // O _NavButton continua funcionando perfeitamente aqui!
-            return _NavButton(
-              icon: item.icon,
-              label: item.label,
-              selected: selected,
-              isCompact: isCompact,
-              onTap: () => onItemSelected(index),
+          // Gera as abas (GButton) a partir da nossa lista de dados
+          tabs: List.generate(_navItems.length, (index) {
+            final item = _navItems[index];
+            return GButton(
+              icon: item['icon'] as IconData,
+              text: item['label'] as String,
             );
           }),
+
+          // Controle de estado
+          selectedIndex: selectedIndex,
+          onTabChange: onItemSelected, // Callback quando uma aba é tocada
         ),
       ),
     );
   }
 }
-
-class _NavButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final bool isCompact;
-  final VoidCallback onTap;
-
-  const _NavButton({
-    Key? key,
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.isCompact,
-    required this.onTap,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-    final baseSize = isCompact ? 18.0 : 22.0;
-    final selSize = isCompact ? 22.0 : 26.0;
-    final horizPad = isCompact ? 8.0 : 12.0;
-    final vertPad = isCompact ? 4.0 : 8.0;
-
-    final selectedBg = theme.colorScheme.primaryContainer.withOpacity(isDark ? 0.5 : 0.3);
-    final splashClr = theme.colorScheme.primary.withOpacity(0.3);
-
-    final unselectedColor = theme.colorScheme.onSurface;
-    final selectedColor = isDark
-        ? theme.colorScheme.onPrimaryContainer
-        : theme.colorScheme.primary;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        splashColor: splashClr,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.symmetric(horizontal: horizPad, vertical: vertPad),
-          decoration: BoxDecoration(
-            color: selected ? selectedBg : Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: selected ? selSize : baseSize,
-                color: selected ? selectedColor : unselectedColor,
-              ),
-              if (selected && !isCompact) ...[
-                const SizedBox(width: 8),
-                Text(
-                  label,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: selectedColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem {
-  final IconData icon;
-  final String label;
-  const _NavItem({required this.icon, required this.label});
-}
+// --- FIM DA CLASSE REFATORADA ---

@@ -1,9 +1,6 @@
-// lib/components/sidebar.dart
-
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
-class Sidebar extends StatefulWidget {
+class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
 
@@ -13,184 +10,111 @@ class Sidebar extends StatefulWidget {
     required this.onItemSelected,
   }) : super(key: key);
 
-  @override
-  State<Sidebar> createState() => _SidebarState();
-}
-
-class _SidebarState extends State<Sidebar> with SingleTickerProviderStateMixin {
-  static const double _expandedWidth = 250;
-  static const double _collapsedWidth = 80;
-  bool _isCollapsed = false;
-
-  late final AnimationController _controller;
-  late final Animation<double> _widthAnim;
-
-  final List<Map<String, dynamic>> _navItems = [
-    {'icon': LucideIcons.package,        'label': 'Pedidos'},
-    {'icon': LucideIcons.headphones,     'label': 'Atendimento'},
-    {'icon': LucideIcons.alertCircle,    'label': 'Alerta'},
-    {'icon': LucideIcons.box,            'label': 'Catalogo'},
-    {'icon': LucideIcons.thumbsUp,  'label': 'Feedbacks'},
+  // Mapeamento dos itens de navegação para manter a organização do código original.
+  static const List<Map<String, dynamic>> _navItems = [
+    {'icon': Icons.receipt_long_outlined, 'label': 'Pedidos'},
+    {'icon': Icons.support_agent_rounded, 'label': 'Atendimento'},
+    {'icon': Icons.warning_amber_rounded, 'label': 'Alerta'},
+    {'icon': Icons.inventory_2_outlined,  'label': 'Catálogo'},
+    {'icon': Icons.reviews_outlined,      'label': 'Feedbacks'},
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _widthAnim = Tween<double>(
-      begin: _expandedWidth,
-      end: _collapsedWidth,
-    ).animate(CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
-    ));
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _toggle() {
-    setState(() {
-      _isCollapsed = !_isCollapsed;
-      if (_isCollapsed) {
-        _controller.forward();
-      } else {
-        _controller.reverse();
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: const BoxConstraints(
-        minWidth: _collapsedWidth,
-        maxWidth: _expandedWidth,
-      ),
-      child: AnimatedBuilder(
-        animation: _widthAnim,
-        builder: (context, child) {
-          final isNarrow = _widthAnim.value <= (_collapsedWidth + 5);
-
-          return Container(
-            width: _widthAnim.value,
+    return Drawer(
+      elevation: 2.0, // Sombra sutil para destacar o Drawer
+      child: Column(
+        children: [
+          // Um CircleAvatar para o perfil do usuário, adaptado ao novo layout.
+          const UserAccountsDrawerHeader(
+            accountName: Text(
+              "Nome do Usuário",
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+            // A linha accountEmail foi removida daqui.
+            currentAccountPicture: CircleAvatar(
+              backgroundColor: Colors.white,
+              child: Icon(
+                Icons.person,
+                color: Colors.blueAccent,
+                size: 40,
+              ),
+            ),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF051FAA), Color(0xFF1D39CD)],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-              borderRadius: isNarrow
-                  ? BorderRadius.circular(20)
-                  : const BorderRadius.only(
-                topRight: Radius.circular(20),
-                bottomRight: Radius.circular(20),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.15),
-                  blurRadius: 10,
-                  offset: const Offset(2, 2),
-                ),
-              ],
+              color: Colors.blueAccent,
+            ), accountEmail: null,
+          ),
+
+          // Gera a lista de itens de navegação dinamicamente
+          for (int i = 0; i < _navItems.length; i++)
+            _buildNavItem(
+              context: context,
+              icon: _navItems[i]['icon'],
+              title: _navItems[i]['label'],
+              index: i,
             ),
-            child: Column(
-              children: [
-                const SizedBox(height: 24),
-                // Avatar or Logo
-                CircleAvatar(
-                  radius: 24,
-                  backgroundColor: Colors.orangeAccent,
-                  child: Icon(Icons.person, color: Colors.white, size: 28),
-                ),
-                const SizedBox(height: 32),
 
-                // Navigation items
-                Expanded(
-                  child: ListView.separated(
-                    padding: EdgeInsets.zero,
-                    itemCount: _navItems.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (context, index) {
-                      final item = _navItems[index];
-                      final selected = widget.selectedIndex == index;
+          const Spacer(), // Empurra os itens seguintes para o final
 
-                      return InkWell(
-                        onTap: () => widget.onItemSelected(index),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 8),
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 12,
-                            horizontal: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? Colors.white.withOpacity(0.1)
-                                : Colors.transparent,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: isNarrow
-                                ? MainAxisAlignment.center
-                                : MainAxisAlignment.start,
-                            children: [
-                              Icon(item['icon'], color: Colors.white, size: 22),
-                              if (!isNarrow) ...[
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Text(
-                                    item['label'],
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Divider
-                Container(
-                  height: 1,
-                  margin:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  color: Colors.white24,
-                ),
-
-                // Collapse/Expand button
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: Align(
-                    alignment:
-                    isNarrow ? Alignment.center : Alignment.centerRight,
-                    child: IconButton(
-                      icon: Icon(
-                        _isCollapsed
-                            ? Icons.chevron_right
-                            : Icons.chevron_left,
-                        color: Colors.white,
-                      ),
-                      onPressed: _toggle,
-                    ),
-                  ),
-                ),
-              ],
+          // Divisor e item de Sair
+          const Divider(thickness: 1, indent: 16, endIndent: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+            child: ListTile(
+              leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+              title: const Text(
+                'Sair',
+                style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w500),
+              ),
+              hoverColor: Colors.red.withOpacity(0.1),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              onTap: () {
+                // Adicione aqui a sua lógica de logout
+                // Exemplo: Navigator.of(context).pushReplacementNamed('/login');
+                print('Logout solicitado!');
+              },
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 10), // Espaço inferior para respiro
+        ],
+      ),
+    );
+  }
+
+  /// Método auxiliar para construir cada item de navegação, evitando repetição de código.
+  Widget _buildNavItem({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required int index,
+  }) {
+    final bool isSelected = selectedIndex == index;
+    final theme = Theme.of(context);
+    final selectedColor = theme.primaryColor;
+
+    return Padding(
+      // Adiciona padding horizontal e vertical para cada item.
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 2.0),
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(
+          title,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        selected: isSelected,
+        // Cor de fundo quando o item está selecionado.
+        selectedTileColor: selectedColor.withOpacity(0.15),
+        // Cor do ícone e do texto quando o item está selecionado.
+        selectedColor: selectedColor,
+        // Cor ao passar o mouse por cima.
+        hoverColor: selectedColor.withOpacity(0.1),
+        // Bordas arredondadas para um visual moderno.
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        onTap: () => onItemSelected(index),
       ),
     );
   }

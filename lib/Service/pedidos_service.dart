@@ -10,7 +10,7 @@ class PedidoService {
     final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/query');
     final response = await http.post(
       url,
-      headers: {
+      headers: {  
         'Authorization': 'Bearer $xataApiKey',
         'Content-Type': 'application/json',
       },
