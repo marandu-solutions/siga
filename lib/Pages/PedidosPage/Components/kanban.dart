@@ -34,6 +34,7 @@ class _KanbanState extends State<Kanban> {
     super.dispose();
   }
 
+  // Sua lógica de scroll horizontal foi mantida, pois já é excelente.
   void _scrollHorizontal(double delta) {
     if (!_horizontalScrollController.hasClients) return;
     final min = _horizontalScrollController.position.minScrollExtent;
@@ -44,177 +45,163 @@ class _KanbanState extends State<Kanban> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final headerColor = theme.colorScheme.surface;
-
+    // Ordena os pedidos por estado para garantir a ordem das colunas
+    final estadosOrdenados = EstadoPedido.values.toList();
     final pedidosPorEstado = {
-      for (var estado in EstadoPedido.values)
-        estado: widget.pedidos
-            .where((p) => p.estado == estado)
-            .toList()
+      for (var estado in estadosOrdenados)
+        estado: widget.pedidos.where((p) => p.estado == estado).toList()
           ..sort((a, b) => a.dataEntrega.compareTo(b.dataEntrega)),
     };
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Listener(
-        onPointerSignal: (signal) {
-          if (signal is PointerScrollEvent) {
-            // rola horizontal ao girar roda do mouse, com clamp
-            _scrollHorizontal(signal.scrollDelta.dy);
-          }
-        },
-        child: GestureDetector(
-          onHorizontalDragUpdate: (details) {
-            // arrasta a tela com mouse/toque, com clamp
-            _scrollHorizontal(-details.delta.dx);
-          },
-          child: Scrollbar(
-            controller: _horizontalScrollController,
-            thumbVisibility: true,
-            child: SingleChildScrollView(
-              controller: _horizontalScrollController,
-              scrollDirection: Axis.horizontal,
-              physics: const AlwaysScrollableScrollPhysics(),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: EstadoPedido.values.map((estado) {
-                  final lista = pedidosPorEstado[estado]!;
-                  final corFundo = widget.corColuna[estado]!;
-                  final verticalController = ScrollController();
-
-                  return DragTarget<Pedido>(
-                    onWillAccept: (pedido) => pedido != null && pedido.estado != estado,
-                    onAccept: (pedido) => widget.onPedidoEstadoChanged(
-                      pedido.copyWith(estado: estado),
-                    ),
-                    builder: (context, candidateData, rejectedData) {
-                      return Container(
-                        width: 280,
-                        margin: const EdgeInsets.only(right: 20),
-                        decoration: BoxDecoration(
-                          color: corFundo.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(16),
-                          border: candidateData.isNotEmpty
-                              ? Border.all(
-                            color: theme.colorScheme.primary,
-                            width: 2,
-                          )
-                              : null,
-                          boxShadow: [
-                            BoxShadow(
-                              color: theme.colorScheme.shadow,
-                              blurRadius: 6,
-                              offset: const Offset(2, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Cabeçalho da coluna
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: headerColor,
-                                borderRadius: const BorderRadius.only(
-                                  topLeft: Radius.circular(16),
-                                  topRight: Radius.circular(16),
-                                ),
-                              ),
-                              child: Text(
-                                estado.label,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                    color: theme.colorScheme.onSurface,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                            // Conteúdo
-                            Expanded(
-                              child: lista.isEmpty
-                                  ? Center(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Text(
-                                    'Nenhum pedido',
-                                    style: theme.textTheme.bodyMedium
-                                        ?.copyWith(
-                                        color: theme
-                                            .colorScheme
-                                            .onSurface
-                                            .withOpacity(0.6),
-                                        fontSize: 16),
-                                  ),
-                                ),
-                              )
-                                  : Scrollbar(
-                                controller: verticalController,
-                                thumbVisibility: true,
-                                child: ListView.builder(
-                                  controller: verticalController,
-                                  physics:
-                                  const AlwaysScrollableScrollPhysics(),
-                                  itemCount: lista.length,
-                                  itemBuilder: (context, index) {
-                                    final pedido = lista[index];
-                                    return Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      child: Draggable<Pedido>(
-                                        data: pedido,
-                                        feedback: Material(
-                                          color: Colors.transparent,
-                                          child: SizedBox(
-                                            width: 280,
-                                            child: Opacity(
-                                              opacity: 0.75,
-                                              child: PedidoCard(
-                                                pedido: pedido,
-                                                onDelete: () =>
-                                                    widget.onDelete(pedido),
-                                                onTapDetails: () =>
-                                                    widget.onTapDetails(pedido),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        childWhenDragging: Opacity(
-                                          opacity: 0.3,
-                                          child: PedidoCard(
-                                            pedido: pedido,
-                                            onDelete: () =>
-                                                widget.onDelete(pedido),
-                                            onTapDetails: () =>
-                                                widget.onTapDetails(pedido),
-                                          ),
-                                        ),
-                                        child: PedidoCard(
-                                          pedido: pedido,
-                                          onDelete: () =>
-                                              widget.onDelete(pedido),
-                                          onTapDetails: () =>
-                                              widget.onTapDetails(pedido),
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  );
-                }).toList(),
-              ),
-            ),
+    return Listener(
+      onPointerSignal: (signal) {
+        if (signal is PointerScrollEvent) _scrollHorizontal(signal.scrollDelta.dy);
+      },
+      child: ScrollConfiguration(
+        // Permite arrastar o scroll com o mouse
+        behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse}),
+        child: SingleChildScrollView(
+          controller: _horizontalScrollController,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.all(24.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: estadosOrdenados.map((estado) {
+              final lista = pedidosPorEstado[estado]!;
+              return _KanbanColumn(
+                estado: estado,
+                pedidos: lista,
+                corColuna: widget.corColuna[estado]!,
+                onPedidoEstadoChanged: widget.onPedidoEstadoChanged,
+                onDelete: widget.onDelete,
+                onTapDetails: widget.onTapDetails,
+              );
+            }).toList(),
           ),
         ),
       ),
+    );
+  }
+}
+
+// ===================================================================
+// ================ WIDGET DE COLUNA REATORADO =======================
+// ===================================================================
+class _KanbanColumn extends StatelessWidget {
+  final EstadoPedido estado;
+  final List<Pedido> pedidos;
+  final Color corColuna;
+  final Function(Pedido) onPedidoEstadoChanged;
+  final PedidoCallback onDelete;
+  final PedidoCallback onTapDetails;
+
+  const _KanbanColumn({
+    required this.estado,
+    required this.pedidos,
+    required this.corColuna,
+    required this.onPedidoEstadoChanged,
+    required this.onDelete,
+    required this.onTapDetails,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final textTheme = theme.textTheme;
+
+    return DragTarget<Pedido>(
+      onWillAccept: (pedido) => pedido != null && pedido.estado != estado,
+      onAccept: (pedido) => onPedidoEstadoChanged(pedido.copyWith(estado: estado)),
+      builder: (context, candidateData, rejectedData) {
+        final isHighlighted = candidateData.isNotEmpty;
+        return Container(
+          width: 300,
+          margin: const EdgeInsets.only(right: 16),
+          // 1. DESIGN DA COLUNA APRIMORADO
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+            borderRadius: BorderRadius.circular(16),
+            border: isHighlighted
+                ? Border.all(color: theme.colorScheme.primary, width: 2)
+                : null,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 2. CABEÇALHO INFORMATIVO
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8, height: 8,
+                      decoration: BoxDecoration(color: corColuna, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        estado.label,
+                        style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    Text(
+                      '${pedidos.length}',
+                      style: textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Conteúdo da coluna
+              Expanded(
+                child: pedidos.isEmpty
+                    ? Center(child: Text('Nenhum pedido aqui', style: textTheme.bodyMedium))
+                    : ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: pedidos.length,
+                  itemBuilder: (context, index) {
+                    final pedido = pedidos[index];
+                    return Draggable<Pedido>(
+                      data: pedido,
+                      // 3. FEEDBACK VISUAL MELHORADO
+                      feedback: Material(
+                        color: Colors.transparent,
+                        child: SizedBox(
+                          width: 284,
+                          child: Opacity(
+                            opacity: 0.9,
+                            child: Card(
+                              elevation: 8,
+                              child: PedidoCard(
+                                pedido: pedido,
+                                onDelete: () {}, // Desabilitado no feedback
+                                onTapDetails: () {}, // Desabilitado no feedback
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      childWhenDragging: Opacity(
+                        opacity: 0.4,
+                        child: PedidoCard(
+                          pedido: pedido,
+                          onDelete: () => onDelete(pedido),
+                          onTapDetails: () => onTapDetails(pedido),
+                        ),
+                      ),
+                      child: PedidoCard(
+                        pedido: pedido,
+                        onDelete: () => onDelete(pedido),
+                        onTapDetails: () => onTapDetails(pedido),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

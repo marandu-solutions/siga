@@ -1,6 +1,33 @@
 import 'package:flutter/material.dart';
-import '../../../Service/usuario_service.dart'; // Importe o seu UsuarioService
+import 'package:flutter_svg/flutter_svg.dart'; // Importante para o logo
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../../Service/usuario_service.dart';
 
+// -------------------------------------------------------------------
+// Widget do Logo Vetorial (para consistência)
+// -------------------------------------------------------------------
+class MaranduLogo extends StatelessWidget {
+  final double size;
+  const MaranduLogo({super.key, this.size = 120.0});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final gradient = LinearGradient(
+      colors: [theme.colorScheme.primary, const Color(0xFF673AB7)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    );
+    final svgString = '''<svg width="$size" height="$size" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:${_colorToHex(gradient.colors[0])};stop-opacity:1" /><stop offset="100%" style="stop-color:${_colorToHex(gradient.colors[1])};stop-opacity:1" /></linearGradient></defs><circle cx="50" cy="50" r="45" stroke="url(#logoGradient)" stroke-width="8" fill="none"/><path d="M 25 70 L 25 30 L 50 55 L 75 30 L 75 70" stroke="url(#logoGradient)" stroke-width="12" fill="none" stroke-linejoin="round" stroke-linecap="round"/></svg>''';
+    return SvgPicture.string(svgString, width: size, height: size);
+  }
+  String _colorToHex(Color color) => '#${color.value.toRadixString(16).substring(2)}';
+}
+
+
+// -------------------------------------------------------------------
+// A Nova Tela de Cadastro
+// -------------------------------------------------------------------
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -9,21 +36,22 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final PageController _pageController = PageController();
-  int _currentPage = 0;
+  // Chaves para validar cada passo do formulário
+  final _formKeyStep1 = GlobalKey<FormState>();
+  final _formKeyStep2 = GlobalKey<FormState>();
 
-  final _formKey = GlobalKey<FormState>();
-
-  final TextEditingController companyController = TextEditingController();
-  final TextEditingController ownerController = TextEditingController();
-  final TextEditingController phoneController = TextEditingController();
-  final TextEditingController cpfController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  // Controladores de texto
+  final companyController = TextEditingController();
+  final ownerController = TextEditingController();
+  final phoneController = TextEditingController();
+  final cpfController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
 
   final UsuarioService _usuarioService = UsuarioService();
   bool _isLoading = false;
+  int _currentStep = 0;
 
   @override
   void dispose() {
@@ -34,389 +62,163 @@ class _SignUpScreenState extends State<SignUpScreen> {
     emailController.dispose();
     passwordController.dispose();
     confirmPasswordController.dispose();
-    _pageController.dispose();
     super.dispose();
   }
 
-  void _nextPage() {
-    // Valida apenas os campos da página atual
-    if (_formKey.currentState!.validate()) {
-      // Pequena lógica para validar apenas a primeira página antes de avançar
-      if (_currentPage == 0 && (companyController.text.isEmpty || ownerController.text.isEmpty || phoneController.text.isEmpty || cpfController.text.isEmpty)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Por favor, preencha todos os campos da primeira página.'),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+  // --- LÓGICA DO STEPPER ---
+  void _onStepContinue() {
+    bool isStepValid = false;
+    // Valida o passo atual antes de continuar
+    if (_currentStep == 0) {
+      isStepValid = _formKeyStep1.currentState!.validate();
+    } else if (_currentStep == 1) {
+      isStepValid = _formKeyStep2.currentState!.validate();
+      if (isStepValid) {
+        _handleSignUp(); // Se o segundo passo for válido, finaliza o cadastro
         return;
       }
-      setState(() {
-        _currentPage = 1;
-      });
-      _pageController.animateToPage(
-        1,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
+    }
+
+    if (isStepValid && _currentStep < 1) {
+      setState(() => _currentStep += 1);
     }
   }
 
-  void _previousPage() {
-    setState(() {
-      _currentPage = 0;
-    });
-    _pageController.animateToPage(
-      0,
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.easeInOut,
-    );
+  void _onStepCancel() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep -= 1);
+    }
   }
 
+  // --- LÓGICA DE CADASTRO ---
   Future<void> _handleSignUp() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    setState(() => _isLoading = true);
 
-    if (passwordController.text != confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('As senhas não coincidem.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    final email = emailController.text.trim();
-    final senha = passwordController.text.trim();
-    final username = ownerController.text.trim();
-
-    final bool sucesso = await _usuarioService.cadastrarUsuario(
-      email: email,
-      senha: senha,
-      username: username,
+    final sucesso = await _usuarioService.cadastrarUsuario(
+      email: emailController.text.trim(),
+      senha: passwordController.text.trim(),
+      username: ownerController.text.trim(),
     );
+
+    if (!mounted) return;
 
     if (sucesso) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Usuário cadastrado com sucesso!'),
-          backgroundColor: Theme.of(context).colorScheme.secondary,
-        ),
-      );
-      Navigator.pop(context); // Volta para a tela de login
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Usuário cadastrado com sucesso! Faça o login.'), backgroundColor: Theme.of(context).colorScheme.secondary));
+      Navigator.pop(context);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Falha ao cadastrar usuário. Verifique seus dados e tente novamente.'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: const Text('Falha ao cadastrar usuário. Tente novamente.'), backgroundColor: Theme.of(context).colorScheme.error));
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 600;
-    final ColorScheme colorScheme = Theme.of(context).colorScheme;
-    final TextTheme textTheme = Theme.of(context).textTheme;
-
     return Scaffold(
-      // scaffoldBackgroundColor já é definido no AppThemes
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          return Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-              constraints: BoxConstraints(maxWidth: isWide ? 600 : 500),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center, // Centraliza verticalmente
-                  children: [
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.05), // Espaçamento superior
-
-                    Image.asset(
-                      'assets/logo.png',
-                      height: 100,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      "Cadastro", // Alterado para "Cadastro"
-                      style: textTheme.titleLarge?.copyWith(
-                        color: colorScheme.onBackground,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    Form(
-                      key: _formKey,
-                      child: SizedBox(
-                        height: 330,
-                        child: PageView(
-                          controller: _pageController,
-                          physics: const NeverScrollableScrollPhysics(),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 500),
+            child: Column(
+              children: [
+                const MaranduLogo(size: 80),
+                const SizedBox(height: 16),
+                Text("Crie sua Conta", style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text("Vamos começar a organizar seus atendimentos.", style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                const SizedBox(height: 24),
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    side: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.5)),
+                  ),
+                  child: Stepper(
+                    type: StepperType.vertical,
+                    currentStep: _currentStep,
+                    onStepContinue: _onStepContinue,
+                    onStepCancel: _onStepCancel,
+                    onStepTapped: null, // Desabilita o toque nos passos
+                    controlsBuilder: (context, details) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 16.0),
+                        child: Row(
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Column(
-                                children: [
-                                  TextFormField(
-                                    controller: companyController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Nome da Empresa',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, insira o nome da empresa.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: ownerController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Nome do Proprietário',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, insira o nome do proprietário.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: phoneController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Telefone',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    keyboardType: TextInputType.phone,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, insira o telefone.';
-                                      }
-                                      // Validação simples de telefone (pode ser melhorada)
-                                      if (value.length < 8) {
-                                        return 'Telefone inválido.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: cpfController,
-                                    decoration: InputDecoration(
-                                      labelText: 'CPF',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    keyboardType: TextInputType.number,
-                                    maxLength: 11, // Define um limite para o CPF
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, insira o CPF.';
-                                      }
-                                      if (value.length != 11 || !RegExp(r'^[0-9]+$').hasMatch(value)) {
-                                        return 'O CPF deve ter 11 dígitos numéricos.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
+                            FilledButton(
+                              onPressed: _isLoading ? null : details.onStepContinue,
+                              child: _isLoading && _currentStep == 1
+                                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                                  : Text(details.currentStep == 0 ? "Continuar" : "Finalizar Cadastro"),
                             ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Column(
-                                children: [
-                                  TextFormField(
-                                    controller: emailController,
-                                    decoration: InputDecoration(
-                                      labelText: 'Email',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    keyboardType: TextInputType.emailAddress,
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, insira um email.';
-                                      }
-                                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                                        return 'Por favor, insira um email válido.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: passwordController,
-                                    obscureText: true,
-                                    decoration: InputDecoration(
-                                      labelText: 'Senha',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, insira uma senha.';
-                                      }
-                                      if (value.length < 6) {
-                                        return 'A senha deve ter pelo menos 6 caracteres.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 16),
-                                  TextFormField(
-                                    controller: confirmPasswordController,
-                                    obscureText: true,
-                                    decoration: InputDecoration(
-                                      labelText: 'Confirmar Senha',
-                                      labelStyle: TextStyle(color: colorScheme.onSurfaceVariant),
-                                    ),
-                                    style: TextStyle(color: colorScheme.onSurface),
-                                    validator: (value) {
-                                      if (value == null || value.isEmpty) {
-                                        return 'Por favor, confirme sua senha.';
-                                      }
-                                      if (value != passwordController.text) {
-                                        return 'As senhas não coincidem.';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ),
+                            if (details.onStepCancel != null)
+                              TextButton(onPressed: details.onStepCancel, child: const Text("Voltar")),
                           ],
                         ),
-                      ),
-                    ),
-
-                    /// Botões de controle
-                    Row(
-                      children: [
-                        if (_currentPage == 1)
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _isLoading ? null : _previousPage,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: colorScheme.primary, // Cor primária do tema
-                                side: BorderSide(color: colorScheme.primary), // Borda com cor primária
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                textStyle: textTheme.labelLarge?.copyWith(fontSize: 14), // Estilo de texto
-                              ),
-                              child: const Text("Voltar"),
-                            ),
-                          ),
-                        if (_currentPage == 1) const SizedBox(width: 16),
-                        Expanded(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: colorScheme.primary,
-                              foregroundColor: colorScheme.onPrimary,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              textStyle: textTheme.labelLarge,
-                            ),
-                            onPressed: _isLoading ? null : (_currentPage == 0 ? _nextPage : _handleSignUp),
-                            child: _isLoading
-                                ? SizedBox(
-                              height: 20,
-                              width: 20,
-                              child: CircularProgressIndicator(
-                                valueColor: AlwaysStoppedAnimation<Color>(colorScheme.onPrimary),
-                                strokeWidth: 2,
-                              ),
-                            )
-                                : Text(
-                              _currentPage == 0 ? "Continuar" : "Criar Conta",
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 8),
-
-                    /// Barra de progresso
-                    Container(
-                      width: double.infinity,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceVariant, // Cor de fundo da barra baseada no tema
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: FractionallySizedBox(
-                        alignment: Alignment.centerLeft,
-                        widthFactor: _currentPage == 0 ? 0.5 : 1.0,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: colorScheme.primary, // Cor de progresso baseada no tema
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    /// Link para login
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "Já tem uma conta? ",
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onBackground.withOpacity(0.7),
-                          ),
-                        ),
-                        MouseRegion(
-                          cursor: SystemMouseCursors.click,
-                          child: GestureDetector(
-                            onTap: () {
-                              Navigator.pop(context);
-                            },
-                            child: Text(
-                              "Entrar",
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.primary,
-                                decoration: TextDecoration.underline,
-                                decorationColor: colorScheme.primary,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: MediaQuery.of(context).size.height * 0.05), // Espaçamento inferior
+                      );
+                    },
+                    steps: [
+                      _buildStepEmpresa(),
+                      _buildStepCredenciais(),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text("Já tem uma conta?"),
+                    TextButton(onPressed: () => Navigator.pop(context), child: const Text("Fazer Login")),
                   ],
                 ),
-              ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
+    );
+  }
+
+  // --- WIDGETS DOS PASSOS ---
+  Step _buildStepEmpresa() {
+    return Step(
+      title: const Text('Informações da Empresa'),
+      content: Form(
+        key: _formKeyStep1,
+        child: Column(
+          children: [
+            TextFormField(controller: companyController, decoration: const InputDecoration(labelText: 'Nome da Empresa', prefixIcon: Icon(LucideIcons.building2)), validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null),
+            const SizedBox(height: 16),
+            TextFormField(controller: ownerController, decoration: const InputDecoration(labelText: 'Nome do Proprietário', prefixIcon: Icon(LucideIcons.user)), validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null),
+            const SizedBox(height: 16),
+            TextFormField(controller: phoneController, decoration: const InputDecoration(labelText: 'Telefone', prefixIcon: Icon(LucideIcons.phone)), keyboardType: TextInputType.phone, validator: (v) => v!.length < 10 ? 'Número inválido' : null),
+            const SizedBox(height: 16),
+            TextFormField(controller: cpfController, decoration: const InputDecoration(labelText: 'CPF', prefixIcon: Icon(LucideIcons.fileText)), keyboardType: TextInputType.number, maxLength: 11, validator: (v) => v!.length != 11 ? 'CPF deve ter 11 dígitos' : null),
+          ],
+        ),
+      ),
+      isActive: _currentStep >= 0,
+      state: _currentStep > 0 ? StepState.complete : StepState.indexed,
+    );
+  }
+
+  Step _buildStepCredenciais() {
+    return Step(
+      title: const Text('Credenciais de Acesso'),
+      content: Form(
+        key: _formKeyStep2,
+        child: Column(
+          children: [
+            TextFormField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(LucideIcons.mail)), keyboardType: TextInputType.emailAddress, validator: (v) => !v!.contains('@') ? 'Email inválido' : null),
+            const SizedBox(height: 16),
+            TextFormField(controller: passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Senha', prefixIcon: Icon(LucideIcons.lock)), validator: (v) => v!.length < 6 ? 'Mínimo de 6 caracteres' : null),
+            const SizedBox(height: 16),
+            // CORREÇÃO: Ícone inválido 'lockKeyhole' trocado por 'keyRound'.
+            TextFormField(controller: confirmPasswordController, obscureText: true, decoration: const InputDecoration(labelText: 'Confirmar Senha', prefixIcon: Icon(LucideIcons.keyRound)), validator: (v) => v! != passwordController.text ? 'As senhas não coincidem' : null),
+          ],
+        ),
+      ),
+      isActive: _currentStep >= 1,
+      state: _currentStep > 1 ? StepState.complete : StepState.indexed,
     );
   }
 }

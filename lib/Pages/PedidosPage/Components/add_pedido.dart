@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-
+import 'package:intl/intl.dart';
 import '../../../Model/pedidos.dart';
 
 class AddPedidoDialog extends StatefulWidget {
@@ -12,149 +12,134 @@ class AddPedidoDialog extends StatefulWidget {
   State<AddPedidoDialog> createState() => _AddPedidoDialogState();
 }
 
-class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
+class _AddPedidoDialogState extends State<AddPedidoDialog> {
+  // Chaves de formulário para cada passo, garantindo validação segmentada.
+  final _formKeyCliente = GlobalKey<FormState>();
+  final List<GlobalKey<FormState>> _itemFormKeys = [];
+
+  // Controladores para os dados principais do pedido.
   final _nomeClienteController = TextEditingController();
   final _telefoneClienteController = TextEditingController();
   final _observacoesController = TextEditingController();
   EstadoPedido _estado = EstadoPedido.emAberto;
-  DateTime _dataPedido = DateTime.now();
   DateTime _dataEntrega = DateTime.now().add(const Duration(days: 1));
-  bool _isLoading = false;
-  late AnimationController _animationController;
-  late Animation<double> _fadeAnimation;
-  late Animation<double> _scaleAnimation;
 
-  // Lista de itens do pedido
+  // Lista de itens do pedido.
   final List<Map<String, TextEditingController>> _itens = [];
-  final List<GlobalKey<FormState>> _itensFormKeys = [];
+
+  // Controle do Stepper e estado de carregamento.
+  int _currentStep = 0;
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _animationController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 300),
-    );
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
-    );
-    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(
-      CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
-    );
-    _animationController.forward();
-
-    // Adicionar um item inicial
+    // Adiciona um item inicial para que o formulário não comece vazio.
     _addItem();
-
-    _telefoneClienteController.addListener(() {
-      final txt = _telefoneClienteController.text;
-      if (txt.length > 11) {
-        // corta para os 11 primeiros caracteres
-        _telefoneClienteController.text = txt.substring(0, 11);
-        // reposiciona o cursor no fim
-        _telefoneClienteController.selection = TextSelection.fromPosition(
-          TextPosition(offset: _telefoneClienteController.text.length),
-        );
-      }
-    });
   }
+
+  // --- LÓGICA DE MANIPULAÇÃO DOS ITENS ---
 
   void _addItem() {
     setState(() {
+      _itemFormKeys.add(GlobalKey<FormState>());
       _itens.add({
         'nome': TextEditingController(),
         'preco': TextEditingController(),
         'quantidade': TextEditingController(text: '1'),
       });
-      _itensFormKeys.add(GlobalKey<FormState>());
     });
   }
 
   void _removeItem(int index) {
     setState(() {
+      // Importante dar dispose nos controladores para liberar memória.
       _itens[index].forEach((key, controller) => controller.dispose());
       _itens.removeAt(index);
-      _itensFormKeys.removeAt(index);
+      _itemFormKeys.removeAt(index);
     });
   }
 
-  Future<void> _selectDate(BuildContext context, bool isDataPedido) async {
+  // --- LÓGICA DO STEPPER ---
+
+  // Valida e avança para o próximo passo.
+  void _onStepContinue() {
+    bool isStepValid = false;
+    switch (_currentStep) {
+      case 0: // Valida o formulário do cliente.
+        isStepValid = _formKeyCliente.currentState!.validate();
+        break;
+      case 1: // Valida todos os formulários dos itens.
+        isStepValid = true;
+        for (var key in _itemFormKeys) {
+          if (!key.currentState!.validate()) {
+            isStepValid = false;
+          }
+        }
+        break;
+      case 2: // Último passo, dispara o envio.
+        _submit();
+        return;
+    }
+
+    if (isStepValid && _currentStep < 2) {
+      setState(() {
+        _currentStep += 1;
+      });
+    }
+  }
+
+  // Volta para o passo anterior.
+  void _onStepCancel() {
+    if (_currentStep > 0) {
+      setState(() {
+        _currentStep -= 1;
+      });
+    }
+  }
+
+  // --- LÓGICA DE ENVIO E HELPERS ---
+
+  Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
       context: context,
-      initialDate: isDataPedido ? _dataPedido : _dataEntrega,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2030),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(context).colorScheme.copyWith(
-              primary: Theme.of(context).colorScheme.primary,
-              onPrimary: Theme.of(context).colorScheme.onPrimary,
-            ),
-            textButtonTheme: TextButtonThemeData(
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-            ),
-          ),
-          child: child!,
-        );
-      },
+      initialDate: _dataEntrega,
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
     );
-    if (picked != null) {
-      setState(() {
-        if (isDataPedido) {
-          _dataPedido = picked;
-        } else {
-          _dataEntrega = picked;
-        }
-      });
+    if (picked != null && picked != _dataEntrega) {
+      setState(() => _dataEntrega = picked);
     }
   }
 
   Future<void> _submit() async {
-    bool allValid = true;
-    for (var formKey in _itensFormKeys) {
-      if (!formKey.currentState!.validate()) {
-        allValid = false;
-      }
-    }
+    setState(() => _isLoading = true);
 
-    if (_formKey.currentState!.validate() && allValid) {
-      setState(() {
-        _isLoading = true;
-      });
-
-      // Criar a lista de itens a partir dos controladores
-      final List<Item> itens = _itens.asMap().entries.map((entry) {
-        final item = entry.value;
-        return Item(
-          nome: item['nome']!.text,
-          preco: double.parse(item['preco']!.text),
-          quantidade: int.parse(item['quantidade']!.text),
-        );
-      }).toList();
-
-      final novoPedido = Pedido(
-        id: '', // Será preenchido pelo backend
-        numeroPedido: (DateTime.now().millisecondsSinceEpoch % 100000).toString().padLeft(5, '0'),
-        nomeCliente: _nomeClienteController.text,
-        telefoneCliente: _telefoneClienteController.text,
-        itens: itens,
-        observacoes: _observacoesController.text,
-        dataEntrega: _dataEntrega,
-        dataPedido: _dataPedido,
-        estado: _estado,
+    final List<Item> itensList = _itens.map((itemControllers) {
+      return Item(
+        nome: itemControllers['nome']!.text,
+        preco: double.tryParse(itemControllers['preco']!.text.replaceAll(',', '.')) ?? 0.0,
+        quantidade: int.tryParse(itemControllers['quantidade']!.text) ?? 1,
       );
+    }).toList();
 
-      widget.onAdd(novoPedido);
-      Navigator.of(context).pop();
+    final novoPedido = Pedido(
+      id: '', // Backend preenche
+      numeroPedido: (DateTime.now().millisecondsSinceEpoch % 100000).toString(),
+      nomeCliente: _nomeClienteController.text,
+      telefoneCliente: _telefoneClienteController.text,
+      itens: itensList,
+      observacoes: _observacoesController.text,
+      dataEntrega: _dataEntrega,
+      dataPedido: DateTime.now(),
+      estado: _estado,
+    );
 
-      setState(() {
-        _isLoading = false;
-      });
-    }
+    // Simula um pequeno delay de rede para o feedback visual.
+    await Future.delayed(const Duration(seconds: 1));
+
+    widget.onAdd(novoPedido);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
@@ -163,141 +148,78 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
     _telefoneClienteController.dispose();
     _observacoesController.dispose();
     for (var item in _itens) {
-      item['nome']!.dispose();
-      item['preco']!.dispose();
-      item['quantidade']!.dispose();
+      item.forEach((key, controller) => controller.dispose());
     }
-    _animationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return FadeTransition(
-      opacity: _fadeAnimation,
-      child: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          backgroundColor: theme.colorScheme.surface,
-          elevation: 8,
-          contentPadding: const EdgeInsets.all(24),
-          title: Row(
-            children: [
-              Icon(
-                LucideIcons.plusCircle,
-                color: theme.colorScheme.primary,
-                size: 28,
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: const Text('Novo Pedido'),
+      contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Stepper(
+          type: StepperType.vertical,
+          currentStep: _currentStep,
+          onStepContinue: _onStepContinue,
+          onStepCancel: _onStepCancel,
+          onStepTapped: (step) => setState(() => _currentStep = step),
+          controlsBuilder: (context, details) {
+            return Padding(
+              padding: const EdgeInsets.only(top: 16.0),
+              child: Row(
                 children: [
-                  Text(
-                    'Adicionar Novo Pedido',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                  FilledButton(
+                    onPressed: details.onStepContinue,
+                    child: _isLoading
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : Text(details.currentStep == 2 ? 'Finalizar' : 'Continuar'),
                   ),
-                  Text(
-                    'Preencha os detalhes do pedido',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(width: 12),
+                  if (details.currentStep > 0)
+                    TextButton(
+                      onPressed: details.onStepCancel,
+                      child: const Text('Voltar'),
                     ),
-                  ),
                 ],
               ),
-            ],
-          ),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _buildTextField(
-                    controller: _nomeClienteController,
-                    label: 'Nome do Cliente',
-                    icon: LucideIcons.user,
-                    validator: (value) =>
-                    value == null || value.isEmpty ? 'Nome é obrigatório' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _telefoneClienteController,
-                    label: 'Telefone do Cliente',
-                    icon: LucideIcons.phone,
-                    keyboardType: TextInputType.phone,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Telefone é obrigatório';
-                      }
-                      if (value.length < 10) {
-                        return 'Digite o DDD + número (pelo menos 10 dígitos)';
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  ..._buildItensFields(),
-                  const SizedBox(height: 16),
-                  _buildTextField(
-                    controller: _observacoesController,
-                    label: 'Observações',
-                    icon: LucideIcons.messageSquare,
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildDropdownField(),
-                  const SizedBox(height: 16),
-                  _buildDateField(context, 'Data do Pedido', _dataPedido, true),
-                  const SizedBox(height: 16),
-                  _buildDateField(context, 'Data de Entrega', _dataEntrega, false),
-                ],
-              ),
+            );
+          },
+          steps: [
+            _buildStepCliente(),
+            _buildStepItens(),
+            _buildStepDetalhes(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // --- WIDGETS DOS PASSOS DO STEPPER ---
+
+  Step _buildStepCliente() {
+    return Step(
+      title: const Text('Dados do Cliente'),
+      isActive: _currentStep >= 0,
+      state: _currentStep > 0 ? StepState.complete : StepState.indexed,
+      content: Form(
+        key: _formKeyCliente,
+        child: Column(
+          children: [
+            TextFormField(
+              controller: _nomeClienteController,
+              decoration: const InputDecoration(labelText: 'Nome do Cliente', prefixIcon: Icon(LucideIcons.user)),
+              validator: (v) => v!.isEmpty ? 'Nome é obrigatório' : null,
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              style: TextButton.styleFrom(
-                foregroundColor: theme.colorScheme.onSurfaceVariant,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              child: Text(
-                'Cancelar',
-                style: theme.textTheme.labelLarge,
-              ),
-            ),
-            FilledButton(
-              onPressed: _isLoading ? null : _submit,
-              style: theme.filledButtonTheme.style?.copyWith(
-                backgroundColor: MaterialStateProperty.resolveWith((states) {
-                  if (states.contains(MaterialState.disabled)) {
-                    return theme.colorScheme.primary.withOpacity(0.5);
-                  }
-                  return theme.colorScheme.primary;
-                }),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
-              )
-                  : Text(
-                'Adicionar',
-                style: theme.textTheme.labelLarge?.copyWith(
-                  color: theme.colorScheme.onPrimary,
-                ),
-              ),
+            const SizedBox(height: 16),
+            TextFormField(
+              controller: _telefoneClienteController,
+              decoration: const InputDecoration(labelText: 'Telefone', prefixIcon: Icon(LucideIcons.phone)),
+              keyboardType: TextInputType.phone,
+              validator: (v) => v!.length < 10 ? 'Número inválido' : null,
             ),
           ],
         ),
@@ -305,184 +227,113 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> with SingleTickerProv
     );
   }
 
-  List<Widget> _buildItensFields() {
-    List<Widget> widgets = [];
-    for (int i = 0; i < _itens.length; i++) {
-      widgets.add(
-        Form(
-          key: _itensFormKeys[i],
+  Step _buildStepItens() {
+    return Step(
+      title: const Text('Itens do Pedido'),
+      isActive: _currentStep >= 1,
+      state: _currentStep > 1 ? StepState.complete : StepState.indexed,
+      content: Column(
+        children: [
+          for (int i = 0; i < _itens.length; i++)
+            _buildItemCard(i),
+          const SizedBox(height: 16),
+          TextButton.icon(
+            onPressed: _addItem,
+            icon: const Icon(LucideIcons.plus),
+            label: const Text('Adicionar Outro Item'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Step _buildStepDetalhes() {
+    return Step(
+      title: const Text('Detalhes e Entrega'),
+      isActive: _currentStep >= 2,
+      content: Column(
+        children: [
+          TextFormField(
+            controller: _observacoesController,
+            decoration: const InputDecoration(labelText: 'Observações', prefixIcon: Icon(LucideIcons.messageSquare)),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<EstadoPedido>(
+            value: _estado,
+            decoration: const InputDecoration(labelText: 'Estado do Pedido', prefixIcon: Icon(LucideIcons.tag)),
+            items: EstadoPedido.values.map((e) => DropdownMenuItem(value: e, child: Text(e.label))).toList(),
+            onChanged: (v) => setState(() => _estado = v!),
+          ),
+          const SizedBox(height: 16),
+          ListTile(
+            leading: const Icon(LucideIcons.calendar),
+            title: const Text('Data de Entrega'),
+            subtitle: Text(DateFormat('dd/MM/yyyy').format(_dataEntrega)),
+            onTap: _selectDate,
+            contentPadding: EdgeInsets.zero,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- WIDGET AUXILIAR PARA O CARD DE ITEM ---
+
+  Widget _buildItemCard(int index) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Form(
+          key: _itemFormKeys[index],
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Item ${i + 1}',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Item ${index + 1}', style: Theme.of(context).textTheme.titleMedium),
                   if (_itens.length > 1)
                     IconButton(
-                      icon: const Icon(LucideIcons.trash2, color: Colors.red),
-                      onPressed: () => _removeItem(i),
+                      icon: const Icon(LucideIcons.x, size: 20, color: Colors.redAccent),
+                      onPressed: () => _removeItem(index),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                     ),
                 ],
               ),
               const SizedBox(height: 8),
-              _buildTextField(
-                controller: _itens[i]['nome']!,
-                label: 'Nome do Item',
-                icon: LucideIcons.briefcase,
-                validator: (value) =>
-                value == null || value.isEmpty ? 'Nome do item é obrigatório' : null,
+              TextFormField(
+                controller: _itens[index]['nome'],
+                decoration: const InputDecoration(labelText: 'Nome do Item'),
+                validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 8),
-              _buildTextField(
-                controller: _itens[i]['preco']!,
-                label: 'Preço (R\$)',
-                icon: LucideIcons.dollarSign,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Preço é obrigatório';
-                  }
-                  if (double.tryParse(value) == null || double.parse(value) <= 0) {
-                    return 'Preço deve ser um número positivo';
-                  }
-                  return null;
-                },
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _itens[index]['preco'],
+                      decoration: const InputDecoration(labelText: 'Preço', prefixText: 'R\$ '),
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      validator: (v) => (double.tryParse(v!.replaceAll(',', '.')) ?? 0) <= 0 ? 'Inválido' : null,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextFormField(
+                      controller: _itens[index]['quantidade'],
+                      decoration: const InputDecoration(labelText: 'Qtd.'),
+                      keyboardType: TextInputType.number,
+                      validator: (v) => (int.tryParse(v!) ?? 0) <= 0 ? 'Inválido' : null,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _itens[i]['quantidade']!,
-                label: 'Quantidade',
-                icon: LucideIcons.hash,
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Quantidade é obrigatória';
-                  }
-                  if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                    return 'Quantidade deve ser um número positivo';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
             ],
           ),
         ),
-      );
-    }
-    widgets.add(
-      ElevatedButton.icon(
-        onPressed: _addItem,
-        icon: const Icon(LucideIcons.plus),
-        label: const Text('Adicionar Item'),
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Theme.of(context).colorScheme.primary,
-          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
-        ),
       ),
-    );
-    return widgets;
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType? keyboardType,
-    String? Function(String?)? validator,
-    int maxLines = 1,
-  }) {
-    final theme = Theme.of(context);
-    return TextFormField(
-      controller: controller,
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        prefixIcon: Icon(icon, color: theme.colorScheme.primary),
-        filled: true,
-        fillColor: theme.colorScheme.surfaceVariant,
-        border: theme.inputDecorationTheme.border,
-        enabledBorder: theme.inputDecorationTheme.border?.copyWith(
-          borderSide: BorderSide(color: theme.colorScheme.outline),
-        ),
-        focusedBorder: theme.inputDecorationTheme.border?.copyWith(
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-        ),
-        errorBorder: theme.inputDecorationTheme.border?.copyWith(
-          borderSide: BorderSide(color: theme.colorScheme.error),
-        ),
-        focusedErrorBorder: theme.inputDecorationTheme.border?.copyWith(
-          borderSide: BorderSide(color: theme.colorScheme.error, width: 2),
-        ),
-        contentPadding: theme.inputDecorationTheme.contentPadding,
-      ),
-      style: TextStyle(color: theme.colorScheme.onSurface),
-      keyboardType: keyboardType,
-      validator: validator,
-      maxLines: maxLines,
-    );
-  }
-
-  Widget _buildDropdownField() {
-    final theme = Theme.of(context);
-    return DropdownButtonFormField<EstadoPedido>(
-      value: _estado,
-      decoration: InputDecoration(
-        labelText: 'Estado',
-        labelStyle: TextStyle(color: theme.colorScheme.onSurfaceVariant),
-        prefixIcon: Icon(LucideIcons.tag, color: theme.colorScheme.primary),
-        filled: true,
-        fillColor: theme.colorScheme.surfaceVariant,
-        border: theme.inputDecorationTheme.border,
-        enabledBorder: theme.inputDecorationTheme.border?.copyWith(
-          borderSide: BorderSide(color: theme.colorScheme.outline),
-        ),
-        focusedBorder: theme.inputDecorationTheme.border?.copyWith(
-          borderSide: BorderSide(color: theme.colorScheme.primary, width: 2),
-        ),
-        contentPadding: theme.inputDecorationTheme.contentPadding,
-      ),
-      style: TextStyle(color: theme.colorScheme.onSurface),
-      items: EstadoPedido.values
-          .map((estado) => DropdownMenuItem(
-        value: estado,
-        child: Text(estado.label),
-      ))
-          .toList(),
-      onChanged: (value) {
-        setState(() {
-          _estado = value!;
-        });
-      },
-    );
-  }
-
-  Widget _buildDateField(BuildContext context, String label, DateTime date, bool isDataPedido) {
-    final theme = Theme.of(context);
-    return ListTile(
-      leading: Icon(
-        LucideIcons.calendar,
-        color: theme.colorScheme.primary,
-      ),
-      title: Text(label, style: theme.textTheme.labelLarge),
-      subtitle: Text(
-        date.toString().split(' ')[0],
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-      onTap: () => _selectDate(context, isDataPedido),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: theme.colorScheme.outline),
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     );
   }
 }
