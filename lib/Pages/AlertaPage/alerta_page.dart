@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../../../Model/pedidos.dart';
 import 'components/historico_page.dart';
 
@@ -213,13 +212,7 @@ class _PedidosPanel extends StatelessWidget {
                   final p = pedidos[i];
                   final isSel = selecionados.contains(p.id);
 
-                  // Calcular a quantidade total de itens
-                  final quantidadeTotal = p.itens.fold<int>(
-                    0,
-                        (sum, item) => sum + item.quantidade,
-                  );
-
-                  // Representação dos itens (ex.: "Hambúrguer e mais 2 itens")
+                  final quantidadeTotal = p.itens.fold<int>(0,(sum, item) => sum + item.quantidade);
                   final itensText = p.itens.isNotEmpty
                       ? p.itens.length == 1
                       ? p.itens[0].nome
@@ -232,9 +225,7 @@ class _PedidosPanel extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isSel ? cs.primary.withOpacity(0.15) : cs.surface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: isSel ? cs.primary : cs.outline,
-                      ),
+                      border: Border.all(color: isSel ? cs.primary : cs.outline),
                     ),
                     child: ListTile(
                       leading: Icon(
@@ -244,9 +235,7 @@ class _PedidosPanel extends StatelessWidget {
                       title: Text(p.nomeCliente),
                       subtitle: Text('$quantidadeTotal x $itensText'),
                       trailing: Text('#${p.id.substring(0, 8)}'),
-                      onTap: () {
-                        onPedidoToggled(p.id);
-                      },
+                      onTap: () => onPedidoToggled(p.id),
                     ),
                   );
                 },
@@ -291,7 +280,19 @@ class _NotificarPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+
+    // Estilo de input que funciona em ambos os temas
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: cs.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -301,7 +302,7 @@ class _NotificarPanel extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Notificar Clientes', style: Theme.of(context).textTheme.titleLarge),
+            Text('Notificar Clientes', style: theme.textTheme.titleLarge),
             const SizedBox(height: 20),
             ElevatedButton.icon(
               icon: const Icon(Icons.calendar_today_outlined),
@@ -315,15 +316,17 @@ class _NotificarPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            Text('Mensagem Personalizada', style: Theme.of(context).textTheme.titleMedium),
+            Text('Mensagem Personalizada', style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
+            // CORREÇÃO APLICADA AQUI
             TextField(
               controller: controller,
+              style: TextStyle(color: cs.onSurface), // Cor do texto digitado
               maxLines: 6,
-              onChanged: (_) => {},
-              decoration: InputDecoration(
-                hintText: 'Olá {{nome}}, seu pedido foi reagendado para {{data}}',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              onChanged: (_) {},
+              decoration: inputDecoration.copyWith(
+                  hintText: 'Olá {{nome}}, seu pedido foi reagendado para {{data}}',
+                  hintStyle: TextStyle(color: cs.onSurfaceVariant)
               ),
             ),
             const SizedBox(height: 24),
@@ -332,7 +335,7 @@ class _NotificarPanel extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Será enviado via WhatsApp',
-                    style: Theme.of(context).textTheme.bodySmall,
+                    style: theme.textTheme.bodySmall,
                   ),
                 ),
                 ElevatedButton.icon(

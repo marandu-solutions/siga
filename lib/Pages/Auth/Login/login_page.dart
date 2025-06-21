@@ -99,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // USANDO O NOVO LOGO AQUI!
                 const MaranduLogo(size: 100),
                 const SizedBox(height: 24),
                 Text("Bem-vindo de volta!", style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
@@ -117,13 +116,27 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Widget _buildLoginForm(ThemeData theme) {
+    // CORREÇÃO: Aplicando estilos que funcionam em ambos os temas
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+
     return Form(
       key: _formKey,
       child: Column(
         children: [
           TextFormField(
             controller: _emailController,
-            decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(LucideIcons.mail)),
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            decoration: inputDecoration.copyWith(
+              labelText: 'Email',
+              prefixIcon: const Icon(LucideIcons.mail),
+            ),
             keyboardType: TextInputType.emailAddress,
             validator: (value) => (value == null || !value.contains('@')) ? 'Digite um email válido' : null,
           ),
@@ -131,7 +144,8 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
-            decoration: InputDecoration(
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            decoration: inputDecoration.copyWith(
               labelText: 'Senha',
               prefixIcon: const Icon(LucideIcons.lock),
               suffixIcon: IconButton(

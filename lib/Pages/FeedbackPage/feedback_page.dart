@@ -5,6 +5,7 @@ import 'Components/grafico_pizza.dart';
 import 'Components/satisfacao_grafico.dart';
 import 'components/metric_card.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class FeedbacksPage extends StatefulWidget {
   const FeedbacksPage({Key? key}) : super(key: key);
@@ -16,16 +17,30 @@ class FeedbacksPage extends StatefulWidget {
 class _FeedbacksPageState extends State<FeedbacksPage> {
   String _filter = 'all';
 
-  // SUA FUNÇÃO ORIGINAL PARA ADICIONAR FEEDBACK, AGORA REINTEGRADA
+  // CORREÇÃO: DIÁLOGO AGORA USA ESTILOS DO TEMA
   void _showAddDialog(BuildContext context, List<Pedido> pedidos) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final selected = ValueNotifier<Pedido?>(null);
     final controller = TextEditingController();
     final positive = ValueNotifier<bool>(true);
+
+    // Estilo de input que funciona em ambos os temas
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: cs.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      labelStyle: TextStyle(color: cs.onSurfaceVariant),
+    );
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Adicionar Feedback'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -36,18 +51,22 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                   hint: const Text('Selecione um Pedido'),
                   isExpanded: true,
                   value: sel,
+                  style: TextStyle(color: cs.onSurface), // Cor do texto
+                  decoration: inputDecoration.copyWith(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+                  ),
                   items: pedidos.map((p) => DropdownMenuItem(
                     value: p,
                     child: Text('#${p.id.substring(0,6)} - ${p.nomeCliente}', overflow: TextOverflow.ellipsis),
                   )).toList(),
                   onChanged: (v) => selected.value = v,
-                  decoration: const InputDecoration(border: OutlineInputBorder()),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: controller,
-                decoration: const InputDecoration(labelText: 'Mensagem', border: OutlineInputBorder()),
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'Mensagem'),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
@@ -91,14 +110,12 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // CORREÇÃO: O ponto de quebra foi aumentado para 950.
-    final isMobile = MediaQuery.of(context).size.width < 950;
+    final isMobile = MediaQuery.of(context).size.width < 1450;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Análise de Feedbacks'),
       ),
-      // BOTÃO DE ADICIONAR AGORA ESTÁ AQUI
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showAddDialog(context, context.read<PedidoModel>().pedidos),
         tooltip: 'Adicionar Feedback',
@@ -137,7 +154,6 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
           return ListView(
             padding: EdgeInsets.symmetric(horizontal: isMobile ? 16 : 24, vertical: 16),
             children: [
-              // LÓGICA DO IndicadoresSection AGORA ESTÁ DIRETAMENTE AQUI
               Text('Desempenho Geral', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
               Wrap(
@@ -149,6 +165,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                     icon: m['icon'] as IconData,
                     number: m['number'] as String,
                     label: m['label'] as String,
+                    color: m['color'] as Color?,
                   ),
                 )).toList(),
               ),
@@ -164,8 +181,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
   }
 
   Widget _buildChartsSection(BuildContext context, List<double> satisfactionData, int posCount, int negCount) {
-    // CORREÇÃO: O ponto de quebra foi aumentado para 950.
-    final isMobile = MediaQuery.of(context).size.width < 950;
+    final isMobile = MediaQuery.of(context).size.width < 1250;
 
     final satisfactionChartCard = Card(child: Padding(padding: const EdgeInsets.all(16.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Satisfação ao Longo do Tempo', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 16), SatisfactionChart(data: satisfactionData)])));
     final sentimentPieChartCard = Card(child: Padding(padding: const EdgeInsets.all(16.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Distribuição de Sentimento', style: Theme.of(context).textTheme.titleMedium), const SizedBox(height: 16), SentimentPieChart(positiveCount: posCount, negativeCount: negCount)])));
@@ -181,7 +197,6 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // CORREÇÃO: Usando Wrap para quebrar a linha em telas menores.
         Wrap(
           spacing: 16,
           runSpacing: 16,
@@ -206,17 +221,14 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
   }
 
   Widget _buildFilterToggle(BuildContext context) {
-    // CORREÇÃO: Estilo customizado para remover o fundo do item selecionado.
     return SegmentedButton<String>(
-      showSelectedIcon: false, // Remove o ícone de "check" padrão.
+      showSelectedIcon: false,
       style: ButtonStyle(
         backgroundColor: MaterialStateProperty.resolveWith<Color?>(
               (Set<MaterialState> states) {
-            // Usa uma cor primária sutil para o fundo quando selecionado.
             if (states.contains(MaterialState.selected)) {
               return Theme.of(context).colorScheme.primary.withOpacity(0.15);
             }
-            // Retorna nulo para usar o fundo padrão (transparente).
             return null;
           },
         ),

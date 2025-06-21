@@ -135,7 +135,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
       estado: _estado,
     );
 
-    // Simula um pequeno delay de rede para o feedback visual.
     await Future.delayed(const Duration(seconds: 1));
 
     widget.onAdd(novoPedido);
@@ -160,7 +159,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
       title: const Text('Novo Pedido'),
       contentPadding: const EdgeInsets.fromLTRB(0, 20, 0, 0),
       content: SizedBox(
-        width: double.maxFinite,
+        width: 500,
         child: Stepper(
           type: StepperType.vertical,
           currentStep: _currentStep,
@@ -173,8 +172,8 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
               child: Row(
                 children: [
                   FilledButton(
-                    onPressed: details.onStepContinue,
-                    child: _isLoading
+                    onPressed: _isLoading ? null : details.onStepContinue,
+                    child: _isLoading && _currentStep == 2
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                         : Text(details.currentStep == 2 ? 'Finalizar' : 'Continuar'),
                   ),
@@ -200,7 +199,19 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
 
   // --- WIDGETS DOS PASSOS DO STEPPER ---
 
+  InputDecoration _inputDecoration(String label, IconData icon) {
+    final theme = Theme.of(context);
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon, color: theme.colorScheme.primary),
+      filled: true,
+      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+    ).applyDefaults(theme.inputDecorationTheme);
+  }
+
   Step _buildStepCliente() {
+    final theme = Theme.of(context);
     return Step(
       title: const Text('Dados do Cliente'),
       isActive: _currentStep >= 0,
@@ -211,13 +222,15 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
           children: [
             TextFormField(
               controller: _nomeClienteController,
-              decoration: const InputDecoration(labelText: 'Nome do Cliente', prefixIcon: Icon(LucideIcons.user)),
+              style: TextStyle(color: theme.colorScheme.onSurface),
+              decoration: _inputDecoration('Nome do Cliente', LucideIcons.user),
               validator: (v) => v!.isEmpty ? 'Nome é obrigatório' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _telefoneClienteController,
-              decoration: const InputDecoration(labelText: 'Telefone', prefixIcon: Icon(LucideIcons.phone)),
+              style: TextStyle(color: theme.colorScheme.onSurface),
+              decoration: _inputDecoration('Telefone', LucideIcons.phone),
               keyboardType: TextInputType.phone,
               validator: (v) => v!.length < 10 ? 'Número inválido' : null,
             ),
@@ -248,6 +261,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
   }
 
   Step _buildStepDetalhes() {
+    final theme = Theme.of(context);
     return Step(
       title: const Text('Detalhes e Entrega'),
       isActive: _currentStep >= 2,
@@ -255,23 +269,30 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
         children: [
           TextFormField(
             controller: _observacoesController,
-            decoration: const InputDecoration(labelText: 'Observações', prefixIcon: Icon(LucideIcons.messageSquare)),
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            decoration: _inputDecoration('Observações', LucideIcons.messageSquare),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
           DropdownButtonFormField<EstadoPedido>(
             value: _estado,
-            decoration: const InputDecoration(labelText: 'Estado do Pedido', prefixIcon: Icon(LucideIcons.tag)),
+            style: TextStyle(color: theme.colorScheme.onSurface),
+            decoration: _inputDecoration('Estado do Pedido', LucideIcons.tag),
             items: EstadoPedido.values.map((e) => DropdownMenuItem(value: e, child: Text(e.label))).toList(),
             onChanged: (v) => setState(() => _estado = v!),
           ),
           const SizedBox(height: 16),
           ListTile(
-            leading: const Icon(LucideIcons.calendar),
+            leading: Icon(LucideIcons.calendar, color: theme.colorScheme.primary),
             title: const Text('Data de Entrega'),
             subtitle: Text(DateFormat('dd/MM/yyyy').format(_dataEntrega)),
             onTap: _selectDate,
-            contentPadding: EdgeInsets.zero,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
+            ),
+            tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ],
       ),
@@ -281,6 +302,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
   // --- WIDGET AUXILIAR PARA O CARD DE ITEM ---
 
   Widget _buildItemCard(int index) {
+    final theme = Theme.of(context);
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       child: Padding(
@@ -292,7 +314,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Item ${index + 1}', style: Theme.of(context).textTheme.titleMedium),
+                  Text('Item ${index + 1}', style: theme.textTheme.titleMedium),
                   if (_itens.length > 1)
                     IconButton(
                       icon: const Icon(LucideIcons.x, size: 20, color: Colors.redAccent),
@@ -305,7 +327,8 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _itens[index]['nome'],
-                decoration: const InputDecoration(labelText: 'Nome do Item'),
+                style: TextStyle(color: theme.colorScheme.onSurface),
+                decoration: _inputDecoration('Nome do Item', LucideIcons.package),
                 validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 8),
@@ -314,7 +337,8 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _itens[index]['preco'],
-                      decoration: const InputDecoration(labelText: 'Preço', prefixText: 'R\$ '),
+                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      decoration: _inputDecoration('Preço', LucideIcons.dollarSign).copyWith(prefixText: 'R\$ '),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) => (double.tryParse(v!.replaceAll(',', '.')) ?? 0) <= 0 ? 'Inválido' : null,
                     ),
@@ -323,7 +347,8 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _itens[index]['quantidade'],
-                      decoration: const InputDecoration(labelText: 'Qtd.'),
+                      style: TextStyle(color: theme.colorScheme.onSurface),
+                      decoration: _inputDecoration('Qtd.', LucideIcons.hash),
                       keyboardType: TextInputType.number,
                       validator: (v) => (int.tryParse(v!) ?? 0) <= 0 ? 'Inválido' : null,
                     ),

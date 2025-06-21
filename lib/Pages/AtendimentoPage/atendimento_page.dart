@@ -52,27 +52,52 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     super.dispose();
   }
 
+  // CORREÇÃO: DIÁLOGO AGORA USA ESTILOS DO TEMA
   void _showNovoClienteDialog(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final nomeController = TextEditingController();
     final telefoneController = TextEditingController();
     final fotoController = TextEditingController();
 
+    // Estilo de input que funciona em ambos os temas
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: cs.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Novo Cliente'),
+        title: const Text('Novo Atendimento'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nomeController, decoration: const InputDecoration(labelText: 'Nome do Cliente')),
+              TextField(
+                controller: nomeController,
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'Nome do Cliente'),
+              ),
+              const SizedBox(height: 16),
               TextField(
                 controller: telefoneController,
-                decoration: const InputDecoration(labelText: 'Telefone'),
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'Telefone'),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
               ),
-              TextField(controller: fotoController, decoration: const InputDecoration(labelText: 'URL da Foto (opcional)')),
+              const SizedBox(height: 16),
+              TextField(
+                controller: fotoController,
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'URL da Foto (opcional)'),
+              ),
             ],
           ),
         ),
@@ -133,6 +158,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
 
   Widget _buildMobileList() {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final model = context.watch<AtendimentoModel>();
     final atendimentos = model.atendimentos;
 
@@ -149,7 +175,16 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       children: [
         AppBar(
           title: _isMobileSearching
-              ? TextField(controller: _mobileSearchController, autofocus: true, decoration: const InputDecoration(hintText: 'Pesquisar...', border: InputBorder.none))
+              ? TextField(
+            controller: _mobileSearchController,
+            autofocus: true,
+            style: TextStyle(color: cs.onSurface),
+            decoration: InputDecoration(
+                hintText: 'Pesquisar...',
+                border: InputBorder.none,
+                hintStyle: TextStyle(color: cs.onSurfaceVariant)
+            ),
+          )
               : const Text('Atendimentos'),
           actions: [
             IconButton(
@@ -187,7 +222,6 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
                   numero: atendimento.telefoneCliente,
                   fotoUrl: atendimento.fotoUrl ?? '',
                 ))),
-                // AÇÃO PARA MUDAR O ESTADO
                 onStatusChanged: (novoEstado) {
                   final atendimentoAtualizado = atendimento.copyWith(estado: novoEstado);
                   model.atualizar(atendimento.id, atendimentoAtualizado);
@@ -268,14 +302,18 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   }
 
   Widget _buildSearchField(EstadoAtendimento estado) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return TextField(
       controller: searchControllers[estado],
+      style: TextStyle(color: cs.onSurface),
       decoration: InputDecoration(
         hintText: 'Pesquisar...',
+        hintStyle: TextStyle(color: cs.onSurfaceVariant),
         filled: true,
-        fillColor: Theme.of(context).colorScheme.surface,
+        fillColor: cs.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        suffixIcon: IconButton(icon: Icon(Icons.close), onPressed: () => setState(() { isSearching[estado] = false; searchControllers[estado]!.clear(); })),
+        suffixIcon: IconButton(icon: Icon(Icons.close, color: cs.onSurfaceVariant), onPressed: () => setState(() { isSearching[estado] = false; searchControllers[estado]!.clear(); })),
       ),
       onChanged: (_) => setState(() {}),
     );
@@ -308,13 +346,13 @@ class _AtendimentoTile extends StatelessWidget {
   final Atendimento atendimento;
   final Color statusColor;
   final VoidCallback onTap;
-  final ValueChanged<EstadoAtendimento> onStatusChanged; // NOVO CALLBACK
+  final ValueChanged<EstadoAtendimento> onStatusChanged;
 
   const _AtendimentoTile({
     required this.atendimento,
     required this.statusColor,
     required this.onTap,
-    required this.onStatusChanged, // NOVO CALLBACK
+    required this.onStatusChanged,
   });
 
   @override
@@ -342,13 +380,11 @@ class _AtendimentoTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      // TRAILING É O LOCAL IDEAL PARA AÇÕES SECUNDÁRIAS
       trailing: PopupMenuButton<EstadoAtendimento>(
         icon: Icon(Icons.confirmation_number, color: statusColor),
         tooltip: 'Mudar status',
-        onSelected: onStatusChanged, // Chama o callback quando um item é selecionado
+        onSelected: onStatusChanged,
         itemBuilder: (BuildContext context) {
-          // Constrói os itens do menu a partir dos estados de atendimento
           return EstadoAtendimento.values.map((estado) {
             return PopupMenuItem<EstadoAtendimento>(
               value: estado,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart'; // Importante para o logo
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../Service/usuario_service.dart';
+import '../../../Service/auth_service.dart';
 
 // -------------------------------------------------------------------
 // Widget do Logo Vetorial (para consistência)
@@ -36,11 +37,9 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  // Chaves para validar cada passo do formulário
   final _formKeyStep1 = GlobalKey<FormState>();
   final _formKeyStep2 = GlobalKey<FormState>();
 
-  // Controladores de texto
   final companyController = TextEditingController();
   final ownerController = TextEditingController();
   final phoneController = TextEditingController();
@@ -65,16 +64,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  // --- LÓGICA DO STEPPER ---
   void _onStepContinue() {
     bool isStepValid = false;
-    // Valida o passo atual antes de continuar
     if (_currentStep == 0) {
       isStepValid = _formKeyStep1.currentState!.validate();
     } else if (_currentStep == 1) {
       isStepValid = _formKeyStep2.currentState!.validate();
       if (isStepValid) {
-        _handleSignUp(); // Se o segundo passo for válido, finaliza o cadastro
+        _handleSignUp();
         return;
       }
     }
@@ -90,7 +87,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  // --- LÓGICA DE CADASTRO ---
   Future<void> _handleSignUp() async {
     setState(() => _isLoading = true);
 
@@ -114,6 +110,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    // DEFINIÇÃO DO ESTILO DO INPUT QUE SERÁ REUTILIZADO
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -124,21 +132,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
               children: [
                 const MaranduLogo(size: 80),
                 const SizedBox(height: 16),
-                Text("Crie sua Conta", style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-                Text("Vamos começar a organizar seus atendimentos.", style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                Text("Crie sua Conta", style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+                Text("Vamos começar a organizar seus atendimentos.", style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 24),
                 Card(
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
-                    side: BorderSide(color: Theme.of(context).colorScheme.outline.withOpacity(0.5)),
+                    side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
                   ),
                   child: Stepper(
                     type: StepperType.vertical,
                     currentStep: _currentStep,
                     onStepContinue: _onStepContinue,
                     onStepCancel: _onStepCancel,
-                    onStepTapped: null, // Desabilita o toque nos passos
+                    onStepTapped: null,
                     controlsBuilder: (context, details) {
                       return Padding(
                         padding: const EdgeInsets.only(top: 16.0),
@@ -157,8 +165,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       );
                     },
                     steps: [
-                      _buildStepEmpresa(),
-                      _buildStepCredenciais(),
+                      _buildStepEmpresa(theme, inputDecoration),
+                      _buildStepCredenciais(theme, inputDecoration),
                     ],
                   ),
                 ),
@@ -178,21 +186,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  // --- WIDGETS DOS PASSOS ---
-  Step _buildStepEmpresa() {
+  // --- WIDGETS DOS PASSOS ATUALIZADOS ---
+  Step _buildStepEmpresa(ThemeData theme, InputDecoration decoration) {
     return Step(
       title: const Text('Informações da Empresa'),
       content: Form(
         key: _formKeyStep1,
         child: Column(
           children: [
-            TextFormField(controller: companyController, decoration: const InputDecoration(labelText: 'Nome da Empresa', prefixIcon: Icon(LucideIcons.building2)), validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null),
+            TextFormField(controller: companyController, style: TextStyle(color: theme.colorScheme.onSurface), decoration: decoration.copyWith(labelText: 'Nome da Empresa', prefixIcon: const Icon(LucideIcons.building2)), validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null),
             const SizedBox(height: 16),
-            TextFormField(controller: ownerController, decoration: const InputDecoration(labelText: 'Nome do Proprietário', prefixIcon: Icon(LucideIcons.user)), validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null),
+            TextFormField(controller: ownerController, style: TextStyle(color: theme.colorScheme.onSurface), decoration: decoration.copyWith(labelText: 'Nome do Proprietário', prefixIcon: const Icon(LucideIcons.user)), validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null),
             const SizedBox(height: 16),
-            TextFormField(controller: phoneController, decoration: const InputDecoration(labelText: 'Telefone', prefixIcon: Icon(LucideIcons.phone)), keyboardType: TextInputType.phone, validator: (v) => v!.length < 10 ? 'Número inválido' : null),
+            TextFormField(controller: phoneController, style: TextStyle(color: theme.colorScheme.onSurface), decoration: decoration.copyWith(labelText: 'Telefone', prefixIcon: const Icon(LucideIcons.phone)), keyboardType: TextInputType.phone, validator: (v) => v!.length < 10 ? 'Número inválido' : null),
             const SizedBox(height: 16),
-            TextFormField(controller: cpfController, decoration: const InputDecoration(labelText: 'CPF', prefixIcon: Icon(LucideIcons.fileText)), keyboardType: TextInputType.number, maxLength: 11, validator: (v) => v!.length != 11 ? 'CPF deve ter 11 dígitos' : null),
+            TextFormField(controller: cpfController, style: TextStyle(color: theme.colorScheme.onSurface), decoration: decoration.copyWith(labelText: 'CPF', prefixIcon: const Icon(LucideIcons.fileText)), keyboardType: TextInputType.number, maxLength: 11, validator: (v) => v!.length != 11 ? 'CPF deve ter 11 dígitos' : null),
           ],
         ),
       ),
@@ -201,19 +209,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Step _buildStepCredenciais() {
+  Step _buildStepCredenciais(ThemeData theme, InputDecoration decoration) {
     return Step(
       title: const Text('Credenciais de Acesso'),
       content: Form(
         key: _formKeyStep2,
         child: Column(
           children: [
-            TextFormField(controller: emailController, decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(LucideIcons.mail)), keyboardType: TextInputType.emailAddress, validator: (v) => !v!.contains('@') ? 'Email inválido' : null),
+            TextFormField(controller: emailController, style: TextStyle(color: theme.colorScheme.onSurface), decoration: decoration.copyWith(labelText: 'Email', prefixIcon: const Icon(LucideIcons.mail)), keyboardType: TextInputType.emailAddress, validator: (v) => !v!.contains('@') ? 'Email inválido' : null),
             const SizedBox(height: 16),
-            TextFormField(controller: passwordController, obscureText: true, decoration: const InputDecoration(labelText: 'Senha', prefixIcon: Icon(LucideIcons.lock)), validator: (v) => v!.length < 6 ? 'Mínimo de 6 caracteres' : null),
+            TextFormField(controller: passwordController, style: TextStyle(color: theme.colorScheme.onSurface), obscureText: true, decoration: decoration.copyWith(labelText: 'Senha', prefixIcon: const Icon(LucideIcons.lock)), validator: (v) => v!.length < 6 ? 'Mínimo de 6 caracteres' : null),
             const SizedBox(height: 16),
-            // CORREÇÃO: Ícone inválido 'lockKeyhole' trocado por 'keyRound'.
-            TextFormField(controller: confirmPasswordController, obscureText: true, decoration: const InputDecoration(labelText: 'Confirmar Senha', prefixIcon: Icon(LucideIcons.keyRound)), validator: (v) => v! != passwordController.text ? 'As senhas não coincidem' : null),
+            TextFormField(controller: confirmPasswordController, style: TextStyle(color: theme.colorScheme.onSurface), obscureText: true, decoration: decoration.copyWith(labelText: 'Confirmar Senha', prefixIcon: const Icon(LucideIcons.keyRound)), validator: (v) => v! != passwordController.text ? 'As senhas não coincidem' : null),
           ],
         ),
       ),

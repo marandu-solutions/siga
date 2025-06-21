@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../Model/catalogo.dart';
 import 'package:image_picker/image_picker.dart';
 import 'Components/catalogo_card.dart';
@@ -42,7 +43,8 @@ class _CatalogoPageState extends State<CatalogoPage> {
   }
 
   Future<void> _showItemDialog(BuildContext context, {int? index}) async {
-    final cs = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     final isEdit = index != null;
     final model = context.read<CatalogoModel>();
     final existing = isEdit ? model.itens[index!] : null;
@@ -59,7 +61,6 @@ class _CatalogoPageState extends State<CatalogoPage> {
       builder: (ctx) => Dialog(
         insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 64),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        backgroundColor: cs.surface,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: Padding(
@@ -72,7 +73,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                   children: [
                     Text(
                       isEdit ? 'Editar Produto' : 'Novo Produto',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 20),
                     Center(
@@ -113,9 +114,18 @@ class _CatalogoPageState extends State<CatalogoPage> {
                             ],
                           ),
                           const SizedBox(height: 16),
+                          // CORREÇÃO APLICADA AQUI
                           TextFormField(
                             controller: descricaoCtrl,
-                            decoration: InputDecoration(labelText: 'Descrição', prefixIcon: const Icon(Icons.description_outlined)).applyDefaults(Theme.of(context).inputDecorationTheme),
+                            style: TextStyle(color: cs.onSurface),
+                            decoration: InputDecoration(
+                              labelText: 'Descrição',
+                              labelStyle: TextStyle(color: cs.onSurfaceVariant),
+                              prefixIcon: Icon(Icons.description_outlined, color: cs.onSurfaceVariant),
+                              filled: true,
+                              fillColor: cs.surfaceVariant.withOpacity(0.5),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            ).applyDefaults(theme.inputDecorationTheme),
                             maxLines: 3,
                             validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                           ),
@@ -131,7 +141,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                         ElevatedButton(
                           onPressed: () {
                             if (formKey.currentState!.validate()) {
-                              final newItem = CatalogoItem( // Criando o item sem ID
+                              final newItem = CatalogoItem(
                                 nome: nomeCtrl.text.trim(),
                                 quantidade: int.parse(quantidadeCtrl.text.trim()),
                                 preco: double.parse(precoCtrl.text.replaceAll(',', '.').trim()),
@@ -160,10 +170,20 @@ class _CatalogoPageState extends State<CatalogoPage> {
     );
   }
 
+  // CORREÇÃO APLICADA AQUI
   Widget _buildTextField({required TextEditingController controller, required IconData icon, required String label, required BuildContext context, TextInputType? keyboardType, String? Function(String?)? validator}) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return TextFormField(
       controller: controller,
-      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)).applyDefaults(Theme.of(context).inputDecorationTheme),
+      style: TextStyle(color: cs.onSurface),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: cs.primary),
+        filled: true,
+        fillColor: cs.surfaceVariant.withOpacity(0.5),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      ).applyDefaults(theme.inputDecorationTheme),
       keyboardType: keyboardType,
       validator: validator ?? (v) => v!.isEmpty ? 'Campo obrigatório' : null,
     );
@@ -180,16 +200,15 @@ class _CatalogoPageState extends State<CatalogoPage> {
       body: Consumer<CatalogoModel>(
         builder: (context, model, _) {
           if (model.itens.isEmpty) return const Center(child: Text('Nenhum item no catálogo.'));
-
           return ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: model.itens.length,
-            itemBuilder: (context, index) { // <--- O ListView nos dá o 'index' aqui
+            itemBuilder: (context, index) {
               final item = model.itens[index];
               return CatalogoCard(
                 item: item,
-                onTap: () => _showItemDialog(context, index: index), // Sua edição por índice já estava correta
-                onDelete: () => _showDeleteConfirmation(context, index, item.nome), // <-- Passa o 'index' e o nome para a confirmação
+                onTap: () => _showItemDialog(context, index: index),
+                onDelete: () => _showDeleteConfirmation(context, index, item.nome),
               );
             },
           );
