@@ -1,8 +1,14 @@
+// lib/widgets/sidebar.dart (ou onde seu arquivo estiver)
+
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart'; // Usando Lucide para consistência
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+
 import '../../../Service/auth_service.dart';
 
-class Sidebar extends StatefulWidget {
+
+// ✅ CONVERTIDO PARA STATELESSWIDGET: Mais simples e performático.
+class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
 
@@ -12,125 +18,112 @@ class Sidebar extends StatefulWidget {
     required this.onItemSelected,
   }) : super(key: key);
 
-  @override
-  State<Sidebar> createState() => _SidebarState();
-}
-
-class _SidebarState extends State<Sidebar> {
-  String _userName = 'Carregando...';
-  String _userEmail = '';
-
-  // Lista de itens de navegação com ícones Lucide para um visual mais moderno.
+  // Lista de itens de navegação (nenhuma mudança necessária aqui)
   static const List<Map<String, dynamic>> _navItems = [
     {'icon': LucideIcons.receipt, 'label': 'Pedidos'},
     {'icon': LucideIcons.messageCircle, 'label': 'Atendimento'},
     {'icon': LucideIcons.siren, 'label': 'Alerta'},
+    {'icon': LucideIcons.archive, 'label': 'Estoque'}, // Exemplo: Adicionando Estoque
     {'icon': LucideIcons.layoutGrid, 'label': 'Catálogo'},
     {'icon': LucideIcons.star, 'label': 'Feedbacks'},
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    _loadUserData();
-  }
-
-  Future<void> _loadUserData() async {
-    final name = await AuthService.getUserName();
-    final email = await AuthService.getUserEmail();
-    if (mounted) {
-      setState(() {
-        _userName = name ?? 'Usuário';
-        _userEmail = email ?? 'Email não informado';
-      });
-    }
-  }
-
+  // ✅ MÉTODO DE LOGOUT ATUALIZADO
   void _performLogout(BuildContext context) {
-    AuthService.logout();
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (Route<dynamic> route) => false);
+    // Apenas diz ao serviço para deslogar. O AuthWrapper cuidará do resto.
+    context.read<AuthService>().signOut();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final tt = theme.textTheme;
 
-    return Drawer(
-      // Usando a cor de fundo do tema para o Drawer
-      backgroundColor: cs.surface,
-      child: Column(
-        children: [
-          // 1. HEADER CORRIGIDO PARA USAR AS CORES DO TEMA
-          UserAccountsDrawerHeader(
-            accountName: Text(
-              _userName,
-              style: tt.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-                color: cs.onPrimary, // Texto legível sobre o fundo primário
+    // ✅ Usamos um Consumer para "ouvir" o AuthService e reconstruir a UI quando ele mudar.
+    return Consumer<AuthService>(
+      builder: (context, authService, child) {
+
+        // Se o funcionário ainda não carregou, mostramos um estado de carregamento.
+        if (authService.funcionarioLogado == null) {
+          return const Drawer(child: Center(child: CircularProgressIndicator()));
+        }
+
+        // ✅ Pegamos os dados reativamente do serviço.
+        final userName = authService.funcionarioLogado!.nome;
+        final userEmail = authService.funcionarioLogado!.email;
+        final tt = theme.textTheme;
+
+        return Drawer(
+          backgroundColor: cs.surface,
+          child: Column(
+            children: [
+              // 1. HEADER AGORA USA OS DADOS REATIVOS
+              UserAccountsDrawerHeader(
+                accountName: Text(
+                  userName,
+                  style: tt.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: cs.onPrimary,
+                  ),
+                ),
+                accountEmail: Text(
+                  userEmail,
+                  style: tt.bodyMedium?.copyWith(color: cs.onPrimary.withOpacity(0.8)),
+                ),
+                currentAccountPicture: CircleAvatar(
+                  backgroundColor: cs.onPrimary,
+                  child: Text(
+                    userName.isNotEmpty ? userName[0].toUpperCase() : 'U',
+                    style: tt.headlineMedium?.copyWith(color: cs.primary),
+                  ),
+                ),
+                decoration: BoxDecoration(
+                  color: cs.primary,
+                ),
               ),
-            ),
-            accountEmail: Text(
-              _userEmail,
-              style: tt.bodyMedium?.copyWith(color: cs.onPrimary.withOpacity(0.8)),
-            ),
-            currentAccountPicture: CircleAvatar(
-              backgroundColor: cs.onPrimary,
-              child: Text(
-                _userName.isNotEmpty ? _userName[0].toUpperCase() : 'U',
-                style: tt.headlineMedium?.copyWith(color: cs.primary),
+
+              // Gera a lista de itens (nenhuma mudança na lógica do loop)
+              for (int i = 0; i < _navItems.length; i++)
+                _buildNavItem(
+                  context: context,
+                  icon: _navItems[i]['icon'],
+                  title: _navItems[i]['label'],
+                  index: i,
+                ),
+
+              const Spacer(),
+
+              // 2. BOTÃO SAIR AGORA CHAMA O NOVO MÉTODO DE LOGOUT
+              const Divider(thickness: 1, indent: 16, endIndent: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                child: ListTile(
+                  leading: Icon(LucideIcons.logOut, color: cs.error),
+                  title: Text(
+                    'Sair',
+                    style: tt.labelLarge?.copyWith(color: cs.error, fontWeight: FontWeight.bold),
+                  ),
+                  hoverColor: cs.error.withOpacity(0.1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  onTap: () => _performLogout(context), // Chama a nova função
+                ),
               ),
-            ),
-            decoration: BoxDecoration(
-              color: cs.primary, // Usa a cor primária do seu tema
-            ),
+              const SizedBox(height: 10),
+            ],
           ),
-
-          // Gera a lista de itens de navegação dinamicamente
-          for (int i = 0; i < _navItems.length; i++)
-            _buildNavItem(
-              icon: _navItems[i]['icon'],
-              title: _navItems[i]['label'],
-              index: i,
-            ),
-
-          const Spacer(),
-
-          // 2. BOTÃO SAIR CORRIGIDO PARA USAR A COR DE ERRO DO TEMA
-          const Divider(thickness: 1, indent: 16, endIndent: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-            child: ListTile(
-              leading: Icon(LucideIcons.logOut, color: cs.error),
-              title: Text(
-                'Sair',
-                style: tt.labelLarge?.copyWith(color: cs.error, fontWeight: FontWeight.bold),
-              ),
-              hoverColor: cs.error.withOpacity(0.1),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              onTap: () {
-                // A verificação se o drawer está aberto garante que só será fechado no mobile.
-                if (Scaffold.of(context).isDrawerOpen) {
-                  Navigator.pop(context);
-                }
-                _performLogout(context);
-              },
-            ),
-          ),
-          const SizedBox(height: 10),
-        ],
-      ),
+        );
+      },
     );
   }
 
-  /// Método auxiliar para construir cada item de navegação com cores do tema.
+  // O método auxiliar agora precisa do BuildContext para acessar o tema.
   Widget _buildNavItem({
+    required BuildContext context,
     required IconData icon,
     required String title,
     required int index,
   }) {
-    final bool isSelected = widget.selectedIndex == index;
+    final bool isSelected = selectedIndex == index;
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
@@ -144,17 +137,14 @@ class _SidebarState extends State<Sidebar> {
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
           ),
         ),
-        // Usando as propriedades do ListTile para um comportamento correto
         selected: isSelected,
-        selectedTileColor: cs.primary.withOpacity(0.1),
-        selectedColor: cs.primary, // Cor para texto e ícone quando selecionado
-        iconColor: cs.onSurfaceVariant, // Cor padrão do ícone
-        textColor: cs.onSurface, // Cor padrão do texto
+        selectedTileColor: cs.primaryContainer.withOpacity(0.5),
+        selectedColor: cs.primary,
+        iconColor: cs.onSurfaceVariant,
+        textColor: cs.onSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         onTap: () {
-          widget.onItemSelected(index);
-          // CORREÇÃO: Só fecha o menu se ele for um "Drawer" (no mobile).
-          // No desktop, onde ele é fixo, não faz nada.
+          onItemSelected(index);
           if (Scaffold.of(context).isDrawerOpen) {
             Navigator.pop(context);
           }

@@ -1,99 +1,163 @@
-import 'dart:convert';
-import 'dart:html' as html; // Específico para web
+// lib/services/auth_service.dart
 
-class AuthService {
-  static const String _tokenKey = 'jwt_token';
-  static const String _expiryKey = 'jwt_expiry';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 
-  // ... (os métodos saveToken, getToken, logout, isLoggedIn continuam iguais) ...
-  static void saveToken(String token, int expiresInSeconds) {
-    html.window.localStorage[_tokenKey] = token;
-    final DateTime expiryDate = DateTime.now().add(Duration(seconds: expiresInSeconds));
-    html.window.localStorage[_expiryKey] = expiryDate.toIso8601String();
+import '../Model/empresa.dart';
+import '../Model/funcionario.dart';
+
+// (coloque o enum AuthStatus aqui se preferir)
+
+enum AuthStatus {
+  uninitialized, // Estado inicial, antes de checarmos
+  authenticating, // Carregando, aguardando o Firebase
+  authenticated,  // Logado com sucesso
+  unauthenticated, // Não está logado
+}
+
+class AuthService with ChangeNotifier {
+  // Instâncias do Firebase
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  // Estado interno do serviço
+  AuthStatus _status = AuthStatus.uninitialized;
+  User? _firebaseUser;
+  Funcionario? _funcionarioLogado;
+  Empresa? _empresaAtual;
+
+  // Getters públicos para a UI acessar os dados
+  AuthStatus get status => _status;
+  User? get firebaseUser => _firebaseUser;
+  Funcionario? get funcionarioLogado => _funcionarioLogado;
+  Empresa? get empresaAtual => _empresaAtual;
+  bool get isLoggedIn => _status == AuthStatus.authenticated;
+
+  AuthService() {
+    // Listener MÁGICO do Firebase Auth.
+    // Ele é chamado automaticamente sempre que o usuário loga ou desloga.
+    _auth.authStateChanges().listen(_onAuthStateChanged);
   }
 
-  static String? getToken() => html.window.localStorage[_tokenKey];
-
-  static void logout() {
-    html.window.localStorage.remove(_tokenKey);
-    html.window.localStorage.remove(_expiryKey);
+  /// Método chamado pelo listener do Firebase Auth.
+  Future<void> _onAuthStateChanged(User? user) async {
+    if (user == null) {
+      // Se o usuário deslogou
+      _status = AuthStatus.unauthenticated;
+      _firebaseUser = null;
+      _funcionarioLogado = null;
+      _empresaAtual = null;
+    } else {
+      // Se o usuário logou
+      _firebaseUser = user;
+      // Agora, buscamos nossos dados customizados no Firestore
+      await _loadUserData(user.uid);
+      _status = AuthStatus.authenticated;
+    }
+    // Notifica todos os 'ouvintes' (a UI) que o estado mudou.
+    notifyListeners();
   }
 
-  static bool isLoggedIn() {
-    final String? token = getToken();
-    final String? expiryString = html.window.localStorage[_expiryKey];
-    if (token == null || expiryString == null) return false;
-    final DateTime? expiryDate = DateTime.tryParse(expiryString);
-    if (expiryDate == null) return false;
-    final bool stillLoggedIn = DateTime.now().isBefore(expiryDate);
-    if (!stillLoggedIn) logout();
-    return stillLoggedIn;
-  }
-
-  static Map<String, dynamic>? _decodeTokenPayload() {
-    final String? token = getToken();
-    if (token == null) return null;
+  /// Carrega os dados do Funcionário e da Empresa do Firestore.
+  Future<void> _loadUserData(String uid) async {
     try {
-      final List<String> parts = token.split('.');
-      if (parts.length != 3) return null;
-      final String payloadBase64 = parts[1];
-      final String normalized = base64Url.normalize(payloadBase64);
-      final String payloadString = utf8.decode(base64Url.decode(normalized));
-      return jsonDecode(payloadString) as Map<String, dynamic>?;
+      // 1. Busca o documento do funcionário
+      DocumentSnapshot funcionarioDoc = await _db.collection('funcionarios').doc(uid).get();
+      if (funcionarioDoc.exists) {
+        _funcionarioLogado = Funcionario.fromFirestore(funcionarioDoc);
+
+        // 2. Com o funcionário em mãos, busca a empresa correspondente
+        if (_funcionarioLogado!.empresaId.isNotEmpty) {
+          DocumentSnapshot empresaDoc = await _db.collection('empresas').doc(_funcionarioLogado!.empresaId).get();
+          if (empresaDoc.exists) {
+            _empresaAtual = Empresa.fromFirestore(empresaDoc);
+          }
+        }
+      }
     } catch (e) {
-      print('Erro ao decodificar token JWT no AuthService: $e');
-      return null;
+      print("❌ Erro ao carregar dados do usuário: $e");
+      // Se der erro, desloga para garantir a segurança
+      await signOut();
     }
   }
 
-  // ✅ FUNCIONANDO: Retorna o 'subject' do JWT (ID do usuário)
-  static Future<String?> getUserId() async {
-    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
-    return payloadMap?['subject']?.toString() ?? payloadMap?['sub']?.toString();
-  }
-
-  // ✅ FUNCIONANDO: Retorna o 'issuer' do JWT ('admin' ou 'user')
-  static Future<String?> getIssuer() async {
-    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
-    return payloadMap?['issuer']?.toString() ?? payloadMap?['iss']?.toString();
-  }
-
-  // ✅ NOVO E FUNCIONANDO: Retorna o 'empresa_id' do JWT
-  static Future<String?> getEmpresaId() async {
-    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
-    return payloadMap?['empresa_id']?.toString();
-  }
-
-  // ❌ NÃO FUNCIONA (depende do backend): Retorna o 'membro_id' do JWT
-  static Future<String?> getMembroIdDoUsuarioLogado() async {
-    // Este método só funcionará quando o backend adicionar "membro_id" ao payload do token.
-    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
-    final String? membroId = payloadMap?['membro_id']?.toString();
-    if (membroId == null) {
-      print('AVISO: O campo "membro_id" não foi encontrado no token JWT. Verifique o middleware.');
+  /// Novo método de LOGIN.
+  Future<bool> signIn({required String email, required String password}) async {
+    _status = AuthStatus.authenticating;
+    notifyListeners();
+    try {
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
+      // O listener _onAuthStateChanged vai cuidar do resto automaticamente.
+      return true;
+    } catch (e) {
+      print("❌ Erro no signIn: $e");
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     }
-    return membroId;
   }
 
-  // ❌ NÃO FUNCIONA (depende do backend): Retorna o nome do usuário do JWT
-  static Future<String?> getUserName() async {
-    // Este método só funcionará quando o backend adicionar "name" (ou similar) ao payload do token.
-    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
-    final String? name = payloadMap?['name']?.toString() ?? payloadMap?['given_name']?.toString();
-    if (name == null) {
-      print('AVISO: O campo "name" não foi encontrado no token JWT. Verifique o middleware.');
+  /// Novo método de CADASTRO de uma nova empresa.
+  Future<bool> signUpAsOwner({
+    required String nomeEmpresa,
+    required String proprietario,
+    required String cpf,
+    required String telefone,
+    required String email,
+    required String password,
+  }) async {
+    _status = AuthStatus.authenticating;
+    notifyListeners();
+    try {
+      // 1. Cria o usuário no Firebase Authentication
+      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      User newUser = userCredential.user!;
+
+      // 2. Prepara nossos objetos de modelo
+      Empresa novaEmpresa = Empresa(
+        id: newUser.uid, // O ID da empresa é o UID do dono
+        nomeEmpresa: nomeEmpresa,
+        proprietario: proprietario,
+        email: email,
+        telefone: telefone,
+        cpf: cpf,
+        createdAt: Timestamp.now(),
+      );
+
+      Funcionario primeiroFuncionario = Funcionario(
+        uid: newUser.uid, // O UID do funcionário é o mesmo do login
+        empresaId: newUser.uid, // Ele pertence à empresa que acabou de criar
+        nome: proprietario, // O nome do dono é o nome do primeiro funcionário
+        email: email,
+        cargo: 'admin', // O dono sempre começa como admin
+        ativo: true,
+      );
+
+      // 3. Usa um WriteBatch para salvar os dois documentos de uma vez
+      final batch = _db.batch();
+      batch.set(_db.collection('empresas').doc(novaEmpresa.id), novaEmpresa.toMap());
+      batch.set(_db.collection('funcionarios').doc(primeiroFuncionario.uid), primeiroFuncionario.toMap());
+
+      await batch.commit();
+
+      // O listener _onAuthStateChanged vai cuidar do resto.
+      return true;
+    } catch (e) {
+      print("❌ Erro no signUpAsOwner: $e");
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
     }
-    return name;
   }
 
-  // ❌ NÃO FUNCIONA (depende do backend): Retorna o e-mail do usuário do JWT
-  static Future<String?> getUserEmail() async {
-    // Este método só funcionará quando o backend adicionar "email" ao payload do token.
-    final Map<String, dynamic>? payloadMap = _decodeTokenPayload();
-    final String? email = payloadMap?['email']?.toString();
-    if (email == null) {
-      print('AVISO: O campo "email" não foi encontrado no token JWT. Verifique o middleware.');
-    }
-    return email;
+  /// Novo método de LOGOUT.
+  Future<void> signOut() async {
+    await _auth.signOut();
+    // O listener _onAuthStateChanged cuida da limpeza do estado.
   }
 }

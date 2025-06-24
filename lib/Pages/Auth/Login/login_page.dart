@@ -1,11 +1,14 @@
+// lib/Pages/Auth/Login/login_page.dart
+
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Importante para o logo
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../Service/usuario_service.dart';
+import 'package:provider/provider.dart';
+
 import '../../../Service/auth_service.dart';
 
 // -------------------------------------------------------------------
-// 1. O WIDGET DO SEU NOVO LOGO (VETORIAL E TRANSPARENTE)
+// 1. SEU WIDGET DE LOGO (PERFEITO, NENHUMA MUDANÇA NECESSÁRIA)
 // -------------------------------------------------------------------
 class MaranduLogo extends StatelessWidget {
   final double size;
@@ -39,9 +42,8 @@ class MaranduLogo extends StatelessWidget {
   String _colorToHex(Color color) => '#${color.value.toRadixString(16).substring(2)}';
 }
 
-
 // -------------------------------------------------------------------
-// 2. A SUA TELA DE LOGIN, AGORA USANDO O NOVO LOGO
+// 2. A TELA DE LOGIN ATUALIZADA
 // -------------------------------------------------------------------
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -54,8 +56,10 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final UsuarioService _usuarioService = UsuarioService();
-  bool _isLoading = false;
+
+  // ❌ REMOVIDO: Não precisamos mais de uma instância do UsuarioService
+  // ❌ REMOVIDO: O estado de _isLoading será gerenciado pelo AuthService
+
   bool _isPasswordVisible = false;
 
   @override
@@ -65,31 +69,41 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // 🔄 MÉTODO _handleLogin TOTALMENTE REFEITO
   Future<void> _handleLogin() async {
+    // Valida o formulário como antes
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _isLoading = true);
-    final result = await _usuarioService.loginUsuario(
+
+    // Acessa o AuthService via Provider. 
+    // Usamos 'read' pois estamos dentro de uma função, é uma ação única.
+    final authService = context.read<AuthService>();
+
+    // Chama o novo método signIn do nosso AuthService
+    final bool success = await authService.signIn(
       email: _emailController.text.trim(),
-      senha: _passwordController.text.trim(),
+      password: _passwordController.text.trim(),
     );
-    if (!mounted) return;
-    if (result['sucesso']) {
-      AuthService.saveToken(result['token'], result['expiresIn']);
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
+
+    // Se o login falhar, mostramos um erro.
+    // Se der sucesso, o AuthWrapper cuidará da navegação AUTOMATICAMENTE.
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['mensagem'] ?? 'Erro desconhecido no login.'),
+          content: const Text('Email ou senha inválidos. Tente novamente.'),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
     }
-    setState(() => _isLoading = false);
+    // ❌ REMOVIDO: Não há mais 'setState' nem navegação manual aqui.
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // ✅ OUVIMOS o AuthService para saber o estado de autenticação
+    final authService = context.watch<AuthService>();
+    final isLoading = authService.status == AuthStatus.authenticating;
+
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -104,7 +118,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text("Bem-vindo de volta!", style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
                 Text("Faça login para continuar", style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                 const SizedBox(height: 32),
-                _buildLoginForm(theme),
+
+                // Passamos o estado de 'isLoading' para o formulário
+                _buildLoginForm(theme, isLoading),
+
                 const SizedBox(height: 24),
                 _buildSignUpLink(context, theme),
               ],
@@ -115,8 +132,8 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  Widget _buildLoginForm(ThemeData theme) {
-    // CORREÇÃO: Aplicando estilos que funcionam em ambos os temas
+  // 🔄 O formulário agora recebe o estado de 'isLoading'
+  Widget _buildLoginForm(ThemeData theme, bool isLoading) {
     final inputDecoration = InputDecoration(
       filled: true,
       fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
@@ -132,7 +149,6 @@ class _LoginScreenState extends State<LoginScreen> {
         children: [
           TextFormField(
             controller: _emailController,
-            style: TextStyle(color: theme.colorScheme.onSurface),
             decoration: inputDecoration.copyWith(
               labelText: 'Email',
               prefixIcon: const Icon(LucideIcons.mail),
@@ -144,7 +160,6 @@ class _LoginScreenState extends State<LoginScreen> {
           TextFormField(
             controller: _passwordController,
             obscureText: !_isPasswordVisible,
-            style: TextStyle(color: theme.colorScheme.onSurface),
             decoration: inputDecoration.copyWith(
               labelText: 'Senha',
               prefixIcon: const Icon(LucideIcons.lock),
@@ -159,9 +174,10 @@ class _LoginScreenState extends State<LoginScreen> {
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              icon: _isLoading ? Container() : const Icon(LucideIcons.logIn),
-              onPressed: _isLoading ? null : _handleLogin,
-              label: _isLoading
+              icon: isLoading ? Container() : const Icon(LucideIcons.logIn),
+              // ✅ O botão é desabilitado com base no novo 'isLoading'
+              onPressed: isLoading ? null : _handleLogin,
+              label: isLoading
                   ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Text("Entrar"),
             ),
