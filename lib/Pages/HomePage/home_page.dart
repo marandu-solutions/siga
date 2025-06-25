@@ -1,6 +1,5 @@
 // Pages/HomePage/home_page.dart
 import 'package:flutter/material.dart';
-import 'package:responsive_framework/responsive_framework.dart';
 
 import '../PedidosPage/pedidos_page.dart';
 import '../AtendimentoPage/atendimento_page.dart';

@@ -196,14 +196,14 @@ class _KanbanColumn extends StatelessWidget {
                                 pedido: pedido,
                                 onDelete: () => onDelete(pedido),
                                 onTapDetails: () => onTapDetails(pedido),
-                                onStatusChanged: (novoEstado) => onPedidoEstadoChanged(pedido, novoEstado as String),
+                                onStatusChanged: (novoEstado) => onPedidoEstadoChanged(pedido, novoEstado),
                               ),
                             ),
                             child: PedidoCard(
                               pedido: pedido,
                               onDelete: () => onDelete(pedido),
                               onTapDetails: () => onTapDetails(pedido),
-                              onStatusChanged: (novoEstado) => onPedidoEstadoChanged(pedido, novoEstado as String),
+                              onStatusChanged: (novoEstado) => onPedidoEstadoChanged(pedido, novoEstado),
                             ),
                           );
                         },

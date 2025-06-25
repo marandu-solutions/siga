@@ -250,7 +250,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
       labelText: label,
       prefixIcon: Icon(icon, color: theme.colorScheme.primary),
       filled: true,
-      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
     ).applyDefaults(theme.inputDecorationTheme);
   }
@@ -339,7 +339,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
             ),
-            tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+            tileColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ],

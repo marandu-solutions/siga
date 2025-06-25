@@ -1,8 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../../Model/catalogo.dart';
 import 'package:image_picker/image_picker.dart';
 import 'Components/catalogo_card.dart';

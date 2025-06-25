@@ -86,8 +86,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     final fotoController = TextEditingController();
 
     // ✅ Acessamos os serviços necessários para a ação
-    // O método 'adicionarAtendimento' precisa ser criado no AtendimentoService
-    // final atendimentoService = context.read<AtendimentoService>(); 
+    final atendimentoService = context.read<AtendimentoService>();
     final authService = context.read<AuthService>();
     final empresaId = authService.empresaAtual?.id;
 
@@ -105,11 +104,11 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nomeController, decoration: InputDecoration(labelText: 'Nome do Cliente')),
+              TextField(controller: nomeController, decoration: const InputDecoration(labelText: 'Nome do Cliente')),
               const SizedBox(height: 16),
-              TextField(controller: telefoneController, decoration: InputDecoration(labelText: 'Telefone'), keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)]),
+              TextField(controller: telefoneController, decoration: const InputDecoration(labelText: 'Telefone'), keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)]),
               const SizedBox(height: 16),
-              TextField(controller: fotoController, decoration: InputDecoration(labelText: 'URL da Foto (opcional)')),
+              TextField(controller: fotoController, decoration: const InputDecoration(labelText: 'URL da Foto (opcional)')),
             ],
           ),
         ),
@@ -119,6 +118,9 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
             onPressed: () async {
               final nome = nomeController.text.trim();
               final telefone = telefoneController.text.trim();
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+
               if (nome.isNotEmpty && telefone.isNotEmpty) {
                 final novoAtendimento = Atendimento(
                   id: '',
@@ -129,8 +131,15 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
                   status: EstadoAtendimento.emAberto.label,
                   updatedAt: Timestamp.now(),
                 );
-                // await atendimentoService.adicionarAtendimento(novoAtendimento);
-                Navigator.of(ctx).pop();
+                
+                try {
+                  // ✅ Chama o serviço para adicionar o atendimento ao Firestore
+                  await atendimentoService.adicionarAtendimento(novoAtendimento);
+                  scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Atendimento criado com sucesso!')));
+                  navigator.pop();
+                } catch(e) {
+                  scaffoldMessenger.showSnackBar(SnackBar(content: Text('Falha ao criar atendimento: $e')));
+                }
               }
             },
             child: const Text('Criar'),
@@ -306,7 +315,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           padding: const EdgeInsets.all(24),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: cols.entries.map((e) => Container(width: colWidth, margin: const EdgeInsets.symmetric(horizontal: 12), child: _buildColumn(e.key, e.value))).toList(),
+            children: cols.entries.map((e) => SizedBox(width: colWidth, child: _buildColumn(e.key, e.value))).toList(),
           ),
         ),
       ),
@@ -318,34 +327,39 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     final text = searchControllers[estadoLabel]!.text.toLowerCase();
     final filtered = items.where((a) => a.nomeCliente.toLowerCase().contains(text) || a.telefoneCliente.contains(text)).toList();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          decoration: BoxDecoration(color: headerColor[estadoLabel]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
-          child: Row(children: [
-            Expanded(child: searching ? _buildSearchField(estadoLabel) : Text(estadoLabel, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerColor[estadoLabel]))),
-            if (!searching) IconButton(icon: Icon(Icons.search, color: headerColor[estadoLabel]), onPressed: () => setState(() => isSearching[estadoLabel] = true)),
-          ]),
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: DragTarget<Atendimento>(
-            onWillAcceptWithDetails: (details) => details.data.status != estadoLabel,
-            onAcceptWithDetails: (details) => _atualizarEstado(details.data, estadoLabel),
-            builder: (context, cand, rej) => Container(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12), border: Border.all(color: cand.isNotEmpty ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2)),
-              padding: const EdgeInsets.all(8),
-              child: ListView.separated(
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, i) => _buildDraggable(filtered[i]),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            decoration: BoxDecoration(color: headerColor[estadoLabel]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            child: Row(children: [
+              Expanded(child: searching ? _buildSearchField(estadoLabel) : Text(estadoLabel, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerColor[estadoLabel]))),
+              if (!searching) IconButton(icon: Icon(Icons.search, color: headerColor[estadoLabel]), onPressed: () => setState(() => isSearching[estadoLabel] = true)),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: DragTarget<Atendimento>(
+              onWillAcceptWithDetails: (details) => details.data.status != estadoLabel,
+              onAcceptWithDetails: (details) => _atualizarEstado(details.data, estadoLabel),
+              builder: (context, cand, rej) => Container(
+                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12), border: Border.all(color: cand.isNotEmpty ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2)),
+                padding: const EdgeInsets.all(8),
+                child: filtered.isEmpty
+                    ? Center(child: Text("Arraste um card para cá", style: Theme.of(context).textTheme.bodySmall))
+                    : ListView.separated(
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (context, i) => _buildDraggable(filtered[i]),
+                      ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
   

@@ -17,7 +17,7 @@ class AtendimentoService {
             .toList());
   }
 
-  /// ATUALIZA O ESTADO DE UM ATENDIMENTO - O MÉTODO QUE VAMOS USAR!
+  /// ATUALIZA O ESTADO DE UM ATENDIMENTO.
   Future<void> atualizarEstadoAtendimento({
     required String atendimentoId,
     required String novoEstado,
@@ -36,5 +36,20 @@ class AtendimentoService {
     }
   }
   
-  // Aqui você pode adicionar outros métodos no futuro, como adicionar ou deletar um atendimento.
+  // ✅ NOVO MÉTODO PARA CRIAR UM ATENDIMENTO
+  /// Adiciona um novo documento de atendimento à coleção.
+  Future<void> adicionarAtendimento(Atendimento atendimento) async {
+    try {
+      // O método .add() cria um novo documento com um ID gerado automaticamente.
+      // Usamos o .toMap() do nosso modelo para converter o objeto em um mapa
+      // que o Firestore entende.
+      await _db.collection('atendimentos').add(atendimento.toMap());
+    } catch (e) {
+      print("❌ Erro ao adicionar atendimento: $e");
+      rethrow; // Relança o erro para que a UI possa tratar.
+    }
+  }
+
+  // Aqui você pode adicionar um método para deletar um atendimento no futuro.
+  // Future<void> deletarAtendimento(String atendimentoId) async { ... }
 }

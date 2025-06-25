@@ -296,7 +296,7 @@ class ViewToggleButton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceVariant.withOpacity(0.8),
+        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.8),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(

@@ -9,6 +9,8 @@ import 'package:siga/Service/auth_service.dart';
 import 'package:siga/Service/feedback_service.dart';
 import 'package:siga/Service/pedidos_service.dart';
 
+
+// Os componentes de UI que você criou podem ser importados normalmente.
 import 'Components/metric_card.dart';
 import 'Components/grafico_pizza.dart';
 import 'Components/satisfacao_grafico.dart';
@@ -21,8 +23,10 @@ class FeedbacksPage extends StatefulWidget {
 }
 
 class _FeedbacksPageState extends State<FeedbacksPage> {
+  // O estado do filtro permanece local à UI, o que está correto.
   String _filter = 'all';
 
+  // --- MÉTODO _showAddDialog TOTALMENTE REFEITO ---
   void _showAddDialog(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
@@ -30,12 +34,16 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     final controller = TextEditingController();
     final isPositive = ValueNotifier<bool>(true);
 
+    // Acessamos os serviços necessários para a lógica do diálogo
     final feedbackService = context.read<FeedbackService>();
     final pedidoService = context.read<PedidoService>();
     final authService = context.read<AuthService>();
     final empresaId = authService.empresaAtual?.id;
 
-    if (empresaId == null) return;
+    if (empresaId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: Não foi possível identificar a empresa.')));
+        return;
+    }
 
     showDialog(
       context: context,
@@ -46,11 +54,15 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Usamos um FutureBuilder para carregar a lista de pedidos sob demanda.
               FutureBuilder<List<Pedido>>(
                 future: pedidoService.getPedidosDaEmpresaStream(empresaId).first,
                 builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
+                  }
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Text("Nenhum pedido encontrado para adicionar feedback.");
                   }
                   final pedidos = snapshot.data ?? [];
                   return ValueListenableBuilder<Pedido?>(
@@ -115,8 +127,17 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                   data: Timestamp.now(),
                   nomeCliente: pedido.cliente['nome'] ?? 'Cliente',
                 );
-                await feedbackService.adicionarFeedback(pedido.id, feedback);
-                Navigator.of(context).pop();
+                
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final navigator = Navigator.of(context);
+
+                try {
+                  await feedbackService.adicionarFeedback(pedido.id, feedback);
+                  scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Feedback adicionado com sucesso!')));
+                  navigator.pop();
+                } catch (e) {
+                   scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao adicionar feedback: $e')));
+                }
               }
             },
             child: const Text('Adicionar'),
@@ -146,14 +167,19 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
       ),
       body: empresaId == null
           ? const Center(child: Text("Carregando dados da empresa..."))
-          : StreamBuilder<List<FeedbackModel>>( // ✅ Tipo de StreamBuilder atualizado
+          : StreamBuilder<List<FeedbackModel>>(
               stream: feedbackService.getFeedbacksDaEmpresaStream(empresaId),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  // Captura o erro do índice e mostra a mensagem
+                  print("====== ERRO STREAM FEEDBACKS: ${snapshot.error}");
+                  return Center(child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text("Erro ao carregar feedbacks. Verifique se o índice do Firestore foi criado corretamente. Detalhes: ${snapshot.error}", textAlign: TextAlign.center),
+                  ));
+                }
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text("Erro ao carregar feedbacks: ${snapshot.error}"));
                 }
                 
                 final allFeedbacks = snapshot.data ?? [];
@@ -216,7 +242,6 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     }
   }
 
-  // ✅ Método agora recebe List<FeedbackModel>
   Widget _buildFeedbackListSection(BuildContext context, List<FeedbackModel> feedbacks) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -248,9 +273,9 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     return SegmentedButton<String>(
       showSelectedIcon: false,
       style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.resolveWith<Color?>(
-              (Set<WidgetState> states) {
-            if (states.contains(WidgetState.selected)) {
+        backgroundColor: MaterialStateProperty.resolveWith<Color?>(
+              (Set<MaterialState> states) {
+            if (states.contains(MaterialState.selected)) {
               return Theme.of(context).colorScheme.primary.withOpacity(0.15);
             }
             return null;
@@ -268,7 +293,6 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
   }
 }
 
-// ✅ ATUALIZADO PARA RECEBER O NOVO MODELO 'FeedbackModel'
 class _FeedbackCard extends StatelessWidget {
   final FeedbackModel feedback;
   const _FeedbackCard({required this.feedback});
