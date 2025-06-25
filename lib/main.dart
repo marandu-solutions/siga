@@ -1,9 +1,14 @@
 // lib/main.dart
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:siga/Service/atendimento_service.dart';
+import 'package:siga/Service/feedback_service.dart';
+import 'package:siga/Service/notificacao_service.dart';
+import 'package:siga/Service/pedidos_service.dart';
 
 import 'Service/auth_service.dart';
 import 'Pages/Auth/Login/login_page.dart';
@@ -17,18 +22,25 @@ void main() async {
   // Garante que os bindings do Flutter foram inicializados
   WidgetsFlutterBinding.ensureInitialized();
 
-  // ✅ Inicializa o Firebase. ESSENCIAL!
+  // Inicializa o Firebase.
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // ✅ DESABILITANDO O AUTO-LOGIN PARA TESTES
+  // Esta linha força o logout de qualquer sessão salva no dispositivo.
+  // Comente ou remova esta linha para reativar o auto-login no futuro.
+  await FirebaseAuth.instance.signOut();
+
   runApp(
-    // ✅ Nosso novo MultiProvider, agora muito mais simples
+    // Nosso MultiProvider com todos os serviços
     MultiProvider(
       providers: [
-        // O único provider que precisamos na raiz é o AuthService.
-        // Ele vai gerenciar o estado de autenticação para toda a app.
         ChangeNotifierProvider(create: (_) => AuthService()),
+        Provider(create: (_) => PedidoService()),
+        Provider(create: (_) => NotificacaoService()),
+        Provider(create: (_) => FeedbackService()),
+        Provider(create: (_) => AtendimentoService()),
       ],
       child: ScreenUtilInit(
         designSize: const Size(375, 812),
@@ -41,7 +53,7 @@ void main() async {
 }
 
 class MaranduApp extends StatelessWidget {
-  const MaranduApp({Key? key}) : super(key: key);
+  const MaranduApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -52,10 +64,10 @@ class MaranduApp extends StatelessWidget {
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
 
-      // ✅ Usamos o AuthWrapper como 'home'. Ele decide qual tela mostrar.
+      // O AuthWrapper continua sendo a peça central do roteamento.
       home: const AuthWrapper(),
 
-      // ✅ Definimos as outras rotas para navegação manual se necessário.
+      // As rotas nomeadas continuam disponíveis.
       routes: {
         '/signup': (_) => const SignUpScreen(),
         '/home': (_) => const HomePage(),
@@ -65,32 +77,38 @@ class MaranduApp extends StatelessWidget {
 }
 
 // -------------------------------------------------------------------
-// ✅ NOVO WIDGET: O coração do roteamento dinâmico
+// O AuthWrapper não precisa de nenhuma alteração.
+// Ele continuará funcionando perfeitamente.
 // -------------------------------------------------------------------
 class AuthWrapper extends StatelessWidget {
-  const AuthWrapper({Key? key}) : super(key: key);
+  const AuthWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    // Usamos context.watch para "ouvir" as mudanças no AuthService
     final authService = context.watch<AuthService>();
 
-    // Um switch para retornar a tela correta baseada no status
     switch (authService.status) {
       case AuthStatus.uninitialized:
       case AuthStatus.authenticating:
-      // Enquanto o Firebase verifica o login, mostramos uma tela de loading
+      // ✅ ADICIONADO: Também mostramos o loading enquanto os dados do Firestore carregam.
+      case AuthStatus.loadingData: 
         return const Scaffold(
           body: Center(
-            child: CircularProgressIndicator(),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text("Carregando seus dados..."),
+              ],
+            ),
           ),
         );
       case AuthStatus.authenticated:
-      // Se o usuário está logado, vai para a HomePage
+        // SÓ ENTRA AQUI QUANDO TUDO ESTIVER PRONTO!
         return const HomePage();
       case AuthStatus.unauthenticated:
       default:
-      // Se não está logado, vai para a tela de Login
         return const LoginScreen();
     }
   }

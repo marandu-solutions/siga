@@ -1,8 +1,14 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
-import '../../Model/pedidos.dart';
-import '../../Service/pedidos_service.dart';
+import 'package:siga/Model/pedidos.dart';
+import 'package:siga/Service/auth_service.dart';
+import 'package:siga/Service/pedidos_service.dart';
+
+
+// Os componentes de UI que você criou podem ser importados normalmente.
+// Supondo que eles existam e recebam os parâmetros corretos.
 import 'Components/add_pedido.dart';
 import 'Components/pedido_details_page.dart';
 import 'Components/kanban.dart';
@@ -17,18 +23,16 @@ class PedidosPage extends StatefulWidget {
 }
 
 class _PedidosPageState extends State<PedidosPage> {
-  final PedidoService _pedidoService = PedidoService();
-  bool _isLoading = false;
-  bool _isKanbanView = false;
+  // Estado local da UI: controla a aparência e os filtros da tela.
+  bool _isKanbanView = true;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  EstadoPedido? _statusFilter;
+  String? _statusFilter; // Filtro por status (string)
 
   @override
   void initState() {
     super.initState();
-    _fetchPedidos();
     _searchController.addListener(() => setState(() => _searchQuery = _searchController.text));
   }
 
@@ -38,28 +42,82 @@ class _PedidosPageState extends State<PedidosPage> {
     super.dispose();
   }
 
-  bool get isMobile => MediaQuery.of(context).size.width < 600;
+  bool get isMobile => MediaQuery.of(context).size.width < 700;
+
+  // --- MÉTODOS DE AÇÃO (CRUD) ATUALIZADOS ---
+
+  Future<void> _adicionarPedido(Pedido pedido) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<PedidoService>().adicionarPedido(pedido);
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Pedido #${pedido.numeroPedido} adicionado com sucesso!')),
+      );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Erro ao adicionar pedido: $e')),
+      );
+    }
+  }
+
+  Future<void> _deletarPedido(Pedido pedido) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<PedidoService>().deletarPedido(pedido.id);
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Pedido #${pedido.numeroPedido} excluído.')),
+      );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Erro ao excluir pedido: $e')),
+      );
+    }
+  }
+
+  Future<void> _atualizarEstadoPedido(Pedido pedido, String novoEstado) async {
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final authService = context.read<AuthService>();
+    final funcionario = authService.funcionarioLogado;
+    if (funcionario == null) return;
+
+    final funcionarioAudit = {'uid': funcionario.uid, 'nome': funcionario.nome};
+
+    try {
+      await context.read<PedidoService>().atualizarStatusPedido(
+        pedidoId: pedido.id,
+        novoStatus: novoEstado,
+        funcionarioQueAtualizou: funcionarioAudit,
+      );
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Erro ao atualizar estado: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final pedidos = context.watch<PedidoModel>().pedidos;
+    final pedidoService = context.read<PedidoService>();
+    final authService = context.watch<AuthService>();
+    final empresaId = authService.empresaAtual?.id;
     final corColuna = _mapCorColuna(context);
 
     return Scaffold(
       appBar: AppBar(
         title: isMobile && _isSearching
             ? TextField(
-          controller: _searchController,
-          decoration: const InputDecoration(
-            hintText: 'Pesquisar pedidos...',
-            border: InputBorder.none,
-          ),
-          textInputAction: TextInputAction.search,
-        )
+                controller: _searchController,
+                decoration: const InputDecoration(
+                  hintText: 'Pesquisar pedidos...',
+                  border: InputBorder.none,
+                ),
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+              )
             : const Padding(
-          padding: EdgeInsets.only(left: 8.0),
-          child: Text('Pedidos'),
-        ),
+                padding: EdgeInsets.only(left: 8.0),
+                child: Text('Pedidos'),
+              ),
         actions: [
           if (isMobile) ...[
             IconButton(
@@ -69,100 +127,124 @@ class _PedidosPageState extends State<PedidosPage> {
                 _isSearching = !_isSearching;
               }),
             ),
-            DropdownButton<EstadoPedido?>(
+            DropdownButton<String?>(
               value: _statusFilter,
-              hint: const Icon(LucideIcons.filter),
+              hint: const Icon(LucideIcons.filter, color: Colors.white),
               underline: const SizedBox(),
+              iconEnabledColor: Colors.white,
               items: [
                 const DropdownMenuItem(value: null, child: Text('Todos')),
                 for (var st in EstadoPedido.values)
                   DropdownMenuItem(
-                    value: st,
+                    value: st.label,
                     child: Text(st.label),
                   ),
               ],
               onChanged: (v) => setState(() => _statusFilter = v),
             ),
           ] else ...[
-            IconButton(
-              icon: const Icon(LucideIcons.search),
-              onPressed: () => setState(() => _isSearching = !_isSearching),
-            ),
+            if (_isSearching)
+              SizedBox(
+                width: 250,
+                child: TextField(
+                  controller: _searchController,
+                  decoration: const InputDecoration(
+                    hintText: 'Pesquisar por cliente ou número...',
+                    border: InputBorder.none,
+                    suffixIcon: Icon(LucideIcons.search)
+                  ),
+                ),
+              )
+            else
+              IconButton(
+                icon: const Icon(LucideIcons.search),
+                onPressed: () => setState(() => _isSearching = true),
+              ),
+            if(_isSearching)
+              IconButton(
+                icon: const Icon(LucideIcons.xCircle),
+                onPressed: () => setState(() {
+                  _searchController.clear();
+                  _isSearching = false;
+                }),
+              ),
             const SizedBox(width: 8),
             ViewToggleButton(
               theme: Theme.of(context),
               isKanbanView: _isKanbanView,
               onToggle: (v) => setState(() => _isKanbanView = v),
             ),
-            IconButton(
-              icon: const Icon(Icons.refresh),
-              onPressed: _fetchPedidos,
-              tooltip: 'Atualizar',
-            ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 16),
           ],
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _buildBody(pedidos, corColuna),
+      body: empresaId == null
+          ? const Center(child: Text("Carregando dados da empresa..."))
+          : StreamBuilder<List<Pedido>>(
+              stream: pedidoService.getPedidosDaEmpresaStream(empresaId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text("Erro ao carregar pedidos: ${snapshot.error}"));
+                }
+                
+                List<Pedido> todosOsPedidos = snapshot.data ?? [];
+                final displayed = todosOsPedidos.where((p) {
+                  final statusMatch = _statusFilter == null || p.status == _statusFilter;
+                  final searchMatch = _searchQuery.isEmpty ||
+                      p.numeroPedido.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                      (p.cliente['nome'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+                  return statusMatch && searchMatch;
+                }).toList();
+                
+                return _buildBody(displayed, corColuna);
+              },
+            ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => showDialog(
           context: context,
-          builder: (_) => AddPedidoDialog(onAdd: _adicionarPedido),
+          builder: (_) => const AddPedidoDialog(),
         ),
-        child: const Icon(Icons.add),
         tooltip: 'Adicionar Pedido',
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildBody(List<Pedido> pedidos, Map<EstadoPedido, Color> corColuna) {
-    var displayed = pedidos;
-
+  Widget _buildBody(List<Pedido> pedidos, Map<String, Color> corColuna) {
     if (isMobile) {
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
-        displayed = displayed.where((p) =>
-        p.numeroPedido.toLowerCase().contains(q) ||
-            p.nomeCliente.toLowerCase().contains(q)
-        ).toList();
-      }
-      if (_statusFilter != null) {
-        displayed = displayed.where((p) => p.estado == _statusFilter).toList();
-      }
-      return _buildMobileList(displayed);
+      return _buildMobileList(pedidos);
     }
-
-    if (displayed.isEmpty) {
-      return const Center(child: Text('Nenhum pedido encontrado'));
+    
+    if (pedidos.isEmpty) {
+      return const Center(child: Text('Nenhum pedido encontrado com os filtros aplicados.'));
     }
 
     return _isKanbanView
         ? Kanban(
-      pedidos: displayed,
-      corColuna: corColuna,
-      onPedidoEstadoChanged: (p) => _atualizarEstadoPedido(p, p.estado),
-      onDelete: (p) => _deletarPedido(p),
-      onTapDetails: (p) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
-      ),
-    )
+            pedidos: pedidos,
+            corColuna: corColuna,
+            onPedidoEstadoChanged: (p, novoEstado) => _atualizarEstadoPedido(p, novoEstado),
+            onDelete: (p) => _deletarPedido(p),
+            onTapDetails: (p) => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
+            ),
+          )
         : Tabela(
-      pedidos: displayed,
-      onEstadoChanged: (p) => _atualizarEstadoPedido(p, p.estado),
-      onDelete: (p) => _deletarPedido(p),
-      onEdit: (p) => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
-      ),
-    );
+            pedidos: pedidos,
+            onEstadoChanged: (p, novoEstado) => _atualizarEstadoPedido(p, novoEstado),
+            onDelete: (p) => _deletarPedido(p),
+            onEdit: (p) => Navigator.push(
+              context, MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
+            ),
+          );
   }
 
   Widget _buildMobileList(List<Pedido> pedidos) {
     if (pedidos.isEmpty) {
-      return const Center(child: Text('Nenhum pedido encontrado'));
+      return const Center(child: Text('Nenhum pedido encontrado.'));
     }
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -182,105 +264,20 @@ class _PedidosPageState extends State<PedidosPage> {
     );
   }
 
-  Map<EstadoPedido, Color> _mapCorColuna(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark
-          ? {
-        EstadoPedido.emAberto: const Color(0xFF7016BD),
-        EstadoPedido.emAndamento: const Color(0xFFC5960D),
-        EstadoPedido.entregaRetirada: const Color(0xFFB13D10),
-        EstadoPedido.finalizado: const Color(0xFF059E05),
-        EstadoPedido.cancelado: const Color(0xFF9E051C),
-      }
-          : {
-        EstadoPedido.emAberto: Colors.purple.shade500,
-        EstadoPedido.emAndamento: Colors.amber.shade600,
-        EstadoPedido.entregaRetirada: Colors.orange.shade700,
-        EstadoPedido.finalizado: Colors.green.shade800,
-        EstadoPedido.cancelado: Colors.red.shade800,
-      };
-
-  Future<void> _fetchPedidos() async {
-    setState(() => _isLoading = true);
-    try {
-      final pedidos = await _pedidoService.getPedidos();
-      if (mounted) {
-        final model = context.read<PedidoModel>();
-        model.limparPedidos();
-        for (var p in pedidos) model.adicionarPedido(p);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao carregar pedidos: \$e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _adicionarPedido(Pedido pedido) async {
-    try {
-      final criado = await _pedidoService.adicionarPedido(pedido);
-      if (mounted) {
-        context.read<PedidoModel>().adicionarPedido(criado);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pedido #\${criado.numeroPedido} adicionado')),
-        );
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao adicionar pedido: \$e')),
-      );
-    }
-  }
-
-  Future<void> _editarPedido(Pedido pedido) async {
-    try {
-      await _pedidoService.editarPedido(pedido);
-      if (mounted) {
-        context.read<PedidoModel>().atualizarPedido(pedido.id, pedido);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pedido #\${pedido.numeroPedido} atualizado')),
-        );
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao editar pedido: \$e')),
-      );
-    }
-  }
-
-  Future<void> _deletarPedido(Pedido pedido) async {
-    try {
-      await _pedidoService.deletarPedido(pedido.id);
-      if (mounted) {
-        context.read<PedidoModel>().removerPedido(pedido.id);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Pedido #\${pedido.numeroPedido} excluído')),
-        );
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao excluir pedido: \$e')),
-      );
-    }
-  }
-
-  Future<void> _atualizarEstadoPedido(Pedido pedido, EstadoPedido novoEstado) async {
-    try {
-      await _pedidoService.atualizarEstadoPedido(pedido.id, novoEstado);
-      if (mounted) {
-        final updated = pedido.copyWith(estado: novoEstado);
-        context.read<PedidoModel>().atualizarPedido(pedido.id, updated);
-      }
-    } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Erro ao atualizar estado: \$e')),
-      );
-    }
+  Map<String, Color> _mapCorColuna(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // ✅ Chaves agora são Strings para corresponder ao modelo
+    return {
+      EstadoPedido.emAberto.label: isDark ? const Color(0xFF7016BD) : Colors.purple.shade500,
+      EstadoPedido.emAndamento.label: isDark ? const Color(0xFFC5960D) : Colors.amber.shade600,
+      EstadoPedido.entregaRetirada.label: isDark ? const Color(0xFFB13D10) : Colors.orange.shade700,
+      EstadoPedido.finalizado.label: isDark ? const Color(0xFF059E05) : Colors.green.shade800,
+      EstadoPedido.cancelado.label: isDark ? const Color(0xFF9E051C) : Colors.red.shade800,
+    };
   }
 }
+
+// --- CLASSES AUXILIARES DE UI (Sem alterações na lógica) ---
 
 class ViewToggleButton extends StatelessWidget {
   final bool isKanbanView;
@@ -299,18 +296,20 @@ class ViewToggleButton extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: theme.colorScheme.onPrimary.withOpacity(0.1),
+        color: theme.colorScheme.surfaceVariant.withOpacity(0.8),
         borderRadius: BorderRadius.circular(24),
       ),
       child: Row(
         children: [
           _ToggleIcon(
             icon: LucideIcons.layoutGrid,
+            label: 'Kanban',
             selected: isKanbanView,
             onTap: () => onToggle(true),
           ),
           _ToggleIcon(
             icon: LucideIcons.table,
+            label: 'Tabela',
             selected: !isKanbanView,
             onTap: () => onToggle(false),
           ),
@@ -322,12 +321,13 @@ class ViewToggleButton extends StatelessWidget {
 
 class _ToggleIcon extends StatelessWidget {
   final IconData icon;
+  final String label;
   final bool selected;
   final VoidCallback onTap;
 
   const _ToggleIcon({
-    super.key,
     required this.icon,
+    required this.label,
     required this.selected,
     required this.onTap,
   });
@@ -337,21 +337,34 @@ class _ToggleIcon extends StatelessWidget {
     final theme = Theme.of(context);
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected
-              ? theme.colorScheme.primaryContainer
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(24),
+          color: selected ? theme.colorScheme.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
         ),
-        child: Icon(
-          icon,
-          size: 20,
-          color: selected
-              ? theme.colorScheme.onPrimaryContainer
-              : theme.colorScheme.onSurfaceVariant,
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: selected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
+                color: selected
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
         ),
       ),
     );

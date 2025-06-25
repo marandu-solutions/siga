@@ -8,7 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import 'Components/catalogo_card.dart';
 
 class CatalogoPage extends StatefulWidget {
-  const CatalogoPage({Key? key}) : super(key: key);
+  const CatalogoPage({super.key});
 
   @override
   _CatalogoPageState createState() => _CatalogoPageState();
@@ -47,7 +47,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
     final cs = theme.colorScheme;
     final isEdit = index != null;
     final model = context.read<CatalogoModel>();
-    final existing = isEdit ? model.itens[index!] : null;
+    final existing = isEdit ? model.itens[index] : null;
 
     String? fotoBase64 = existing?.fotoBase64;
     final nomeCtrl = TextEditingController(text: existing?.nome);
@@ -81,7 +81,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                           ? Image.memory(base64Decode(fotoBase64!), width: 120, height: 120, fit: BoxFit.cover)
                           : Container(
                         width: 120, height: 120,
-                        decoration: BoxDecoration(color: cs.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+                        decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
                         child: Icon(Icons.camera_alt, size: 40, color: cs.onSurfaceVariant),
                       ),
                     ),
@@ -123,7 +123,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                               labelStyle: TextStyle(color: cs.onSurfaceVariant),
                               prefixIcon: Icon(Icons.description_outlined, color: cs.onSurfaceVariant),
                               filled: true,
-                              fillColor: cs.surfaceVariant.withOpacity(0.5),
+                              fillColor: cs.surfaceContainerHighest.withOpacity(0.5),
                               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                             ).applyDefaults(theme.inputDecorationTheme),
                             maxLines: 3,
@@ -149,7 +149,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
                                 fotoBase64: fotoBase64, empresa: '',
                               );
                               if (isEdit) {
-                                model.atualizar(index!, newItem);
+                                model.atualizar(index, newItem);
                               } else {
                                 model.adicionar(newItem);
                               }
@@ -181,7 +181,7 @@ class _CatalogoPageState extends State<CatalogoPage> {
         labelText: label,
         prefixIcon: Icon(icon, color: cs.primary),
         filled: true,
-        fillColor: cs.surfaceVariant.withOpacity(0.5),
+        fillColor: cs.surfaceContainerHighest.withOpacity(0.5),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
       ).applyDefaults(theme.inputDecorationTheme),
       keyboardType: keyboardType,

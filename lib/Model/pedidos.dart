@@ -1,6 +1,8 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
+// lib/models/pedido_model.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+// ✅ 1º: O enum (opcional, mas bom manter junto)
 enum EstadoPedido {
   emAberto,
   emAndamento,
@@ -41,34 +43,8 @@ enum EstadoPedido {
   }
 }
 
-class FeedbackEntry {
-  final String id;
-  final String mensagem;
-  final bool positive;
-  final DateTime data;
 
-  FeedbackEntry({
-    required this.id,
-    required this.mensagem,
-    required this.positive,
-    required this.data,
-  });
-
-  factory FeedbackEntry.fromJson(Map<String, dynamic> json) => FeedbackEntry(
-    id: json['id'] as String,
-    mensagem: json['mensagem'] as String,
-    positive: json['positive'] as bool,
-    data: DateTime.parse(json['data'] as String),
-  );
-
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'mensagem': mensagem,
-    'positive': positive,
-    'data': data.toIso8601String(),
-  };
-}
-
+// ✅ 2º: DEFINA A CLASSE 'ITEM' PRIMEIRO, POIS 'PEDIDO' DEPENDE DELA.
 class Item {
   final String nome;
   final double preco;
@@ -82,7 +58,7 @@ class Item {
 
   factory Item.fromJson(Map<String, dynamic> json) => Item(
     nome: json['nome'] as String? ?? '',
-    preco: (json['preco'] as num?)?.toDouble() ?? 0.0,
+    preco: (json['preco'] as num? ?? json['precoUnitario'] as num?)?.toDouble() ?? 0.0,
     quantidade: (json['quantidade'] as num?)?.toInt() ?? 0,
   );
 
@@ -93,177 +69,92 @@ class Item {
   };
 }
 
+
+// ✅ 3º: AGORA, DEFINA A CLASSE 'PEDIDO'. ELA JÁ SABE O QUE É UM 'ITEM'.
 class Pedido {
-  final String id;
+  // --- Identificação e Rastreamento ---
+  final String id; // ID do documento no Firestore
+  final String empresaId;
   final String numeroPedido;
-  final String nomeCliente;
-  final String telefoneCliente;
-  final List<Item> itens;
+
+  // --- Dados do Pedido ---
+  final String modalidade; // "DELIVERY", "RETIRADA", "LOCAL"
+  final dynamic destino; // Pode ser um Map de endereço ou uma String de mesa
+  final String status; // Armazena o 'label' do enum EstadoPedido
+  final List<Item> itens; // Sem erro aqui!
+  final double total;
   final String observacoes;
-  final DateTime dataEntrega;
-  final DateTime dataPedido;
-  final EstadoPedido estado;
-  final String? fotoUrl;
-  final List<FeedbackEntry> feedbacks;
+  
+  // --- Dados do Cliente ---
+  final Map<String, dynamic> cliente; // Mapa para { 'nome': '...', 'telefone': '...' }
+
+  // --- Datas ---
+  final Timestamp dataPedido;
+  final Timestamp dataEntregaPrevista;
+
+  // --- Auditoria ---
+  final Map<String, dynamic> criadoPor;
+  final Map<String, dynamic> atualizadoPor;
+  final Timestamp atualizadoEm;
 
   Pedido({
     required this.id,
+    required this.empresaId,
     required this.numeroPedido,
-    required this.nomeCliente,
-    required this.telefoneCliente,
+    required this.modalidade,
+    this.destino,
+    required this.status,
     required this.itens,
+    required this.total,
     required this.observacoes,
-    required this.dataEntrega,
+    required this.cliente,
     required this.dataPedido,
-    required this.estado,
-    this.fotoUrl,
-    List<FeedbackEntry>? feedbacks,
-  }) : feedbacks = feedbacks ?? [];
-
-  factory Pedido.fromJson(Map<String, dynamic> json) {
-    final detalhesString = json['detalhes'] as String? ?? '{}';
-    final Map<String, dynamic> detalhes = jsonDecode(detalhesString);
-    final List<dynamic> itensJson = detalhes['itens'] as List<dynamic>? ?? [];
-
-    // Verificação para dataEntrega e dataPedido
-    final dataEntregaStr = json['data_entrega'] as String?;
-    final dataPedidoStr = json['xata'] != null ? json['xata']['createdAt'] as String? : null;
-
-    return Pedido(
-      id: json['id'] as String? ?? '',
-      numeroPedido: detalhes['numeroPedido']?.toString() ?? '',
-      nomeCliente: json['cliente_nome'] as String? ?? '',
-      telefoneCliente: json['ccliente_contato'] as String? ?? '',
-      itens: itensJson.map((e) => Item.fromJson(e as Map<String, dynamic>)).toList(),
-      observacoes: detalhes['observacoes'] as String? ?? '',
-      dataEntrega: dataEntregaStr != null ? DateTime.parse(dataEntregaStr) : DateTime.now(),
-      dataPedido: dataPedidoStr != null ? DateTime.parse(dataPedidoStr) : DateTime.now(),
-      estado: EstadoPedido.fromString(json['status'] as String? ?? 'Em aberto'),
-      fotoUrl: json['foto_url'] as String?,
-      feedbacks: (json['feedbacks'] as List<dynamic>?)
-          ?.map((e) => FeedbackEntry.fromJson(e as Map<String, dynamic>))
-          .toList() ??
-          [],
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'cliente_nome': nomeCliente,
-      'ccliente_contato': telefoneCliente,
-      'status': estado.label,
-      'detalhes': jsonEncode({
-        'numeroPedido': numeroPedido,
-        'itens': itens.map((item) => item.toJson()).toList(),
-        'observacoes': observacoes,
-      }),
-      'data_entrega': "${dataEntrega.toIso8601String()}Z",
-      'foto_url': fotoUrl,
-      'feedbacks': feedbacks.map((f) => f.toJson()).toList(),
-    };
-  }
-
-  Pedido copyWith({
-    String? id,
-    String? numeroPedido,
-    String? nomeCliente,
-    String? telefoneCliente,
-    List<Item>? itens,
-    String? observacoes,
-    DateTime? dataEntrega,
-    DateTime? dataPedido,
-    EstadoPedido? estado,
-    String? fotoUrl,
-    List<FeedbackEntry>? feedbacks,
-  }) {
-    return Pedido(
-      id: id ?? this.id,
-      numeroPedido: numeroPedido ?? this.numeroPedido,
-      nomeCliente: nomeCliente ?? this.nomeCliente,
-      telefoneCliente: telefoneCliente ?? this.telefoneCliente,
-      itens: itens ?? this.itens,
-      observacoes: observacoes ?? this.observacoes,
-      dataEntrega: dataEntrega ?? this.dataEntrega,
-      dataPedido: dataPedido ?? this.dataPedido,
-      estado: estado ?? this.estado,
-      fotoUrl: fotoUrl ?? this.fotoUrl,
-      feedbacks: feedbacks ?? List.from(this.feedbacks),
-    );
-  }
-}
-
-class NotificationEntry {
-  final String pedidoId;
-  final String mensagem;
-  final DateTime data;
-
-  NotificationEntry({
-    required this.pedidoId,
-    required this.mensagem,
-    required this.data,
+    required this.dataEntregaPrevista,
+    required this.criadoPor,
+    required this.atualizadoPor,
+    required this.atualizadoEm,
   });
-}
 
-class PedidoModel extends ChangeNotifier {
-  final List<Pedido> _pedidos = [];
-  final List<NotificationEntry> _notificacoes = [];
+  factory Pedido.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
-  List<Pedido> get pedidos => List.unmodifiable(_pedidos);
-  List<NotificationEntry> get notificacoes => List.unmodifiable(_notificacoes);
-
-  void adicionarPedido(Pedido pedido) {
-    _pedidos.add(pedido);
-    notifyListeners();
+    return Pedido(
+      id: doc.id,
+      empresaId: data['empresaId'] ?? '',
+      numeroPedido: data['numeroPedido'] ?? '',
+      modalidade: data['modalidade'] ?? 'RETIRADA',
+      destino: data['destino'], // Pode ser nulo
+      status: data['status'] ?? 'Em aberto',
+      itens: (data['itens'] as List<dynamic>?)
+          ?.map((item) => Item.fromJson(item as Map<String, dynamic>))
+          .toList() ?? [],
+      total: (data['total'] as num?)?.toDouble() ?? 0.0,
+      observacoes: data['observacoes'] ?? '',
+      cliente: data['cliente'] as Map<String, dynamic>? ?? {},
+      dataPedido: data['dataPedido'] ?? Timestamp.now(),
+      dataEntregaPrevista: data['dataEntregaPrevista'] ?? Timestamp.now(),
+      criadoPor: data['criadoPor'] as Map<String, dynamic>? ?? {},
+      atualizadoPor: data['atualizadoPor'] as Map<String, dynamic>? ?? {},
+      atualizadoEm: data['atualizadoEm'] ?? Timestamp.now(),
+    );
   }
 
-  void removerPedido(String id) {
-    _pedidos.removeWhere((p) => p.id == id);
-    notifyListeners();
-  }
-
-  void atualizarPedido(String id, Pedido pedidoAtualizado) {
-    final idx = _pedidos.indexWhere((p) => p.id == id);
-    if (idx != -1) {
-      _pedidos[idx] = pedidoAtualizado;
-      notifyListeners();
-    }
-  }
-
-  Pedido buscarPedidoPorId(String id) {
-    return _pedidos.firstWhere((p) => p.id == id);
-  }
-
-  void limparPedidos() {
-    _pedidos.clear();
-    notifyListeners();
-  }
-
-  void adicionarFeedback(String pedidoId, FeedbackEntry feedback) {
-    final idx = _pedidos.indexWhere((p) => p.id == pedidoId);
-    if (idx != -1) {
-      final p = _pedidos[idx];
-      final atualizado = p.copyWith(
-        feedbacks: [...p.feedbacks, feedback],
-      );
-      _pedidos[idx] = atualizado;
-      notifyListeners();
-    }
-  }
-
-  List<FeedbackEntry> feedbacksDoPedido(String pedidoId) {
-    return buscarPedidoPorId(pedidoId).feedbacks;
-  }
-
-  void adicionarNotificacao({
-    required String pedidoId,
-    required String mensagem,
-  }) {
-    _notificacoes.add(NotificationEntry(
-      pedidoId: pedidoId,
-      mensagem: mensagem,
-      data: DateTime.now(),
-    ));
-    notifyListeners();
+  Map<String, dynamic> toMap() {
+    return {
+      'empresaId': empresaId,
+      'numeroPedido': numeroPedido,
+      'modalidade': modalidade,
+      'destino': destino,
+      'status': status,
+      'itens': itens.map((item) => item.toJson()).toList(),
+      'total': total,
+      'observacoes': observacoes,
+      'cliente': cliente,
+      'dataPedido': dataPedido,
+      'dataEntregaPrevista': dataEntregaPrevista,
+      'criadoPor': criadoPor,
+      'atualizadoPor': atualizadoPor,
+      'atualizadoEm': atualizadoEm,
+    };
   }
 }

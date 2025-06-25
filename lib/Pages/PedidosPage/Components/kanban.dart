@@ -1,14 +1,18 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:siga/Pages/PedidosPage/Components/pedidos_card.dart';
-import '../../../Model/pedidos.dart';
+import 'package:siga/Model/pedidos.dart';
 
+
+import 'pedidos_card.dart'; // Supondo que PedidoCard esteja neste caminho
+
+// ✅ Assinatura do callback atualizada: passa o Pedido e o novo status (String).
+typedef PedidoEstadoCallback = void Function(Pedido pedido, String novoEstado);
 typedef PedidoCallback = void Function(Pedido pedido);
 
 class Kanban extends StatefulWidget {
   final List<Pedido> pedidos;
-  final Map<EstadoPedido, Color> corColuna;
-  final Function(Pedido) onPedidoEstadoChanged;
+  final Map<String, Color> corColuna; // ✅ Chave agora é String
+  final PedidoEstadoCallback onPedidoEstadoChanged; // ✅ Callback atualizado
   final PedidoCallback onDelete;
   final PedidoCallback onTapDetails;
 
@@ -34,7 +38,6 @@ class _KanbanState extends State<Kanban> {
     super.dispose();
   }
 
-  // Sua lógica de scroll horizontal foi mantida, pois já é excelente.
   void _scrollHorizontal(double delta) {
     if (!_horizontalScrollController.hasClients) return;
     final min = _horizontalScrollController.position.minScrollExtent;
@@ -45,12 +48,14 @@ class _KanbanState extends State<Kanban> {
 
   @override
   Widget build(BuildContext context) {
-    // Ordena os pedidos por estado para garantir a ordem das colunas
-    final estadosOrdenados = EstadoPedido.values.toList();
+    // ✅ Agora usamos os 'labels' (Strings) do enum para ordenar e agrupar.
+    final estadosOrdenados = EstadoPedido.values.map((e) => e.label).toList();
+
+    // ✅ O agrupamento agora compara a propriedade `p.status` (String).
     final pedidosPorEstado = {
-      for (var estado in estadosOrdenados)
-        estado: widget.pedidos.where((p) => p.estado == estado).toList()
-          ..sort((a, b) => a.dataEntrega.compareTo(b.dataEntrega)),
+      for (var estadoLabel in estadosOrdenados)
+        estadoLabel: widget.pedidos.where((p) => p.status == estadoLabel).toList()
+          ..sort((a, b) => a.dataEntregaPrevista.compareTo(b.dataEntregaPrevista)),
     };
 
     return Listener(
@@ -58,7 +63,6 @@ class _KanbanState extends State<Kanban> {
         if (signal is PointerScrollEvent) _scrollHorizontal(signal.scrollDelta.dy);
       },
       child: ScrollConfiguration(
-        // Permite arrastar o scroll com o mouse
         behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse}),
         child: SingleChildScrollView(
           controller: _horizontalScrollController,
@@ -66,13 +70,14 @@ class _KanbanState extends State<Kanban> {
           padding: const EdgeInsets.all(24.0),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: estadosOrdenados.map((estado) {
-              final lista = pedidosPorEstado[estado]!;
+            // Mapeamos sobre a lista de Strings de estado
+            children: estadosOrdenados.map((estadoLabel) {
+              final lista = pedidosPorEstado[estadoLabel]!;
               return _KanbanColumn(
-                estado: estado,
+                estadoLabel: estadoLabel, // Passa a String do estado
                 pedidos: lista,
-                corColuna: widget.corColuna[estado]!,
-                onPedidoEstadoChanged: widget.onPedidoEstadoChanged,
+                corColuna: widget.corColuna[estadoLabel]!,
+                onPedidoEstadoChanged: widget.onPedidoEstadoChanged, // Passa o novo callback
                 onDelete: widget.onDelete,
                 onTapDetails: widget.onTapDetails,
               );
@@ -85,18 +90,18 @@ class _KanbanState extends State<Kanban> {
 }
 
 // ===================================================================
-// ================ WIDGET DE COLUNA REATORADO =======================
+// ==================== WIDGET DE COLUNA ATUALIZADO ====================
 // ===================================================================
 class _KanbanColumn extends StatelessWidget {
-  final EstadoPedido estado;
+  final String estadoLabel; // ✅ Recebe a String do estado
   final List<Pedido> pedidos;
   final Color corColuna;
-  final Function(Pedido) onPedidoEstadoChanged;
+  final PedidoEstadoCallback onPedidoEstadoChanged; // ✅ Recebe o novo callback
   final PedidoCallback onDelete;
   final PedidoCallback onTapDetails;
 
   const _KanbanColumn({
-    required this.estado,
+    required this.estadoLabel,
     required this.pedidos,
     required this.corColuna,
     required this.onPedidoEstadoChanged,
@@ -110,16 +115,20 @@ class _KanbanColumn extends StatelessWidget {
     final textTheme = theme.textTheme;
 
     return DragTarget<Pedido>(
-      onWillAccept: (pedido) => pedido != null && pedido.estado != estado,
-      onAccept: (pedido) => onPedidoEstadoChanged(pedido.copyWith(estado: estado)),
+      // ✅ A lógica de aceitar o drop compara a propriedade 'status' do pedido
+      onWillAcceptWithDetails: (details) => details.data.status != estadoLabel,
+      
+      // ✅ AO ACEITAR: Chama o novo callback com o pedido e o novo estado (String).
+      // Não modifica mais o objeto aqui. Apenas informa a ação.
+      onAcceptWithDetails: (details) => onPedidoEstadoChanged(details.data, estadoLabel),
+      
       builder: (context, candidateData, rejectedData) {
         final isHighlighted = candidateData.isNotEmpty;
         return Container(
           width: 300,
           margin: const EdgeInsets.only(right: 16),
-          // 1. DESIGN DA COLUNA APRIMORADO
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
             borderRadius: BorderRadius.circular(16),
             border: isHighlighted
                 ? Border.all(color: theme.colorScheme.primary, width: 2)
@@ -128,7 +137,6 @@ class _KanbanColumn extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 2. CABEÇALHO INFORMATIVO
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Row(
@@ -140,7 +148,7 @@ class _KanbanColumn extends StatelessWidget {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        estado.label,
+                        estadoLabel, // ✅ Exibe a String do estado
                         style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -152,51 +160,54 @@ class _KanbanColumn extends StatelessWidget {
                 ),
               ),
               const Divider(height: 1),
-              // Conteúdo da coluna
               Expanded(
                 child: pedidos.isEmpty
-                    ? Center(child: Text('Nenhum pedido aqui', style: textTheme.bodyMedium))
+                    ? Center(child: Text('Arraste um pedido para cá', style: textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)))
                     : ListView.builder(
-                  padding: const EdgeInsets.all(8),
-                  itemCount: pedidos.length,
-                  itemBuilder: (context, index) {
-                    final pedido = pedidos[index];
-                    return Draggable<Pedido>(
-                      data: pedido,
-                      // 3. FEEDBACK VISUAL MELHORADO
-                      feedback: Material(
-                        color: Colors.transparent,
-                        child: SizedBox(
-                          width: 284,
-                          child: Opacity(
-                            opacity: 0.9,
-                            child: Card(
-                              elevation: 8,
-                              child: PedidoCard(
-                                pedido: pedido,
-                                onDelete: () {}, // Desabilitado no feedback
-                                onTapDetails: () {}, // Desabilitado no feedback
+                        padding: const EdgeInsets.all(8),
+                        itemCount: pedidos.length,
+                        itemBuilder: (context, index) {
+                          final pedido = pedidos[index];
+                          return Draggable<Pedido>(
+                            data: pedido,
+                            feedback: Material(
+                              color: Colors.transparent,
+                              child: SizedBox(
+                                width: 284,
+                                child: Opacity(
+                                  opacity: 0.9,
+                                  child: Card(
+                                    elevation: 8,
+                                    // PedidoCard não precisa de alterações na sua definição,
+                                    // pois ele já recebe um objeto Pedido.
+                                    child: PedidoCard(
+                                      pedido: pedido,
+                                      onDelete: () {}, // Ação desabilitada no feedback visual
+                                      onTapDetails: () {}, // Ação desabilitada
+                                      onStatusChanged: (_) {}, // Ação desabilitada
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
-                          ),
-                        ),
+                            childWhenDragging: Opacity(
+                              opacity: 0.4,
+                              child: PedidoCard(
+                                pedido: pedido,
+                                onDelete: () => onDelete(pedido),
+                                onTapDetails: () => onTapDetails(pedido),
+                                onStatusChanged: (novoEstado) => onPedidoEstadoChanged(pedido, novoEstado as String),
+                              ),
+                            ),
+                            child: PedidoCard(
+                              pedido: pedido,
+                              onDelete: () => onDelete(pedido),
+                              onTapDetails: () => onTapDetails(pedido),
+                              onStatusChanged: (novoEstado) => onPedidoEstadoChanged(pedido, novoEstado as String),
+                            ),
+                          );
+                        },
                       ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.4,
-                        child: PedidoCard(
-                          pedido: pedido,
-                          onDelete: () => onDelete(pedido),
-                          onTapDetails: () => onTapDetails(pedido),
-                        ),
-                      ),
-                      child: PedidoCard(
-                        pedido: pedido,
-                        onDelete: () => onDelete(pedido),
-                        onTapDetails: () => onTapDetails(pedido),
-                      ),
-                    );
-                  },
-                ),
               ),
             ],
           ),

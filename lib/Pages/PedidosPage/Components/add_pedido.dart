@@ -1,19 +1,26 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
-import '../../../Model/pedidos.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:provider/provider.dart';
+import 'package:siga/Model/pedidos.dart';
+import 'package:siga/Service/auth_service.dart';
+import 'package:siga/Service/pedidos_service.dart';
+
 
 class AddPedidoDialog extends StatefulWidget {
-  final Function(Pedido) onAdd;
+  // O callback agora é opcional e sinaliza o sucesso,
+  // pois a UI principal se atualiza via StreamBuilder.
+  final VoidCallback? onSuccess;
 
-  const AddPedidoDialog({super.key, required this.onAdd});
+  const AddPedidoDialog({super.key, this.onSuccess});
 
   @override
   State<AddPedidoDialog> createState() => _AddPedidoDialogState();
 }
 
 class _AddPedidoDialogState extends State<AddPedidoDialog> {
-  // Chaves de formulário para cada passo, garantindo validação segmentada.
+  // Chaves de formulário para cada passo.
   final _formKeyCliente = GlobalKey<FormState>();
   final List<GlobalKey<FormState>> _itemFormKeys = [];
 
@@ -21,7 +28,10 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
   final _nomeClienteController = TextEditingController();
   final _telefoneClienteController = TextEditingController();
   final _observacoesController = TextEditingController();
-  EstadoPedido _estado = EstadoPedido.emAberto;
+  
+  // Estado local para os detalhes do pedido.
+  String _estado = EstadoPedido.emAberto.label;
+  String _modalidade = 'RETIRADA'; // Valor padrão
   DateTime _dataEntrega = DateTime.now().add(const Duration(days: 1));
 
   // Lista de itens do pedido.
@@ -37,7 +47,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
     // Adiciona um item inicial para que o formulário não comece vazio.
     _addItem();
   }
-
+  
   // --- LÓGICA DE MANIPULAÇÃO DOS ITENS ---
 
   void _addItem() {
@@ -62,7 +72,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
 
   // --- LÓGICA DO STEPPER ---
 
-  // Valida e avança para o próximo passo.
   void _onStepContinue() {
     bool isStepValid = false;
     switch (_currentStep) {
@@ -89,7 +98,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
     }
   }
 
-  // Volta para o passo anterior.
   void _onStepCancel() {
     if (_currentStep > 0) {
       setState(() {
@@ -113,8 +121,23 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
   }
 
   Future<void> _submit() async {
+    // 1. Acessamos os serviços e dados de autenticação
+    final authService = context.read<AuthService>();
+    final pedidoService = context.read<PedidoService>();
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+
+    final funcionario = authService.funcionarioLogado;
+    final empresaId = authService.empresaAtual?.id;
+
+    if (funcionario == null || empresaId == null) {
+      scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Erro: Sessão inválida. Faça login novamente.')));
+      return;
+    }
+
     setState(() => _isLoading = true);
 
+    // 2. Montamos a lista de Itens a partir dos controladores
     final List<Item> itensList = _itens.map((itemControllers) {
       return Item(
         nome: itemControllers['nome']!.text,
@@ -122,23 +145,47 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
         quantidade: int.tryParse(itemControllers['quantidade']!.text) ?? 1,
       );
     }).toList();
+    
+    // 3. Geramos um número de pedido legível
+    final numeroPedido = 'P-${DateFormat('yyMMdd-HHmmss').format(DateTime.now())}';
 
+    // 4. Criamos o objeto Pedido usando o NOVO MODELO
     final novoPedido = Pedido(
-      id: '', // Backend preenche
-      numeroPedido: (DateTime.now().millisecondsSinceEpoch % 100000).toString(),
-      nomeCliente: _nomeClienteController.text,
-      telefoneCliente: _telefoneClienteController.text,
+      id: '', // Firestore irá gerar
+      empresaId: empresaId,
+      numeroPedido: numeroPedido,
+      modalidade: _modalidade,
+      destino: null, // Pode ser preenchido com endereço ou número da mesa futuramente
+      status: _estado,
       itens: itensList,
-      observacoes: _observacoesController.text,
-      dataEntrega: _dataEntrega,
-      dataPedido: DateTime.now(),
-      estado: _estado,
+      total: itensList.fold(0.0, (sum, item) => sum + (item.preco * item.quantidade)),
+      observacoes: _observacoesController.text.trim(),
+      cliente: {
+        'nome': _nomeClienteController.text.trim(),
+        'telefone': _telefoneClienteController.text.trim(),
+      },
+      dataPedido: Timestamp.now(),
+      dataEntregaPrevista: Timestamp.fromDate(_dataEntrega),
+      criadoPor: {'uid': funcionario.uid, 'nome': funcionario.nome},
+      atualizadoPor: {'uid': funcionario.uid, 'nome': funcionario.nome},
+      atualizadoEm: Timestamp.now(),
     );
 
-    await Future.delayed(const Duration(seconds: 1));
-
-    widget.onAdd(novoPedido);
-    if (mounted) Navigator.of(context).pop();
+    // 5. Chamamos o serviço para adicionar o pedido
+    try {
+      await pedidoService.adicionarPedido(novoPedido);
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Pedido #$numeroPedido adicionado com sucesso!')),
+      );
+      widget.onSuccess?.call(); // Chama o callback de sucesso, se houver
+      navigator.pop(); // Fecha o diálogo
+    } catch (e) {
+      scaffoldMessenger.showSnackBar(
+        SnackBar(content: Text('Erro ao adicionar pedido: $e')),
+      );
+    } finally {
+      if(mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -175,7 +222,7 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
                     onPressed: _isLoading ? null : details.onStepContinue,
                     child: _isLoading && _currentStep == 2
                         ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                        : Text(details.currentStep == 2 ? 'Finalizar' : 'Continuar'),
+                        : Text(details.currentStep == 2 ? 'Finalizar' : 'Avançar'),
                   ),
                   const SizedBox(width: 12),
                   if (details.currentStep > 0)
@@ -196,8 +243,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
       ),
     );
   }
-
-  // --- WIDGETS DOS PASSOS DO STEPPER ---
 
   InputDecoration _inputDecoration(String label, IconData icon) {
     final theme = Theme.of(context);
@@ -222,14 +267,12 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
           children: [
             TextFormField(
               controller: _nomeClienteController,
-              style: TextStyle(color: theme.colorScheme.onSurface),
               decoration: _inputDecoration('Nome do Cliente', LucideIcons.user),
               validator: (v) => v!.isEmpty ? 'Nome é obrigatório' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _telefoneClienteController,
-              style: TextStyle(color: theme.colorScheme.onSurface),
               decoration: _inputDecoration('Telefone', LucideIcons.phone),
               keyboardType: TextInputType.phone,
               validator: (v) => v!.length < 10 ? 'Número inválido' : null,
@@ -269,17 +312,22 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
         children: [
           TextFormField(
             controller: _observacoesController,
-            style: TextStyle(color: theme.colorScheme.onSurface),
             decoration: _inputDecoration('Observações', LucideIcons.messageSquare),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
-          DropdownButtonFormField<EstadoPedido>(
+          DropdownButtonFormField<String>(
             value: _estado,
-            style: TextStyle(color: theme.colorScheme.onSurface),
             decoration: _inputDecoration('Estado do Pedido', LucideIcons.tag),
-            items: EstadoPedido.values.map((e) => DropdownMenuItem(value: e, child: Text(e.label))).toList(),
+            items: EstadoPedido.values.map((e) => DropdownMenuItem(value: e.label, child: Text(e.label))).toList(),
             onChanged: (v) => setState(() => _estado = v!),
+          ),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _modalidade,
+            decoration: _inputDecoration('Modalidade', LucideIcons.truck),
+            items: ['RETIRADA', 'DELIVERY', 'LOCAL'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+            onChanged: (v) => setState(() => _modalidade = v!),
           ),
           const SizedBox(height: 16),
           ListTile(
@@ -291,15 +339,13 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
               borderRadius: BorderRadius.circular(12),
               side: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
             ),
-            tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+            tileColor: theme.colorScheme.surfaceVariant.withOpacity(0.3),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           ),
         ],
       ),
     );
   }
-
-  // --- WIDGET AUXILIAR PARA O CARD DE ITEM ---
 
   Widget _buildItemCard(int index) {
     final theme = Theme.of(context);
@@ -327,7 +373,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
               const SizedBox(height: 8),
               TextFormField(
                 controller: _itens[index]['nome'],
-                style: TextStyle(color: theme.colorScheme.onSurface),
                 decoration: _inputDecoration('Nome do Item', LucideIcons.package),
                 validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
               ),
@@ -337,7 +382,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _itens[index]['preco'],
-                      style: TextStyle(color: theme.colorScheme.onSurface),
                       decoration: _inputDecoration('Preço', LucideIcons.dollarSign).copyWith(prefixText: 'R\$ '),
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       validator: (v) => (double.tryParse(v!.replaceAll(',', '.')) ?? 0) <= 0 ? 'Inválido' : null,
@@ -347,7 +391,6 @@ class _AddPedidoDialogState extends State<AddPedidoDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _itens[index]['quantidade'],
-                      style: TextStyle(color: theme.colorScheme.onSurface),
                       decoration: _inputDecoration('Qtd.', LucideIcons.hash),
                       keyboardType: TextInputType.number,
                       validator: (v) => (int.tryParse(v!) ?? 0) <= 0 ? 'Inválido' : null,

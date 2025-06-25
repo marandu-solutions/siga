@@ -115,7 +115,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     // DEFINIÇÃO DO ESTILO DO INPUT QUE SERÁ REUTILIZADO
     final inputDecoration = InputDecoration(
       filled: true,
-      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,

@@ -9,7 +9,7 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -24,7 +24,7 @@ class MyApp extends StatelessWidget {
 }
 
 class FloatingNavPage extends StatefulWidget {
-  const FloatingNavPage({Key? key}) : super(key: key);
+  const FloatingNavPage({super.key});
 
   @override
   _FloatingNavPageState createState() => _FloatingNavPageState();
@@ -89,10 +89,10 @@ class BottomNavBar extends StatelessWidget {
   final ValueChanged<int> onItemSelected;
 
   const BottomNavBar({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onItemSelected,
-  }) : super(key: key);
+  });
 
   // Mantemos os dados originais da sua UI
   static const _navItems = [

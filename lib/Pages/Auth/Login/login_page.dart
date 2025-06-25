@@ -136,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLoginForm(ThemeData theme, bool isLoading) {
     final inputDecoration = InputDecoration(
       filled: true,
-      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide.none,

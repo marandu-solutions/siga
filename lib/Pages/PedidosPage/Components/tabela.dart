@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../Model/pedidos.dart';
+import 'package:siga/Model/pedidos.dart';
+
+
 
 class Tabela extends StatefulWidget {
   final List<Pedido> pedidos;
-  final Function(Pedido) onEstadoChanged;
-  final Function(Pedido) onDelete;
-  final Function(Pedido) onEdit;
+  // ✅ Callback atualizado para passar uma String de status
+  final Function(Pedido pedido, String novoEstado) onEstadoChanged;
+  final Function(Pedido pedido) onDelete;
+  final Function(Pedido pedido) onEdit;
 
   const Tabela({
     super.key,
@@ -22,14 +25,17 @@ class Tabela extends StatefulWidget {
 }
 
 class _TabelaState extends State<Tabela> {
-  final TextEditingController _searchController = TextEditingController();
-  EstadoPedido? _filtroEstado;
+  // ❌ REMOVIDO: A lógica de filtro e busca agora é da PedidosPage.
+  // final TextEditingController _searchController = TextEditingController();
+  // EstadoPedido? _filtroEstado;
+
+  // ✅ O estado da ordenação é local e mantido aqui.
   int _sortColumnIndex = 2; // Padrão: ordenar por data de entrega
   bool _sortAscending = true;
 
   @override
   void dispose() {
-    _searchController.dispose();
+    // _searchController.dispose();
     super.dispose();
   }
 
@@ -45,20 +51,15 @@ class _TabelaState extends State<Tabela> {
     final theme = Theme.of(context);
     final tt = theme.textTheme;
 
-    List<Pedido> pedidosProcessados = widget.pedidos.where((p) {
-      final busca = _searchController.text.toLowerCase();
-      final okTexto = p.numeroPedido.contains(busca) || p.nomeCliente.toLowerCase().contains(busca);
-      final okEstado = _filtroEstado == null || p.estado == _filtroEstado;
-      return okTexto && okEstado;
-    }).toList();
-
+    // ✅ A ordenação é aplicada na lista recebida.
+    List<Pedido> pedidosProcessados = List.from(widget.pedidos);
     pedidosProcessados.sort((a, b) {
       int comparison = 0;
       switch (_sortColumnIndex) {
         case 0: comparison = a.numeroPedido.compareTo(b.numeroPedido); break;
-        case 1: comparison = a.nomeCliente.compareTo(b.nomeCliente); break;
-        case 2: comparison = a.dataEntrega.compareTo(b.dataEntrega); break;
-        case 3: comparison = a.estado.index.compareTo(b.estado.index); break;
+        case 1: comparison = (a.cliente['nome'] ?? '').compareTo(b.cliente['nome'] ?? ''); break;
+        case 2: comparison = a.dataEntregaPrevista.compareTo(b.dataEntregaPrevista); break;
+        case 3: comparison = a.status.compareTo(b.status); break;
       }
       return _sortAscending ? comparison : -comparison;
     });
@@ -66,15 +67,16 @@ class _TabelaState extends State<Tabela> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text("Gestão de Pedidos", style: tt.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 20),
-        _buildControls(context),
-        const SizedBox(height: 20),
+        // ❌ REMOVIDO: O cabeçalho com título e controles agora está na PedidosPage.
+        // Text("Gestão de Pedidos", ...),
+        // _buildControls(context),
+        
         Expanded(
           child: Container(
+            width: double.infinity, // Garante que o container ocupe toda a largura
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceVariant.withOpacity(0.3),
+              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(16),
             ),
             child: Column(
@@ -84,67 +86,21 @@ class _TabelaState extends State<Tabela> {
                   child: pedidosProcessados.isEmpty
                       ? const Center(child: Text('Nenhum pedido encontrado.'))
                       : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                    itemCount: pedidosProcessados.length,
-                    itemBuilder: (context, index) {
-                      final pedido = pedidosProcessados[index];
-                      return _PedidoDataRow(
-                        pedido: pedido,
-                        onDelete: () => widget.onDelete(pedido),
-                        onEdit: () => widget.onEdit(pedido),
-                        onEstadoChanged: (novoEstado) => widget.onEstadoChanged(pedido.copyWith(estado: novoEstado)),
-                      );
-                    },
-                  ),
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                          itemCount: pedidosProcessados.length,
+                          itemBuilder: (context, index) {
+                            final pedido = pedidosProcessados[index];
+                            return _PedidoDataRow(
+                              pedido: pedido,
+                              onDelete: () => widget.onDelete(pedido),
+                              onEdit: () => widget.onEdit(pedido),
+                              onEstadoChanged: (novoEstado) => widget.onEstadoChanged(pedido, novoEstado),
+                            );
+                          },
+                        ),
                 ),
               ],
             ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // MÉTODO DE CONTROLES CORRIGIDO PARA O TEMA ESCURO
-  Widget _buildControls(BuildContext context) {
-    final theme = Theme.of(context);
-
-    // Aplicando um estilo de input que funciona em ambos os temas
-    final inputDecoration = InputDecoration(
-      filled: true,
-      fillColor: theme.colorScheme.surface,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
-    );
-
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: TextField(
-            controller: _searchController,
-            onChanged: (_) => setState(() {}),
-            decoration: inputDecoration.copyWith(
-              hintText: "Pesquisar por nº ou cliente...",
-              prefixIcon: const Icon(LucideIcons.search),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          flex: 2,
-          child: DropdownButtonFormField<EstadoPedido?>(
-            value: _filtroEstado,
-            decoration: inputDecoration.copyWith(labelText: 'Status'),
-            isExpanded: true,
-            items: [
-              const DropdownMenuItem(value: null, child: Text("Todos os Status")),
-              ...EstadoPedido.values.map((e) => DropdownMenuItem(value: e, child: Text(e.label))),
-            ],
-            onChanged: (v) => setState(() => _filtroEstado = v),
           ),
         ),
       ],
@@ -170,6 +126,10 @@ class _TabelaState extends State<Tabela> {
     );
   }
 }
+
+// ===================================================================
+// ==================== CLASSES AUXILIARES (ATUALIZADAS) =============
+// ===================================================================
 
 class _HeaderCell extends StatelessWidget {
   final String label;
@@ -208,7 +168,8 @@ class _PedidoDataRow extends StatelessWidget {
   final Pedido pedido;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
-  final ValueChanged<EstadoPedido> onEstadoChanged;
+  // ✅ Callback agora recebe uma String
+  final ValueChanged<String> onEstadoChanged;
 
   const _PedidoDataRow({
     required this.pedido,
@@ -217,7 +178,8 @@ class _PedidoDataRow extends StatelessWidget {
     required this.onEstadoChanged,
   });
 
-  Color _getStatusColor(BuildContext context, EstadoPedido status) {
+  Color _getStatusColor(BuildContext context, String statusLabel) {
+    final status = EstadoPedido.fromString(statusLabel); // Converte para o enum para a lógica
     final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (status) {
       case EstadoPedido.emAberto: return isDark ? Colors.purple.shade300 : Colors.purple.shade700;
@@ -231,9 +193,9 @@ class _PedidoDataRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final valorTotal = pedido.itens.fold<double>(0.0, (sum, item) => sum + (item.preco * item.quantidade));
     final currencyFormatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final statusColor = _getStatusColor(context, pedido.estado);
+    // ✅ Pega a cor baseada na String de status
+    final statusColor = _getStatusColor(context, pedido.status);
 
     return Card(
       elevation: 1,
@@ -244,17 +206,23 @@ class _PedidoDataRow extends StatelessWidget {
           children: [
             Expanded(
               flex: 2,
-              child: Padding(padding: const EdgeInsets.all(16), child: Text('#${pedido.numeroPedido}', style: const TextStyle(fontWeight: FontWeight.bold))),
+              child: Padding(padding: const EdgeInsets.all(16), child: Text(pedido.numeroPedido, style: const TextStyle(fontWeight: FontWeight.bold))),
             ),
             const VerticalDivider(width: 1),
             Expanded(
               flex: 3,
-              child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(pedido.nomeCliente), Text(currencyFormatter.format(valorTotal), style: theme.textTheme.bodySmall)])),
+              child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // ✅ Acessa o nome do cliente pelo mapa
+                Text(pedido.cliente['nome'] ?? 'Cliente sem nome'), 
+                // ✅ Usa o campo 'total' do pedido
+                Text(currencyFormatter.format(pedido.total), style: theme.textTheme.bodySmall)
+              ])),
             ),
             const VerticalDivider(width: 1),
             Expanded(
               flex: 2,
-              child: Padding(padding: const EdgeInsets.all(16), child: Text(DateFormat('dd/MM/yy').format(pedido.dataEntrega))),
+              // ✅ Usa o Timestamp do Firestore, convertendo para DateTime
+              child: Padding(padding: const EdgeInsets.all(16), child: Text(DateFormat('dd/MM/yy').format(pedido.dataEntregaPrevista.toDate()))),
             ),
             const VerticalDivider(width: 1),
             Expanded(
@@ -268,7 +236,7 @@ class _PedidoDataRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    pedido.estado.label,
+                    pedido.status, // ✅ Exibe a String de status diretamente
                     textAlign: TextAlign.center,
                     style: theme.textTheme.labelMedium?.copyWith(color: statusColor, fontWeight: FontWeight.bold),
                   ),
@@ -281,17 +249,21 @@ class _PedidoDataRow extends StatelessWidget {
               child: PopupMenuButton<String>(
                 icon: const Icon(Icons.more_vert),
                 onSelected: (value) {
-                  if (value == 'edit') onEdit();
-                  else if (value == 'delete') onDelete();
+                  if (value == 'edit') {
+                    onEdit();
+                  } else if (value == 'delete') {
+                    onDelete();
+                  } else {
+                    // Se não for 'edit' nem 'delete', é um status.
+                    onEstadoChanged(value);
+                  }
                 },
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'edit', child: Text('Editar')),
-                  PopupMenuItem(
-                    child: PopupMenuButton<EstadoPedido>(
-                      onSelected: onEstadoChanged,
-                      child: const Text('Mudar Status'),
-                      itemBuilder: (_) => EstadoPedido.values.map((st) => PopupMenuItem(value: st, child: Text(st.label))).toList(),
-                    ),
+                  const PopupMenuDivider(),
+                  // ✅ O menu de status agora é gerado a partir do enum, mas passa a String
+                  ...EstadoPedido.values.where((st) => st.label != pedido.status).map((st) => 
+                    PopupMenuItem(value: st.label, child: Text('Mover para "${st.label}"'))
                   ),
                   const PopupMenuDivider(),
                   PopupMenuItem(value: 'delete', child: Text('Excluir', style: TextStyle(color: theme.colorScheme.error))),

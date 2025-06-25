@@ -1,27 +1,30 @@
 import 'package:flutter/material.dart';
-// Supondo que o seu modelo esteja neste caminho
-import '../../../Model/atendimento.dart';
+// Supondo que o seu enum esteja no mesmo arquivo da página de atendimento ou em um local acessível.
+import '../atendimento_page.dart';
 
 class ContatoCard extends StatelessWidget {
   final String nome;
   final String numero;
   final String fotoUrl;
-  final EstadoAtendimento estado;
-  final ValueChanged<EstadoAtendimento> onEstadoChanged;
-  final VoidCallback? onTap; // <-- ADIÇÃO CRUCIAL AQUI
+  // ✅ O 'status' agora é recebido como uma String (ex: "Em Aberto").
+  final String status;
+  // ✅ O callback agora emite uma String.
+  final ValueChanged<String> onEstadoChanged;
+  final VoidCallback? onTap;
 
   const ContatoCard({
     super.key,
     required this.nome,
     required this.numero,
     required this.fotoUrl,
-    required this.estado,
+    required this.status,
     required this.onEstadoChanged,
-    this.onTap, // <-- ADIÇÃO CRUCIAL AQUI
+    this.onTap,
   });
 
-  // Função para obter a cor correta baseada no tema
-  Color _getStatusColor(BuildContext context, EstadoAtendimento estado) {
+  // ✅ A função de cor agora recebe uma String, mas usa o enum internamente para a lógica.
+  Color _getStatusColor(BuildContext context, String statusLabel) {
+    final estado = EstadoAtendimento.fromString(statusLabel);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (estado) {
       case EstadoAtendimento.emAberto:
@@ -40,7 +43,8 @@ class ContatoCard extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final textTheme = theme.textTheme;
-    final estadoColor = _getStatusColor(context, estado);
+    // ✅ Passa a String do status para obter a cor.
+    final estadoColor = _getStatusColor(context, status);
 
     return Card(
       elevation: 2,
@@ -49,10 +53,10 @@ class ContatoCard extends StatelessWidget {
         side: BorderSide(color: cs.outline.withOpacity(0.2)),
       ),
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
-      clipBehavior: Clip.antiAlias, // Garante que o InkWell respeite as bordas
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: onTap, // <-- MUDANÇA CRUCIAL AQUI
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           child: Row(
@@ -60,7 +64,7 @@ class ContatoCard extends StatelessWidget {
               CircleAvatar(
                 backgroundImage: fotoUrl.isNotEmpty ? NetworkImage(fotoUrl) : null,
                 onBackgroundImageError: fotoUrl.isNotEmpty ? (_, __) {} : null,
-                backgroundColor: cs.surfaceVariant,
+                backgroundColor: cs.surfaceContainerHighest,
                 child: fotoUrl.isEmpty ? const Icon(Icons.person) : null,
               ),
               const SizedBox(width: 16),
@@ -95,7 +99,7 @@ class ContatoCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      estado.label,
+                      status, // ✅ Exibe a String de status diretamente.
                       style: textTheme.labelSmall?.copyWith(
                         color: estadoColor,
                         fontWeight: FontWeight.bold,
@@ -105,7 +109,7 @@ class ContatoCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   _StatusPopupMenu(
-                    estado: estado,
+                    estadoAtual: status,
                     onEstadoChanged: onEstadoChanged,
                     estadoColor: estadoColor,
                   ),
@@ -119,27 +123,34 @@ class ContatoCard extends StatelessWidget {
   }
 }
 
+// ===================================================================
+// ==================== _StatusPopupMenu ATUALIZADO ==================
+// ===================================================================
+
 class _StatusPopupMenu extends StatelessWidget {
   const _StatusPopupMenu({
-    required this.estado,
+    required this.estadoAtual,
     required this.onEstadoChanged,
     required this.estadoColor,
   });
 
-  final EstadoAtendimento estado;
-  final ValueChanged<EstadoAtendimento> onEstadoChanged;
+  // ✅ Recebe e emite Strings.
+  final String estadoAtual;
+  final ValueChanged<String> onEstadoChanged;
   final Color estadoColor;
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<EstadoAtendimento>(
-      initialValue: estado,
+    // ✅ O tipo do PopupMenuButton agora é String.
+    return PopupMenuButton<String>(
+      initialValue: estadoAtual,
       onSelected: onEstadoChanged,
       icon: Icon(Icons.more_vert, color: Theme.of(context).colorScheme.onSurfaceVariant),
       itemBuilder: (BuildContext context) {
+        // Gera os itens do menu a partir do enum, mas o 'value' de cada item é a String do label.
         return EstadoAtendimento.values.map((e) {
-          return PopupMenuItem<EstadoAtendimento>(
-            value: e,
+          return PopupMenuItem<String>(
+            value: e.label,
             child: Text(e.label),
           );
         }).toList();

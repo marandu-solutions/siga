@@ -1,125 +1,98 @@
-import 'package:http/http.dart' as http;
-import 'dart:convert';
-import '../Model/pedidos.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:siga/Model/pedidos.dart';
 
+/// PedidoService
+/// 
+/// Gerencia todas as operações de CRUD (Create, Read, Update, Delete)
+/// para a coleção 'pedidos' no Firestore.
 class PedidoService {
-  final String xataBaseUrl = 'https://marandu-solutions-s-workspace-vtf0o3.us-east-1.xata.sh/db/Siga:main';
-  final String xataApiKey = 'xau_L5DDTgkhxp63XDxdFdyee7Rv6kiuvpmP0';
+  // Instância privada do Firestore para uso interno na classe.
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  Future<List<Pedido>> getPedidos() async {
-    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/query');
-    final response = await http.post(
-      url,
-      headers: {  
-        'Authorization': 'Bearer $xataApiKey',
-        'Content-Type': 'application/json',
-      },
-      body: '{}',
-    );
+  /// Coleção de referência para os pedidos, para evitar repetição de código.
+  CollectionReference<Pedido> get _pedidosRef => _db.collection('pedidos').withConverter<Pedido>(
+        fromFirestore: (snapshots, _) => Pedido.fromFirestore(snapshots),
+        toFirestore: (pedido, _) => pedido.toMap(),
+      );
 
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      final List<dynamic> rows = data['records'] ?? [];
-      return rows.map((e) => Pedido.fromJson(Map<String, dynamic>.from(e))).toList();
-    } else {
-      throw Exception('Falha ao carregar pedidos: ${response.statusCode} - ${response.body}');
+  // --- READ (LEITURA) ---
+
+  /// Retorna uma stream com a lista de pedidos de uma empresa em tempo real.
+  /// A UI se atualizará automaticamente sempre que um pedido for adicionado,
+  /// modificado ou removido no Firestore.
+  Stream<List<Pedido>> getPedidosDaEmpresaStream(String empresaId) {
+    return _pedidosRef
+        .where('empresaId', isEqualTo: empresaId)
+        .orderBy('dataPedido', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+  }
+
+  // --- CREATE (CRIAÇÃO) ---
+
+  /// Adiciona um novo documento de pedido ao Firestore.
+  /// O objeto 'pedido' deve ser criado na UI e passado para este método.
+  Future<void> adicionarPedido(Pedido pedido) async {
+    try {
+      await _pedidosRef.add(pedido);
+    } catch (e) {
+      print("❌ Erro ao adicionar pedido: $e");
+      // Relança o erro para que a UI possa tratar (ex: mostrar um SnackBar)
+      rethrow;
     }
   }
 
-  Future<void> atualizarEstadoPedido(String pedidoId, EstadoPedido novoEstado) async {
-    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data/$pedidoId');
-    final response = await http.patch(
-      url,
-      headers: {
-        'Authorization': 'Bearer $xataApiKey',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'status': novoEstado.label,
-      }),
-    );
+  // --- UPDATE (ATUALIZAÇÃO) ---
 
-    if (response.statusCode != 200) {
-      throw Exception('Falha ao atualizar estado do pedido: ${response.statusCode} - ${response.body}');
+  /// Atualiza especificamente o status de um pedido existente.
+  Future<void> atualizarStatusPedido({
+    required String pedidoId,
+    required String novoStatus,
+    required Map<String, dynamic> funcionarioQueAtualizou, // Para auditoria
+  }) async {
+    try {
+      await _db.collection('pedidos').doc(pedidoId).update({
+        'status': novoStatus,
+        'atualizadoPor': funcionarioQueAtualizou,
+        'atualizadoEm': Timestamp.now(),
+      });
+    } catch (e) {
+      print("❌ Erro ao atualizar status do pedido: $e");
+      rethrow;
+    }
+  }
+  
+  /// Atualiza dados genéricos de um pedido.
+  /// É flexível para editar qualquer parte do pedido.
+  Future<void> editarPedido({
+    required String pedidoId,
+    required Map<String, dynamic> dadosParaAtualizar,
+    required Map<String, dynamic> funcionarioQueAtualizou,
+  }) async {
+    try {
+      // Usamos um mapa para combinar os novos dados com os dados de auditoria
+      final dadosCompletos = {
+        ...dadosParaAtualizar,
+        'atualizadoPor': funcionarioQueAtualizou,
+        'atualizadoEm': Timestamp.now(),
+      };
+      
+      await _db.collection('pedidos').doc(pedidoId).update(dadosCompletos);
+    } catch (e) {
+      print("❌ Erro ao editar pedido: $e");
+      rethrow;
     }
   }
 
-  Future<void> editarPedido(Pedido pedido) async {
-    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data/${pedido.id}');
-    final response = await http.patch(
-      url,
-      headers: {
-        'Authorization': 'Bearer $xataApiKey',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'cliente_nome': pedido.nomeCliente,
-        'cliente_contato': pedido.telefoneCliente,
-        'empresa': "12835262474",
-        'status': pedido.estado.label,
-        'numero': int.tryParse(pedido.numeroPedido),
-        'detalhes': jsonEncode({
-          'numeroPedido': pedido.numeroPedido,
-          'itens': pedido.itens.map((item) => item.toJson()).toList(),
-          'observacoes': pedido.observacoes,
-        }),
-        'data_entrega': "${pedido.dataEntrega.toIso8601String()}Z",
-      }),
-    );
+  // --- DELETE (EXCLUSÃO) ---
 
-    if (response.statusCode != 200) {
-      throw Exception('Falha ao editar pedido: ${response.statusCode} - ${response.body}');
-    }
-  }
-
+  /// Deleta permanentemente um pedido do Firestore.
   Future<void> deletarPedido(String pedidoId) async {
-    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data/$pedidoId');
-    final response = await http.delete(
-      url,
-      headers: {
-        'Authorization': 'Bearer $xataApiKey',
-        'Content-Type': 'application/json',
-      },
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Falha ao deletar pedido: ${response.statusCode} - ${response.body}');
-    }
-  }
-
-  Future<Pedido> adicionarPedido(Pedido pedido) async {
-    final Uri url = Uri.parse('$xataBaseUrl/tables/pedidos/data');
-    final body = jsonEncode({
-      'cliente_nome': pedido.nomeCliente,
-      'cliente_contato': pedido.telefoneCliente,
-      'empresa': "12835262474",
-      'status': pedido.estado.label,
-      'numero': int.tryParse(pedido.numeroPedido),
-      'detalhes': jsonEncode({
-        'numeroPedido': pedido.numeroPedido,
-        'itens': pedido.itens.map((item) => item.toJson()).toList(),
-        'observacoes': pedido.observacoes,
-      }),
-      'data_entrega': "${pedido.dataEntrega.toIso8601String()}Z",
-    });
-
-    print('JSON enviado para o Xata: $body'); // Log para depuração
-
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'Bearer $xataApiKey',
-        'Content-Type': 'application/json',
-      },
-      body: body,
-    );
-
-    if (response.statusCode == 201) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      print('Resposta do Xata: ${response.body}'); // Log para depuração
-      return Pedido.fromJson(data);
-    } else {
-      throw Exception('Falha ao adicionar pedido: ${response.statusCode} - ${response.body}');
+    try {
+      await _db.collection('pedidos').doc(pedidoId).delete();
+    } catch (e) {
+      print("❌ Erro ao deletar pedido: $e");
+      rethrow;
     }
   }
 }

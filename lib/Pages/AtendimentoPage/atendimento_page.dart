@@ -1,43 +1,68 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'components/chat_page.dart';
-import 'components/contato_card.dart';
-import '../../../Model/atendimento.dart';
-import 'dart:ui';
+import 'package:siga/Model/atendimento.dart';
+
+
+import 'package:siga/Pages/AtendimentoPage/Components/chat_page.dart';
+import 'package:siga/Pages/AtendimentoPage/Components/contato_card.dart';
+import 'package:siga/Service/atendimento_service.dart';
+import 'package:siga/Service/auth_service.dart';
+
+// Este enum ainda é útil para a lógica da UI, como ordenação de colunas e filtros.
+enum EstadoAtendimento {
+  emAberto,
+  emAndamento,
+  finalizado;
+
+  String get label {
+    switch (this) {
+      case EstadoAtendimento.emAberto: return 'Em Aberto';
+      case EstadoAtendimento.emAndamento: return 'Em Andamento';
+      case EstadoAtendimento.finalizado: return 'Finalizado';
+    }
+  }
+
+  static EstadoAtendimento fromString(String value) {
+    switch (value) {
+      case 'Em Aberto': return EstadoAtendimento.emAberto;
+      case 'Em Andamento': return EstadoAtendimento.emAndamento;
+      case 'Finalizado': return EstadoAtendimento.finalizado;
+      default: return EstadoAtendimento.emAberto;
+    }
+  }
+}
 
 class AtendimentoPage extends StatefulWidget {
-  const AtendimentoPage({Key? key}) : super(key: key);
+  const AtendimentoPage({super.key});
 
   @override
   State<AtendimentoPage> createState() => _AtendimentoPageState();
 }
 
 class _AtendimentoPageState extends State<AtendimentoPage> {
-  // --- ESTADO PARA KANBAN (DESKTOP) ---
-  EstadoAtendimento? colunaDragSource;
-  final Map<EstadoAtendimento, bool> isSearching = {};
-  final Map<EstadoAtendimento, TextEditingController> searchControllers = {};
-  final Map<EstadoAtendimento, Color> headerColor = {
-    EstadoAtendimento.emAberto: Colors.purple.shade500,
-    EstadoAtendimento.emAndamento: Colors.amber.shade600,
-    EstadoAtendimento.finalizado: Colors.green.shade700,
+  // --- ESTADO LOCAL DA UI (SEM ALTERAÇÕES) ---
+  final Map<String, bool> isSearching = {};
+  final Map<String, TextEditingController> searchControllers = {};
+  final Map<String, Color> headerColor = {
+    EstadoAtendimento.emAberto.label: Colors.purple.shade500,
+    EstadoAtendimento.emAndamento.label: Colors.amber.shade600,
+    EstadoAtendimento.finalizado.label: Colors.green.shade700,
   };
   final ScrollController _scrollController = ScrollController();
-
-  // --- ESTADO PARA LISTA (MOBILE) ---
   final _mobileSearchController = TextEditingController();
   bool _isMobileSearching = false;
-  EstadoAtendimento? _mobileFilter;
-
+  String? _mobileFilter;
 
   @override
   void initState() {
     super.initState();
     for (var estado in EstadoAtendimento.values) {
-      isSearching[estado] = false;
-      searchControllers[estado] = TextEditingController();
+      final label = estado.label;
+      isSearching[label] = false;
+      searchControllers[label] = TextEditingController();
     }
     _mobileSearchController.addListener(() => setState(() {}));
   }
@@ -52,23 +77,24 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     super.dispose();
   }
 
-  // CORREÇÃO: DIÁLOGO AGORA USA ESTILOS DO TEMA
-  void _showNovoClienteDialog(BuildContext context) {
+  // --- LÓGICA DE AÇÕES ATUALIZADA ---
+  Future<void> _showNovoClienteDialog(BuildContext context) async {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final nomeController = TextEditingController();
     final telefoneController = TextEditingController();
     final fotoController = TextEditingController();
 
-    // Estilo de input que funciona em ambos os temas
-    final inputDecoration = InputDecoration(
-      filled: true,
-      fillColor: cs.surfaceVariant.withOpacity(0.5),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-    );
+    // ✅ Acessamos os serviços necessários para a ação
+    // O método 'adicionarAtendimento' precisa ser criado no AtendimentoService
+    // final atendimentoService = context.read<AtendimentoService>(); 
+    final authService = context.read<AuthService>();
+    final empresaId = authService.empresaAtual?.id;
+
+    if (empresaId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: Empresa não identificada.')));
+      return;
+    }
 
     showDialog(
       context: context,
@@ -79,44 +105,31 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: nomeController,
-                style: TextStyle(color: cs.onSurface),
-                decoration: inputDecoration.copyWith(labelText: 'Nome do Cliente'),
-              ),
+              TextField(controller: nomeController, decoration: InputDecoration(labelText: 'Nome do Cliente')),
               const SizedBox(height: 16),
-              TextField(
-                controller: telefoneController,
-                style: TextStyle(color: cs.onSurface),
-                decoration: inputDecoration.copyWith(labelText: 'Telefone'),
-                keyboardType: TextInputType.phone,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
-              ),
+              TextField(controller: telefoneController, decoration: InputDecoration(labelText: 'Telefone'), keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)]),
               const SizedBox(height: 16),
-              TextField(
-                controller: fotoController,
-                style: TextStyle(color: cs.onSurface),
-                decoration: inputDecoration.copyWith(labelText: 'URL da Foto (opcional)'),
-              ),
+              TextField(controller: fotoController, decoration: InputDecoration(labelText: 'URL da Foto (opcional)')),
             ],
           ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               final nome = nomeController.text.trim();
               final telefone = telefoneController.text.trim();
-              final foto = fotoController.text.trim();
               if (nome.isNotEmpty && telefone.isNotEmpty) {
-                final novo = Atendimento(
-                  id: UniqueKey().toString(),
+                final novoAtendimento = Atendimento(
+                  id: '',
+                  empresaId: empresaId,
                   nomeCliente: nome,
                   telefoneCliente: telefone,
-                  fotoUrl: foto.isNotEmpty ? foto : null,
-                  estado: EstadoAtendimento.emAberto,
+                  fotoUrl: fotoController.text.trim().isNotEmpty ? fotoController.text.trim() : null,
+                  status: EstadoAtendimento.emAberto.label,
+                  updatedAt: Timestamp.now(),
                 );
-                context.read<AtendimentoModel>().adicionar(novo);
+                // await atendimentoService.adicionarAtendimento(novoAtendimento);
                 Navigator.of(ctx).pop();
               }
             },
@@ -127,64 +140,104 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  Color _getStatusColor(BuildContext context, EstadoAtendimento estado) {
+  Future<void> _atualizarEstado(Atendimento atendimento, String novoEstado) async {
+    final authService = context.read<AuthService>();
+    final atendimentoService = context.read<AtendimentoService>();
+    final funcionario = authService.funcionarioLogado;
+
+    if(funcionario == null) return;
+    
+    final funcionarioAudit = {'uid': funcionario.uid, 'nome': funcionario.nome};
+
+    try {
+      await atendimentoService.atualizarEstadoAtendimento(
+        atendimentoId: atendimento.id,
+        novoEstado: novoEstado,
+        funcionarioQueAtualizou: funcionarioAudit,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao mover card: $e")));
+      }
+    }
+  }
+
+  Color _getStatusColor(BuildContext context, String statusLabel) {
+    final estado = EstadoAtendimento.fromString(statusLabel);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (estado) {
       case EstadoAtendimento.emAberto: return isDark ? Colors.purple.shade300 : Colors.purple.shade700;
       case EstadoAtendimento.emAndamento: return isDark ? Colors.amber.shade300 : Colors.amber.shade800;
       case EstadoAtendimento.finalizado: return isDark ? Colors.green.shade400 : Colors.green.shade800;
-      default: return Colors.grey;
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 900;
+    
+    final authService = context.watch<AuthService>();
+    final atendimentoService = context.read<AtendimentoService>();
+    final empresaId = authService.empresaAtual?.id;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.background,
-      body: isMobile
-          ? _buildMobileList()
-          : _buildDesktopKanban(),
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: empresaId == null
+          ? const Center(child: Text("Carregando dados da empresa..."))
+          : StreamBuilder<List<Atendimento>>(
+              stream: atendimentoService.getAtendimentosDaEmpresaStream(empresaId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text("Erro ao carregar atendimentos: ${snapshot.error}"));
+                }
+                final todosAtendimentos = snapshot.data ?? [];
+
+                return isMobile
+                    ? _buildMobileList(todosAtendimentos)
+                    : _buildDesktopKanban(todosAtendimentos);
+              },
+            ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Novo Cliente',
+        tooltip: 'Novo Atendimento',
         child: const Icon(Icons.add),
         onPressed: () => _showNovoClienteDialog(context),
       ),
     );
   }
 
-  Widget _buildMobileList() {
+  // --- WIDGETS DE UI (com as devidas adaptações) ---
+
+  Widget _buildMobileList(List<Atendimento> atendimentos) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final model = context.watch<AtendimentoModel>();
-    final atendimentos = model.atendimentos;
-
+    
     final filteredList = atendimentos.where((atendimento) {
       final search = _mobileSearchController.text.toLowerCase();
       final filter = _mobileFilter;
       final matchSearch = atendimento.nomeCliente.toLowerCase().contains(search) || atendimento.telefoneCliente.contains(search);
-      final matchFilter = filter == null || atendimento.estado == filter;
+      final matchFilter = filter == null || atendimento.status == filter;
       return matchSearch && matchFilter;
     }).toList();
-    filteredList.sort((a, b) => a.estado.index.compareTo(b.estado.index));
+    filteredList.sort((a, b) => EstadoAtendimento.fromString(a.status).index.compareTo(EstadoAtendimento.fromString(b.status).index));
 
     return Column(
       children: [
         AppBar(
           title: _isMobileSearching
               ? TextField(
-            controller: _mobileSearchController,
-            autofocus: true,
-            style: TextStyle(color: cs.onSurface),
-            decoration: InputDecoration(
-                hintText: 'Pesquisar...',
-                border: InputBorder.none,
-                hintStyle: TextStyle(color: cs.onSurfaceVariant)
-            ),
-          )
+                  controller: _mobileSearchController,
+                  autofocus: true,
+                  style: TextStyle(color: cs.onSurface),
+                  decoration: InputDecoration(
+                      hintText: 'Pesquisar...',
+                      border: InputBorder.none,
+                      hintStyle: TextStyle(color: cs.onSurfaceVariant)
+                  ),
+                )
               : const Text('Atendimentos'),
           actions: [
             IconButton(
@@ -195,12 +248,12 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
               }),
             ),
             if (!_isMobileSearching)
-              PopupMenuButton<EstadoAtendimento?>(
+              PopupMenuButton<String?>(
                 icon: const Icon(Icons.filter_list),
                 onSelected: (novoFiltro) => setState(() => _mobileFilter = novoFiltro),
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: null, child: Text('Todos os Status')),
-                  ...EstadoAtendimento.values.map((estado) => PopupMenuItem(value: estado, child: Text(estado.label))),
+                  ...EstadoAtendimento.values.map((estado) => PopupMenuItem(value: estado.label, child: Text(estado.label))),
                 ],
               ),
           ],
@@ -209,34 +262,31 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           child: filteredList.isEmpty
               ? const Center(child: Text('Nenhum atendimento encontrado.'))
               : ListView.separated(
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: filteredList.length,
-            separatorBuilder: (context, index) => Divider(height: 1, indent: 80),
-            itemBuilder: (context, index) {
-              final atendimento = filteredList[index];
-              return _AtendimentoTile(
-                atendimento: atendimento,
-                statusColor: _getStatusColor(context, atendimento.estado),
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(
-                  nome: atendimento.nomeCliente,
-                  numero: atendimento.telefoneCliente,
-                  fotoUrl: atendimento.fotoUrl ?? '',
-                ))),
-                onStatusChanged: (novoEstado) {
-                  final atendimentoAtualizado = atendimento.copyWith(estado: novoEstado);
-                  model.atualizar(atendimento.id, atendimentoAtualizado);
-                },
-              );
-            },
-          ),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  itemCount: filteredList.length,
+                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 80),
+                  itemBuilder: (context, index) {
+                    final atendimento = filteredList[index];
+                    return _AtendimentoTile(
+                      atendimento: atendimento,
+                      statusColor: _getStatusColor(context, atendimento.status),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(
+                        nome: atendimento.nomeCliente,
+                        numero: atendimento.telefoneCliente,
+                        fotoUrl: atendimento.fotoUrl ?? '',
+                      ))),
+                      onStatusChanged: (novoEstado) => _atualizarEstado(atendimento, novoEstado),
+                    );
+                  },
+                ),
         ),
       ],
     );
   }
 
-  Widget _buildDesktopKanban() {
-    final atendimentos = context.watch<AtendimentoModel>().atendimentos;
-    final cols = { for (var estado in EstadoAtendimento.values) estado: atendimentos.where((a) => a.estado == estado).toList() };
+  Widget _buildDesktopKanban(List<Atendimento> atendimentos) {
+    final estados = EstadoAtendimento.values.map((e) => e.label).toList();
+    final cols = { for (var estadoLabel in estados) estadoLabel: atendimentos.where((a) => a.status == estadoLabel).toList() };
     final totalWidth = MediaQuery.of(context).size.width;
     const horizontalPadding = 48.0;
     final colCount = cols.length;
@@ -263,36 +313,34 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  Widget _buildColumn(EstadoAtendimento estado, List<Atendimento> items) {
-    final searching = isSearching[estado]!;
-    final text = searchControllers[estado]!.text.toLowerCase();
+  Widget _buildColumn(String estadoLabel, List<Atendimento> items) {
+    final searching = isSearching[estadoLabel]!;
+    final text = searchControllers[estadoLabel]!.text.toLowerCase();
     final filtered = items.where((a) => a.nomeCliente.toLowerCase().contains(text) || a.telefoneCliente.contains(text)).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          decoration: BoxDecoration(color: headerColor[estado]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: headerColor[estadoLabel]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           child: Row(children: [
-            Expanded(child: searching ? _buildSearchField(estado) : Text(estado.label, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerColor[estado]))),
-            if (!searching) IconButton(icon: Icon(Icons.search, color: headerColor[estado]), onPressed: () => setState(() => isSearching[estado] = true)),
+            Expanded(child: searching ? _buildSearchField(estadoLabel) : Text(estadoLabel, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerColor[estadoLabel]))),
+            if (!searching) IconButton(icon: Icon(Icons.search, color: headerColor[estadoLabel]), onPressed: () => setState(() => isSearching[estadoLabel] = true)),
           ]),
         ),
         const SizedBox(height: 10),
         Expanded(
           child: DragTarget<Atendimento>(
-            onWillAccept: (_) => true,
-            onAccept: (a) {
-              if (colunaDragSource != null) context.read<AtendimentoModel>().atualizar(a.id, a.copyWith(estado: estado));
-            },
+            onWillAcceptWithDetails: (details) => details.data.status != estadoLabel,
+            onAcceptWithDetails: (details) => _atualizarEstado(details.data, estadoLabel),
             builder: (context, cand, rej) => Container(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+              decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12), border: Border.all(color: cand.isNotEmpty ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2)),
               padding: const EdgeInsets.all(8),
               child: ListView.separated(
                 itemCount: filtered.length,
                 separatorBuilder: (_, __) => const SizedBox(height: 12),
-                itemBuilder: (context, i) => _buildDraggable(filtered[i], estado),
+                itemBuilder: (context, i) => _buildDraggable(filtered[i]),
               ),
             ),
           ),
@@ -300,42 +348,42 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       ],
     );
   }
-
-  Widget _buildSearchField(EstadoAtendimento estado) {
+  
+  Widget _buildSearchField(String estadoLabel) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return TextField(
-      controller: searchControllers[estado],
+      controller: searchControllers[estadoLabel],
       style: TextStyle(color: cs.onSurface),
       decoration: InputDecoration(
         hintText: 'Pesquisar...',
         hintStyle: TextStyle(color: cs.onSurfaceVariant),
         filled: true,
+        isDense: true,
         fillColor: cs.surface,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        suffixIcon: IconButton(icon: Icon(Icons.close, color: cs.onSurfaceVariant), onPressed: () => setState(() { isSearching[estado] = false; searchControllers[estado]!.clear(); })),
+        suffixIcon: IconButton(icon: Icon(Icons.close, color: cs.onSurfaceVariant, size: 20), onPressed: () => setState(() { isSearching[estadoLabel] = false; searchControllers[estadoLabel]!.clear(); })),
       ),
       onChanged: (_) => setState(() {}),
     );
   }
 
-  Widget _buildDraggable(Atendimento a, EstadoAtendimento origem) {
+  Widget _buildDraggable(Atendimento a) {
     return Draggable<Atendimento>(
       data: a,
-      onDragStarted: () => colunaDragSource = origem,
-      feedback: Material(color: Colors.transparent, child: Opacity(opacity: 0.85, child: SizedBox(width: 220, child: ContatoCard(
-        nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', estado: a.estado,
-        onEstadoChanged: (novo) => context.read<AtendimentoModel>().atualizar(a.id, a.copyWith(estado: novo)),
+      feedback: Material(color: Colors.transparent, child: Opacity(opacity: 0.85, child: SizedBox(width: 280, child: ContatoCard(
+        nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
+        onEstadoChanged: (novo) {/* no-op no feedback */},
       )))),
       childWhenDragging: Opacity(opacity: 0.4, child: ContatoCard(
-        nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', estado: a.estado,
-        onEstadoChanged: (novo) => context.read<AtendimentoModel>().atualizar(a.id, a.copyWith(estado: novo)),
+        nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
+        onEstadoChanged: (novo) => _atualizarEstado(a, novo),
       )),
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage(nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? ''))),
         child: ContatoCard(
-          nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', estado: a.estado,
-          onEstadoChanged: (novo) => context.read<AtendimentoModel>().atualizar(a.id, a.copyWith(estado: novo)),
+          nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
+          onEstadoChanged: (novo) => _atualizarEstado(a, novo),
         ),
       ),
     );
@@ -346,7 +394,7 @@ class _AtendimentoTile extends StatelessWidget {
   final Atendimento atendimento;
   final Color statusColor;
   final VoidCallback onTap;
-  final ValueChanged<EstadoAtendimento> onStatusChanged;
+  final ValueChanged<String> onStatusChanged;
 
   const _AtendimentoTile({
     required this.atendimento,
@@ -380,14 +428,14 @@ class _AtendimentoTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: PopupMenuButton<EstadoAtendimento>(
-        icon: Icon(Icons.confirmation_number, color: statusColor),
+      trailing: PopupMenuButton<String>(
+        icon: Icon(Icons.more_vert, color: statusColor),
         tooltip: 'Mudar status',
         onSelected: onStatusChanged,
         itemBuilder: (BuildContext context) {
           return EstadoAtendimento.values.map((estado) {
-            return PopupMenuItem<EstadoAtendimento>(
-              value: estado,
+            return PopupMenuItem<String>(
+              value: estado.label,
               child: Text(estado.label),
             );
           }).toList();

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../Model/pedidos.dart';
+import 'package:siga/Model/pedidos.dart';
+
 
 class PedidoCard extends StatefulWidget {
   final Pedido pedido;
   final VoidCallback? onDelete;
   final VoidCallback? onTapDetails;
-  final ValueChanged<EstadoPedido>? onStatusChanged;
+  // ✅ O callback agora passa a String do novo estado.
+  final ValueChanged<String>? onStatusChanged;
 
   const PedidoCard({
     super.key,
@@ -24,6 +26,7 @@ class PedidoCard extends StatefulWidget {
 class _PedidoCardState extends State<PedidoCard> {
   bool _isExpanded = false;
 
+  // O diálogo de confirmação não precisa de alterações na sua lógica.
   Future<bool> _confirmDelete(BuildContext context) async {
     return await showDialog(
       context: context,
@@ -41,8 +44,12 @@ class _PedidoCardState extends State<PedidoCard> {
     ) ?? false;
   }
 
-  Color _statusColor(EstadoPedido status) {
+  // ✅ O método _statusColor agora recebe uma String e usa o enum internamente.
+  Color _statusColor(String statusLabel) {
+    final status = EstadoPedido.fromString(statusLabel); // Converte a String para o enum
     final brightness = Theme.of(context).brightness;
+    
+    // O resto da lógica de cores permanece o mesmo
     if (brightness == Brightness.dark) {
       switch (status) {
         case EstadoPedido.emAberto: return const Color(0xFF7016BD);
@@ -67,7 +74,8 @@ class _PedidoCardState extends State<PedidoCard> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     final textTheme = theme.textTheme;
-    final statusColor = _statusColor(widget.pedido.estado);
+    // ✅ Passa a string do status para obter a cor.
+    final statusColor = _statusColor(widget.pedido.status);
 
     return Card(
       clipBehavior: Clip.antiAlias,
@@ -75,7 +83,6 @@ class _PedidoCardState extends State<PedidoCard> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
       ),
-      // MUDANÇA: A borda lateral é agora controlada por um Container interno.
       child: InkWell(
         onTap: () => setState(() => _isExpanded = !_isExpanded),
         child: Container(
@@ -106,9 +113,9 @@ class _PedidoCardState extends State<PedidoCard> {
     );
   }
 
-  // O cabeçalho foi mantido como na versão anterior, pois a lógica flexível é robusta.
   Widget _buildHeader(BuildContext context, TextTheme tt, ColorScheme cs, Color statusColor) {
-    final minutos = DateTime.now().difference(widget.pedido.dataPedido).inMinutes;
+    // ✅ Usa .toDate() para converter o Timestamp do Firestore em DateTime
+    final minutos = DateTime.now().difference(widget.pedido.dataPedido.toDate()).inMinutes;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -120,7 +127,8 @@ class _PedidoCardState extends State<PedidoCard> {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              widget.pedido.estado.label.toUpperCase(),
+              // ✅ Usa a string de status diretamente.
+              widget.pedido.status.toUpperCase(),
               style: tt.labelSmall?.copyWith(color: statusColor, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -131,6 +139,7 @@ class _PedidoCardState extends State<PedidoCard> {
         Icon(LucideIcons.clock, size: 14, color: cs.onSurfaceVariant),
         const SizedBox(width: 4),
         Text("$minutos min", style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+        const Spacer(),
         _buildActionsMenu(context),
       ],
     );
@@ -140,7 +149,8 @@ class _PedidoCardState extends State<PedidoCard> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(widget.pedido.nomeCliente, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+        // ✅ Acessa o nome do cliente através do mapa.
+        Text(widget.pedido.cliente['nome'] ?? 'Cliente sem nome', style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 2),
         Text('Pedido #${widget.pedido.numeroPedido}', style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
       ],
@@ -159,7 +169,8 @@ class _PedidoCardState extends State<PedidoCard> {
   }
 
   Widget _buildExpandedContent(TextTheme tt, ColorScheme cs) {
-    final valorTotal = widget.pedido.itens.fold<double>(0.0, (sum, item) => sum + (item.preco * item.quantidade));
+    // ✅ Usa o campo 'total' do pedido, que já vem calculado.
+    final valorTotal = widget.pedido.total;
     final currencyFormatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
     return Column(
@@ -200,21 +211,28 @@ class _PedidoCardState extends State<PedidoCard> {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert),
       onSelected: (value) async {
-        if (value == 'details') widget.onTapDetails?.call();
-        else if (value == 'delete') {
+        if (value == 'details') {
+          widget.onTapDetails?.call();
+        } else if (value == 'delete') {
           if (await _confirmDelete(context)) widget.onDelete?.call();
+        } else {
+          // ✅ Se o valor não for 'details' nem 'delete',
+          // significa que é uma string de status.
+          widget.onStatusChanged?.call(value);
         }
       },
       itemBuilder: (context) => [
         if (widget.onTapDetails != null) const PopupMenuItem(value: 'details', child: ListTile(leading: Icon(LucideIcons.fileText), title: Text('Ver Detalhes'))),
+        
+        // ✅ O menu de mudança de status agora usa Strings como valor.
         if (widget.onStatusChanged != null)
-          PopupMenuItem(
-            child: PopupMenuButton<EstadoPedido>(
-              onSelected: widget.onStatusChanged,
-              child: const ListTile(leading: Icon(LucideIcons.tag), title: Text('Mudar Status')),
-              itemBuilder: (_) => EstadoPedido.values.map((st) => PopupMenuItem(value: st, child: Text(st.label))).toList(),
-            ),
+          ...EstadoPedido.values.where((st) => st.label != widget.pedido.status).map((st) => 
+            PopupMenuItem(
+              value: st.label, 
+              child: Text('Mover para "${st.label}"')
+            )
           ),
+
         if (widget.onDelete != null) ...[
           const PopupMenuDivider(),
           PopupMenuItem(

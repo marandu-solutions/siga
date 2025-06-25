@@ -13,10 +13,10 @@ class Sidebar extends StatelessWidget {
   final ValueChanged<int> onItemSelected;
 
   const Sidebar({
-    Key? key,
+    super.key,
     required this.selectedIndex,
     required this.onItemSelected,
-  }) : super(key: key);
+  });
 
   // Lista de itens de navegação (nenhuma mudança necessária aqui)
   static const List<Map<String, dynamic>> _navItems = [

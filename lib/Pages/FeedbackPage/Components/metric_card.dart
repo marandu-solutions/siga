@@ -8,12 +8,12 @@ class MetricCard extends StatelessWidget {
   final Color? color; // Permite customizar a cor do card
 
   const MetricCard({
-    Key? key,
+    super.key,
     required this.icon,
     required this.number,
     required this.label,
     this.color,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +22,7 @@ class MetricCard extends StatelessWidget {
     final textTheme = theme.textTheme;
 
     // Determina a cor de fundo e a cor do conteúdo (texto/ícone)
-    final cardColor = color ?? cs.surfaceVariant;
+    final cardColor = color ?? cs.surfaceContainerHighest;
     final onCardColor = color == null
         ? cs.onSurfaceVariant
         : (ThemeData.estimateBrightnessForColor(cardColor) == Brightness.dark
@@ -79,10 +79,10 @@ class IndicadoresSection extends StatelessWidget {
   final String title; // <-- O parâmetro que estava faltando
 
   const IndicadoresSection({
-    Key? key,
+    super.key,
     required this.title, // <-- Adicionado ao construtor
     required this.metrics,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

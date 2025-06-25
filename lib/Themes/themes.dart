@@ -13,11 +13,9 @@ class AppThemes {
       onSecondary: Colors.white,
       secondaryContainer: const Color(0xFFC8E6C9), // Verde claro
       onSecondaryContainer: const Color(0xFF388E3C),
-      background: const Color(0xFFF5F5F5), // Neutro e suave
-      onBackground: const Color(0xFF212121),
       surface: Colors.white,
       onSurface: const Color(0xFF212121),
-      surfaceVariant: const Color(0xFFECEFF1), // Leve contraste
+      surfaceContainerHighest: const Color(0xFFECEFF1), // Leve contraste
       onSurfaceVariant: const Color(0xFF616161),
       error: const Color(0xFFD32F2F), // Vermelho suave
       onError: Colors.white,

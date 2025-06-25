@@ -9,11 +9,11 @@ class CatalogoCard extends StatelessWidget {
   final VoidCallback? onDelete; // Callback para a exclusão
 
   const CatalogoCard({
-    Key? key,
+    super.key,
     required this.item,
     this.onTap,
     this.onDelete,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +48,7 @@ class CatalogoCard extends StatelessWidget {
               else
                 Container(
                   width: 72, height: 72,
-                  decoration: BoxDecoration(color: cs.surfaceVariant, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
                   child: Icon(Icons.inventory_2_outlined, size: 32, color: cs.onSurfaceVariant),
                 ),
               const SizedBox(width: 16),

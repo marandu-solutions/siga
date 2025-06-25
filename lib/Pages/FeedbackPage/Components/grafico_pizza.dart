@@ -6,10 +6,10 @@ class SentimentPieChart extends StatefulWidget {
   final int negativeCount;
 
   const SentimentPieChart({
-    Key? key,
+    super.key,
     required this.positiveCount,
     required this.negativeCount,
-  }) : super(key: key);
+  });
 
   @override
   State<SentimentPieChart> createState() => _SentimentPieChartState();

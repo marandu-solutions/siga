@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 class SatisfactionChart extends StatelessWidget {
   final List<double> data;
-  const SatisfactionChart({Key? key, required this.data}) : super(key: key);
+  const SatisfactionChart({super.key, required this.data});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +15,7 @@ class SatisfactionChart extends StatelessWidget {
       return Container(
         height: 200,
         decoration: BoxDecoration(
-          color: cs.surfaceVariant.withOpacity(0.5),
+          color: cs.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Center(

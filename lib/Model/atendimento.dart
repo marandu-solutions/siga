@@ -1,79 +1,45 @@
-// lib/Model/atendimento.dart
-import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Define os estados de um atendimento
-enum EstadoAtendimento {
-  emAberto,
-  emAndamento,
-  finalizado,
-}
-
-extension EstadoAtendimentoExtension on EstadoAtendimento {
-  String get label {
-    switch (this) {
-      case EstadoAtendimento.emAberto:
-        return 'Em Aberto';
-      case EstadoAtendimento.emAndamento:
-        return 'Em Andamento';
-      case EstadoAtendimento.finalizado:
-        return 'Finalizado';
-    }
-  }
-}
-
-/// Modelo de dados de um atendimento
 class Atendimento {
   final String id;
+  final String empresaId;
   final String nomeCliente;
   final String telefoneCliente;
   final String? fotoUrl;
-  final EstadoAtendimento estado;
+  final String status; // Ex: "Em Aberto", "Em Andamento", "Finalizado"
+  final Timestamp updatedAt;
 
   Atendimento({
     required this.id,
+    required this.empresaId,
     required this.nomeCliente,
     required this.telefoneCliente,
     this.fotoUrl,
-    this.estado = EstadoAtendimento.emAberto,
+    required this.status,
+    required this.updatedAt,
   });
 
-  Atendimento copyWith({
-    String? id,
-    String? nomeCliente,
-    String? telefoneCliente,
-    String? fotoUrl,
-    EstadoAtendimento? estado,
-  }) {
+  factory Atendimento.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return Atendimento(
-      id: id ?? this.id,
-      nomeCliente: nomeCliente ?? this.nomeCliente,
-      telefoneCliente: telefoneCliente ?? this.telefoneCliente,
-      fotoUrl: fotoUrl ?? this.fotoUrl,
-      estado: estado ?? this.estado,
+      id: doc.id,
+      empresaId: data['empresaId'] ?? '',
+      nomeCliente: data['nomeCliente'] ?? '',
+      telefoneCliente: data['telefoneCliente'] ?? '',
+      fotoUrl: data['fotoUrl'],
+      status: data['status'] ?? 'Em Aberto',
+      updatedAt: data['updatedAt'] ?? Timestamp.now(),
     );
   }
-}
 
-class AtendimentoModel extends ChangeNotifier {
-  final List<Atendimento> _atendimentos = [];
-
-  List<Atendimento> get atendimentos => List.unmodifiable(_atendimentos);
-
-  void adicionar(Atendimento item) {
-    _atendimentos.add(item);
-    notifyListeners();
-  }
-
-  void atualizar(String id, Atendimento atualizado) {
-    final idx = _atendimentos.indexWhere((e) => e.id == id);
-    if (idx != -1) {
-      _atendimentos[idx] = atualizado;
-      notifyListeners();
-    }
-  }
-
-  void remover(String id) {
-    _atendimentos.removeWhere((e) => e.id == id);
-    notifyListeners();
+  Map<String, dynamic> toMap() {
+    return {
+      'empresaId': empresaId,
+      'nomeCliente': nomeCliente,
+      'telefoneCliente': telefoneCliente,
+      'fotoUrl': fotoUrl,
+      'status': status,
+      'updatedAt': updatedAt,
+    };
   }
 }

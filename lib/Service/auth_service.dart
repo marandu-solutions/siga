@@ -1,33 +1,28 @@
-// lib/services/auth_service.dart
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:siga/Model/empresa.dart';
+import 'package:siga/Model/funcionario.dart';
 
-import '../Model/empresa.dart';
-import '../Model/funcionario.dart';
 
-// (coloque o enum AuthStatus aqui se preferir)
-
+// ✅ ADICIONAMOS UM NOVO ESTADO
 enum AuthStatus {
-  uninitialized, // Estado inicial, antes de checarmos
-  authenticating, // Carregando, aguardando o Firebase
-  authenticated,  // Logado com sucesso
-  unauthenticated, // Não está logado
+  uninitialized,
+  authenticating, // Verificando login/senha no Firebase Auth
+  loadingData,    // Já autenticado no Auth, mas carregando dados do Firestore
+  authenticated,  // Autenticado e com todos os dados carregados
+  unauthenticated,
 }
 
 class AuthService with ChangeNotifier {
-  // Instâncias do Firebase
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Estado interno do serviço
   AuthStatus _status = AuthStatus.uninitialized;
   User? _firebaseUser;
   Funcionario? _funcionarioLogado;
   Empresa? _empresaAtual;
 
-  // Getters públicos para a UI acessar os dados
   AuthStatus get status => _status;
   User? get firebaseUser => _firebaseUser;
   Funcionario? get funcionarioLogado => _funcionarioLogado;
@@ -35,60 +30,71 @@ class AuthService with ChangeNotifier {
   bool get isLoggedIn => _status == AuthStatus.authenticated;
 
   AuthService() {
-    // Listener MÁGICO do Firebase Auth.
-    // Ele é chamado automaticamente sempre que o usuário loga ou desloga.
     _auth.authStateChanges().listen(_onAuthStateChanged);
   }
 
-  /// Método chamado pelo listener do Firebase Auth.
+  // ✅ LÓGICA DO LISTENER REFINADA
   Future<void> _onAuthStateChanged(User? user) async {
     if (user == null) {
-      // Se o usuário deslogou
       _status = AuthStatus.unauthenticated;
       _firebaseUser = null;
       _funcionarioLogado = null;
       _empresaAtual = null;
     } else {
-      // Se o usuário logou
       _firebaseUser = user;
-      // Agora, buscamos nossos dados customizados no Firestore
+      
+      // Imediatamente dizemos à UI que estamos carregando os dados do Firestore
+      _status = AuthStatus.loadingData; 
+      notifyListeners();
+
       await _loadUserData(user.uid);
-      _status = AuthStatus.authenticated;
+      
+      if (_funcionarioLogado != null && _empresaAtual != null) {
+        // Apenas se TUDO carregou com sucesso, o estado se torna 'authenticated'
+        _status = AuthStatus.authenticated;
+      } else {
+        print("🚨 ALERTA: Falha ao carregar dados do Firestore para o usuário ${user.uid}. Deslogando.");
+        await signOut();
+        // O próprio signOut vai mudar o status para unauthenticated e notificar.
+        return; 
+      }
     }
-    // Notifica todos os 'ouvintes' (a UI) que o estado mudou.
     notifyListeners();
   }
 
-  /// Carrega os dados do Funcionário e da Empresa do Firestore.
+  /// Carrega os dados customizados do funcionário e da empresa do Firestore.
   Future<void> _loadUserData(String uid) async {
     try {
-      // 1. Busca o documento do funcionário
-      DocumentSnapshot funcionarioDoc = await _db.collection('funcionarios').doc(uid).get();
+      final funcionarioDoc = await _db.collection('funcionarios').doc(uid).get();
+      
       if (funcionarioDoc.exists) {
         _funcionarioLogado = Funcionario.fromFirestore(funcionarioDoc);
 
-        // 2. Com o funcionário em mãos, busca a empresa correspondente
         if (_funcionarioLogado!.empresaId.isNotEmpty) {
-          DocumentSnapshot empresaDoc = await _db.collection('empresas').doc(_funcionarioLogado!.empresaId).get();
+          final empresaDoc = await _db.collection('empresas').doc(_funcionarioLogado!.empresaId).get();
           if (empresaDoc.exists) {
             _empresaAtual = Empresa.fromFirestore(empresaDoc);
           }
         }
+      } else {
+        // Garante que os dados fiquem nulos se o documento não for encontrado.
+        _funcionarioLogado = null;
+        _empresaAtual = null;
       }
     } catch (e) {
-      print("❌ Erro ao carregar dados do usuário: $e");
-      // Se der erro, desloga para garantir a segurança
-      await signOut();
+      print("❌ Erro ao carregar dados do usuário do Firestore: $e");
+      _funcionarioLogado = null;
+      _empresaAtual = null;
     }
   }
 
-  /// Novo método de LOGIN.
+  /// Realiza o login de um usuário com e-mail e senha.
   Future<bool> signIn({required String email, required String password}) async {
     _status = AuthStatus.authenticating;
     notifyListeners();
     try {
       await _auth.signInWithEmailAndPassword(email: email, password: password);
-      // O listener _onAuthStateChanged vai cuidar do resto automaticamente.
+      // O listener _onAuthStateChanged fará o resto, incluindo mudar para loadingData.
       return true;
     } catch (e) {
       print("❌ Erro no signIn: $e");
@@ -97,8 +103,10 @@ class AuthService with ChangeNotifier {
       return false;
     }
   }
-
-  /// Novo método de CADASTRO de uma nova empresa.
+  
+  /// Realiza o cadastro de uma nova empresa e seu primeiro funcionário (dono/admin).
+  /// Usa um WriteBatch para garantir que ambas as operações no Firestore
+  /// (criar empresa e criar funcionário) aconteçam de forma atômica.
   Future<bool> signUpAsOwner({
     required String nomeEmpresa,
     required String proprietario,
@@ -111,16 +119,15 @@ class AuthService with ChangeNotifier {
     notifyListeners();
     try {
       // 1. Cria o usuário no Firebase Authentication
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
+      final newUser = userCredential.user!;
 
-      User newUser = userCredential.user!;
-
-      // 2. Prepara nossos objetos de modelo
-      Empresa novaEmpresa = Empresa(
-        id: newUser.uid, // O ID da empresa é o UID do dono
+      // 2. Prepara os objetos de modelo para o Firestore
+      final novaEmpresa = Empresa(
+        id: newUser.uid,
         nomeEmpresa: nomeEmpresa,
         proprietario: proprietario,
         email: email,
@@ -129,23 +136,22 @@ class AuthService with ChangeNotifier {
         createdAt: Timestamp.now(),
       );
 
-      Funcionario primeiroFuncionario = Funcionario(
-        uid: newUser.uid, // O UID do funcionário é o mesmo do login
-        empresaId: newUser.uid, // Ele pertence à empresa que acabou de criar
-        nome: proprietario, // O nome do dono é o nome do primeiro funcionário
+      final primeiroFuncionario = Funcionario(
+        uid: newUser.uid,
+        empresaId: newUser.uid, // O dono pertence à sua própria empresa
+        nome: proprietario,
         email: email,
-        cargo: 'admin', // O dono sempre começa como admin
+        cargo: 'admin',
         ativo: true,
       );
 
-      // 3. Usa um WriteBatch para salvar os dois documentos de uma vez
+      // 3. Executa a escrita atômica no Firestore
       final batch = _db.batch();
       batch.set(_db.collection('empresas').doc(novaEmpresa.id), novaEmpresa.toMap());
       batch.set(_db.collection('funcionarios').doc(primeiroFuncionario.uid), primeiroFuncionario.toMap());
-
       await batch.commit();
-
-      // O listener _onAuthStateChanged vai cuidar do resto.
+      
+      // O listener _onAuthStateChanged cuidará do resto.
       return true;
     } catch (e) {
       print("❌ Erro no signUpAsOwner: $e");
@@ -154,8 +160,8 @@ class AuthService with ChangeNotifier {
       return false;
     }
   }
-
-  /// Novo método de LOGOUT.
+  
+  /// Realiza o logout do usuário atual.
   Future<void> signOut() async {
     await _auth.signOut();
     // O listener _onAuthStateChanged cuida da limpeza do estado.
