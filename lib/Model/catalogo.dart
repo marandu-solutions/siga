@@ -1,89 +1,95 @@
-import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Representa um item do catálogo, incluindo foto em Base64.
-class CatalogoItem extends ChangeNotifier {
-  /// Identificador interno da empresa (não exibido ao usuário).
-  final String empresa;
+// Representa um componente do estoque usado em um item do catálogo.
+class ComponenteEstoque {
+  final String estoqueId;
   final String nome;
-  int quantidade;
-  double preco;
-  String descricao;
-  String? fotoBase64;
+  final double quantidadeUsada;
 
-  CatalogoItem({
-    required this.empresa,
+  ComponenteEstoque({
+    required this.estoqueId,
     required this.nome,
-    required this.quantidade,
-    required this.preco,
-    required this.descricao,
-    this.fotoBase64,
+    required this.quantidadeUsada,
   });
 
-  /// Converte bytes da imagem em Base64 e notifica ouvintes.
-  void setFotoFromBytes(List<int> imageBytes) {
-    fotoBase64 = base64Encode(imageBytes);
-    notifyListeners();
+  factory ComponenteEstoque.fromMap(Map<String, dynamic> map) {
+    return ComponenteEstoque(
+      estoqueId: map['estoqueId'] ?? '',
+      nome: map['nome'] ?? '',
+      quantidadeUsada: (map['quantidadeUsada'] as num?)?.toDouble() ?? 0.0,
+    );
   }
 
-  /// Decodifica a string Base64 de volta para bytes de imagem.
-  List<int>? getFotoBytes() {
-    if (fotoBase64 == null) return null;
-    return base64Decode(fotoBase64!);
+  Map<String, dynamic> toMap() {
+    return {
+      'estoqueId': estoqueId,
+      'nome': nome,
+      'quantidadeUsada': quantidadeUsada,
+    };
   }
 }
 
-/// Gerencia o CRUD de CatalogoItem com notificações.
-class CatalogoModel extends ChangeNotifier {
-  final List<CatalogoItem> _itens = [];
+// Representa um item do catálogo que a empresa vende.
+class CatalogoItem {
+  final String id;
+  final String empresaId;
+  final String nome;
+  final String descricao;
+  final double preco;
+  final String? fotoUrl;
+  final bool disponivel;
+  final List<ComponenteEstoque> componentesEstoque;
 
-  List<CatalogoItem> get itens => List.unmodifiable(_itens);
+  // ✅ Adicionando campos de auditoria para consistência
+  final Timestamp createdAt;
+  final Timestamp updatedAt;
+  final Map<String, dynamic> criadoPor;
 
-  /// Adiciona um novo item ao catálogo.
-  void adicionar(CatalogoItem item) {
-    _itens.add(item);
-    item.addListener(notifyListeners);
-    notifyListeners();
+  CatalogoItem({
+    required this.id,
+    required this.empresaId,
+    required this.nome,
+    required this.descricao,
+    required this.preco,
+    this.fotoUrl,
+    this.disponivel = true,
+    required this.componentesEstoque,
+    required this.createdAt,
+    required this.updatedAt,
+    required this.criadoPor,
+  });
+
+  factory CatalogoItem.fromFirestore(DocumentSnapshot doc) {
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+    return CatalogoItem(
+      id: doc.id,
+      empresaId: data['empresaId'] ?? '',
+      nome: data['nome'] ?? '',
+      descricao: data['descricao'] ?? '',
+      preco: (data['preco'] as num?)?.toDouble() ?? 0.0,
+      fotoUrl: data['fotoUrl'],
+      disponivel: data['disponivel'] ?? true,
+      componentesEstoque: (data['componentesEstoque'] as List<dynamic>?)
+          ?.map((e) => ComponenteEstoque.fromMap(e as Map<String, dynamic>))
+          .toList() ?? [],
+      createdAt: data['createdAt'] ?? Timestamp.now(),
+      updatedAt: data['updatedAt'] ?? Timestamp.now(),
+      criadoPor: data['criadoPor'] as Map<String, dynamic>? ?? {},
+    );
   }
 
-  /// Atualiza o item na posição [idx] com novos valores.
-  void atualizar(int idx, CatalogoItem novoItem) {
-    final antigo = _itens[idx];
-    antigo.removeListener(notifyListeners);
-    _itens[idx] = novoItem;
-    novoItem.addListener(notifyListeners);
-    notifyListeners();
-  }
-
-  /// Remove o item da posição [idx].
-  void remover(int idx) {
-    final item = _itens.removeAt(idx);
-    item.removeListener(notifyListeners);
-    notifyListeners();
-  }
-
-  /// Captura de imagem e adição de item com foto.
-  Future<void> pickImageAndAddItem({
-    required String empresa,
-    required String nome,
-    required int quantidade,
-    required double preco,
-    required String descricao,
-  }) async {
-    final picker = ImagePicker();
-    final picked = await picker.pickImage(source: ImageSource.camera);
-    if (picked != null) {
-      final bytes = await picked.readAsBytes();
-      final item = CatalogoItem(
-        empresa: empresa,
-        nome: nome,
-        quantidade: quantidade,
-        preco: preco,
-        descricao: descricao,
-      );
-      item.setFotoFromBytes(bytes);
-      adicionar(item);
-    }
+  Map<String, dynamic> toMap() {
+    return {
+      'empresaId': empresaId,
+      'nome': nome,
+      'descricao': descricao,
+      'preco': preco,
+      'fotoUrl': fotoUrl,
+      'disponivel': disponivel,
+      'componentesEstoque': componentesEstoque.map((e) => e.toMap()).toList(),
+      'createdAt': createdAt,
+      'updatedAt': updatedAt,
+      'criadoPor': criadoPor,
+    };
   }
 }

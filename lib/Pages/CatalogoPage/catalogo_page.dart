@@ -1,8 +1,14 @@
-import 'dart:convert';
+import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../../Model/catalogo.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+import 'package:siga/Model/catalogo.dart';
+import 'package:siga/Service/auth_service.dart';
+import 'package:siga/Service/catalogo_service.dart';
+import 'package:siga/Service/storage_service.dart';
+
+// Supondo que o CatalogoCard esteja neste caminho
 import 'Components/catalogo_card.dart';
 
 class CatalogoPage extends StatefulWidget {
@@ -15,12 +21,16 @@ class CatalogoPage extends StatefulWidget {
 class _CatalogoPageState extends State<CatalogoPage> {
   final ImagePicker _picker = ImagePicker();
 
-  Future<void> _showDeleteConfirmation(BuildContext context, int index, String itemName) async { // <-- Recebe o 'index'
+  // --- LÓGICA DE AÇÕES ATUALIZADA ---
+
+  Future<void> _showDeleteConfirmation(BuildContext context, CatalogoItem item) async {
+    final catalogoService = context.read<CatalogoService>();
+    
     return showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Confirmar Exclusão'),
-        content: Text('Tem certeza que deseja excluir o item "$itemName"?'),
+        content: Text('Tem certeza que deseja excluir o item "${item.nome}"?'),
         actions: [
           TextButton(
             child: const Text('Cancelar'),
@@ -29,10 +39,16 @@ class _CatalogoPageState extends State<CatalogoPage> {
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Excluir'),
-            onPressed: () {
-              // Chama a sua função original usando o índice
-              context.read<CatalogoModel>().remover(index);
-              Navigator.of(ctx).pop();
+            onPressed: () async {
+              final scaffoldMessenger = ScaffoldMessenger.of(context);
+              final navigator = Navigator.of(ctx);
+              try {
+                await catalogoService.deletarItem(item.id);
+                scaffoldMessenger.showSnackBar(SnackBar(content: Text('Item "${item.nome}" excluído.')));
+              } catch (e) {
+                scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao excluir: $e')));
+              }
+              navigator.pop();
             },
           ),
         ],
@@ -40,19 +56,19 @@ class _CatalogoPageState extends State<CatalogoPage> {
     );
   }
 
-  Future<void> _showItemDialog(BuildContext context, {int? index}) async {
+  Future<void> _showItemDialog(BuildContext context, {CatalogoItem? item}) async {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final isEdit = index != null;
-    final model = context.read<CatalogoModel>();
-    final existing = isEdit ? model.itens[index] : null;
+    final isEdit = item != null;
 
-    String? fotoBase64 = existing?.fotoBase64;
-    final nomeCtrl = TextEditingController(text: existing?.nome);
-    final quantidadeCtrl = TextEditingController(text: existing?.quantidade.toString());
-    final precoCtrl = TextEditingController(text: existing?.preco.toString());
-    final descricaoCtrl = TextEditingController(text: existing?.descricao);
+    final nomeCtrl = TextEditingController(text: item?.nome);
+    final precoCtrl = TextEditingController(text: isEdit ? item!.preco.toStringAsFixed(2) : null);
+    final descricaoCtrl = TextEditingController(text: item?.descricao);
     final formKey = GlobalKey<FormState>();
+
+    XFile? pickedImageFile;
+    String? existingImageUrl = item?.fotoUrl;
+    bool isLoading = false;
 
     await showDialog(
       context: context,
@@ -64,37 +80,41 @@ class _CatalogoPageState extends State<CatalogoPage> {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: StatefulBuilder(
-              builder: (ctxDialog, setState) => SingleChildScrollView(
+              builder: (ctxDialog, setStateDialog) => SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isEdit ? 'Editar Produto' : 'Novo Produto',
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-                    ),
+                    Text(isEdit ? 'Editar Produto' : 'Novo Produto', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                     const SizedBox(height: 20),
+                    
                     Center(
-                      child: fotoBase64 != null
-                          ? Image.memory(base64Decode(fotoBase64!), width: 120, height: 120, fit: BoxFit.cover)
-                          : Container(
-                        width: 120, height: 120,
-                        decoration: BoxDecoration(color: cs.surfaceContainerHighest, borderRadius: BorderRadius.circular(12)),
-                        child: Icon(Icons.camera_alt, size: 40, color: cs.onSurfaceVariant),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: pickedImageFile != null
+                            ? Image.file(File(pickedImageFile!.path), width: 120, height: 120, fit: BoxFit.cover)
+                            : existingImageUrl != null
+                                ? Image.network(existingImageUrl!, width: 120, height: 120, fit: BoxFit.cover, 
+                                  errorBuilder: (context, error, stackTrace) => const Icon(Icons.broken_image, size: 40),
+                                )
+                                : Container(
+                                    width: 120, height: 120,
+                                    color: cs.surfaceContainerHighest,
+                                    child: Icon(Icons.camera_alt, size: 40, color: cs.onSurfaceVariant),
+                                  ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Center(
                       child: TextButton.icon(
                         onPressed: () async {
-                          final picked = await _picker.pickImage(source: ImageSource.gallery);
+                          final picked = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
                           if (picked != null) {
-                            final bytes = await picked.readAsBytes();
-                            setState(() => fotoBase64 = base64Encode(bytes));
+                            setStateDialog(() => pickedImageFile = picked);
                           }
                         },
                         icon: Icon(Icons.add_a_photo, color: cs.primary),
-                        label: Text('Selecionar Foto', style: TextStyle(color: cs.primary)),
+                        label: Text(isEdit ? 'Alterar Foto' : 'Selecionar Foto', style: TextStyle(color: cs.primary)),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -104,26 +124,11 @@ class _CatalogoPageState extends State<CatalogoPage> {
                         children: [
                           _buildTextField(controller: nomeCtrl, icon: Icons.shopping_bag_outlined, label: 'Nome do produto', context: context),
                           const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(child: _buildTextField(controller: quantidadeCtrl, icon: Icons.format_list_numbered, label: 'Quantidade', keyboardType: TextInputType.number, context: context, validator: (v) => int.tryParse(v ?? '') == null ? 'Número inválido' : null)),
-                              const SizedBox(width: 16),
-                              Expanded(child: _buildTextField(controller: precoCtrl, icon: Icons.attach_money, label: 'Preço', keyboardType: const TextInputType.numberWithOptions(decimal: true), context: context, validator: (v) => double.tryParse(v?.replaceAll(',', '.') ?? '') == null ? 'Número inválido' : null)),
-                            ],
-                          ),
+                          _buildTextField(controller: precoCtrl, icon: Icons.attach_money, label: 'Preço', keyboardType: const TextInputType.numberWithOptions(decimal: true), context: context, validator: (v) => (double.tryParse(v?.replaceAll(',', '.') ?? '') ?? -1) < 0 ? 'Número inválido' : null),
                           const SizedBox(height: 16),
-                          // CORREÇÃO APLICADA AQUI
                           TextFormField(
                             controller: descricaoCtrl,
-                            style: TextStyle(color: cs.onSurface),
-                            decoration: InputDecoration(
-                              labelText: 'Descrição',
-                              labelStyle: TextStyle(color: cs.onSurfaceVariant),
-                              prefixIcon: Icon(Icons.description_outlined, color: cs.onSurfaceVariant),
-                              filled: true,
-                              fillColor: cs.surfaceContainerHighest.withOpacity(0.5),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                            ).applyDefaults(theme.inputDecorationTheme),
+                            decoration: const InputDecoration(labelText: 'Descrição', alignLabelWithHint: true, border: OutlineInputBorder()),
                             maxLines: 3,
                             validator: (v) => v!.isEmpty ? 'Campo obrigatório' : null,
                           ),
@@ -137,24 +142,56 @@ class _CatalogoPageState extends State<CatalogoPage> {
                         TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Cancelar')),
                         const SizedBox(width: 12),
                         ElevatedButton(
-                          onPressed: () {
+                          onPressed: isLoading ? null : () async {
                             if (formKey.currentState!.validate()) {
-                              final newItem = CatalogoItem(
+                              setStateDialog(() => isLoading = true);
+                              
+                              final storageService = context.read<StorageService>();
+                              final catalogoService = context.read<CatalogoService>();
+                              final authService = context.read<AuthService>();
+                              final empresaId = authService.empresaAtual?.id;
+                              final funcionario = authService.funcionarioLogado;
+
+                              if(empresaId == null || funcionario == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Erro: Sessão inválida. Faça login novamente.')));
+                                setStateDialog(() => isLoading = false);
+                                return;
+                              }
+                              
+                              String? fotoUrlParaSalvar = existingImageUrl;
+
+                              if(pickedImageFile != null) {
+                                fotoUrlParaSalvar = await storageService.uploadFotoCatalogo(file: pickedImageFile!, empresaId: empresaId);
+                              }
+
+                              final itemData = CatalogoItem(
+                                id: isEdit ? item!.id : '',
+                                empresaId: empresaId,
                                 nome: nomeCtrl.text.trim(),
-                                quantidade: int.parse(quantidadeCtrl.text.trim()),
                                 preco: double.parse(precoCtrl.text.replaceAll(',', '.').trim()),
                                 descricao: descricaoCtrl.text.trim(),
-                                fotoBase64: fotoBase64, empresa: '',
+                                fotoUrl: fotoUrlParaSalvar,
+                                componentesEstoque: isEdit ? item!.componentesEstoque : [],
+                                createdAt: isEdit ? item!.createdAt : Timestamp.now(),
+                                updatedAt: Timestamp.now(),
+                                criadoPor: isEdit ? item!.criadoPor : {'uid': funcionario.uid, 'nome': funcionario.nome},
                               );
-                              if (isEdit) {
-                                model.atualizar(index, newItem);
-                              } else {
-                                model.adicionar(newItem);
+
+                              try {
+                                if (isEdit) {
+                                  await catalogoService.editarItem(itemData);
+                                } else {
+                                  await catalogoService.adicionarItem(itemData);
+                                }
+                                Navigator.of(ctx).pop();
+                              } catch(e) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao salvar: $e')));
+                              } finally {
+                                setStateDialog(() => isLoading = false);
                               }
-                              Navigator.of(ctx).pop();
                             }
                           },
-                          child: Text(isEdit ? 'Salvar' : 'Adicionar'),
+                          child: isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : Text(isEdit ? 'Salvar' : 'Adicionar'),
                         ),
                       ],
                     ),
@@ -168,20 +205,10 @@ class _CatalogoPageState extends State<CatalogoPage> {
     );
   }
 
-  // CORREÇÃO APLICADA AQUI
   Widget _buildTextField({required TextEditingController controller, required IconData icon, required String label, required BuildContext context, TextInputType? keyboardType, String? Function(String?)? validator}) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return TextFormField(
       controller: controller,
-      style: TextStyle(color: cs.onSurface),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: cs.primary),
-        filled: true,
-        fillColor: cs.surfaceContainerHighest.withOpacity(0.5),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-      ).applyDefaults(theme.inputDecorationTheme),
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon), border: const OutlineInputBorder()),
       keyboardType: keyboardType,
       validator: validator ?? (v) => v!.isEmpty ? 'Campo obrigatório' : null,
     );
@@ -189,29 +216,55 @@ class _CatalogoPageState extends State<CatalogoPage> {
 
   @override
   Widget build(BuildContext context) {
+    final authService = context.watch<AuthService>();
+    final catalogoService = context.read<CatalogoService>();
+    final empresaId = authService.empresaAtual?.id;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Catálogo de Produtos')),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showItemDialog(context),
         child: const Icon(Icons.add),
+        tooltip: 'Adicionar Produto',
       ),
-      body: Consumer<CatalogoModel>(
-        builder: (context, model, _) {
-          if (model.itens.isEmpty) return const Center(child: Text('Nenhum item no catálogo.'));
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: model.itens.length,
-            itemBuilder: (context, index) {
-              final item = model.itens[index];
-              return CatalogoCard(
-                item: item,
-                onTap: () => _showItemDialog(context, index: index),
-                onDelete: () => _showDeleteConfirmation(context, index, item.nome),
-              );
-            },
-          );
-        },
-      ),
+      body: empresaId == null
+          ? const Center(child: Text("Carregando dados da empresa..."))
+          : StreamBuilder<List<CatalogoItem>>(
+              stream: catalogoService.getCatalogoDaEmpresaStream(empresaId),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(child: Text("Erro ao carregar catálogo: ${snapshot.error}"));
+                }
+                
+                final itens = snapshot.data ?? [];
+
+                if (itens.isEmpty) {
+                  return const Center(child: Text('Nenhum item no catálogo. Clique em "+" para adicionar o primeiro.'));
+                }
+                
+                return GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 300,
+                    childAspectRatio: 0.85,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                  ),
+                  itemCount: itens.length,
+                  itemBuilder: (context, index) {
+                    final item = itens[index];
+                    return CatalogoCard(
+                      item: item,
+                      onTap: () => _showItemDialog(context, item: item),
+                      onDelete: () => _showDeleteConfirmation(context, item),
+                    );
+                  },
+                );
+              },
+            ),
     );
   }
 }

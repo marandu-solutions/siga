@@ -273,9 +273,9 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
     return SegmentedButton<String>(
       showSelectedIcon: false,
       style: ButtonStyle(
-        backgroundColor: MaterialStateProperty.resolveWith<Color?>(
-              (Set<MaterialState> states) {
-            if (states.contains(MaterialState.selected)) {
+        backgroundColor: WidgetStateProperty.resolveWith<Color?>(
+              (Set<WidgetState> states) {
+            if (states.contains(WidgetState.selected)) {
               return Theme.of(context).colorScheme.primary.withOpacity(0.15);
             }
             return null;
