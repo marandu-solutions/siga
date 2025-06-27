@@ -8,7 +8,7 @@ import 'package:siga/Service/auth_service.dart';
 import 'package:siga/Service/catalogo_service.dart';
 import 'package:siga/Service/storage_service.dart';
 
-// Supondo que o CatalogoCard esteja neste caminho
+
 import 'Components/catalogo_card.dart';
 
 class CatalogoPage extends StatefulWidget {
@@ -20,8 +20,6 @@ class CatalogoPage extends StatefulWidget {
 
 class _CatalogoPageState extends State<CatalogoPage> {
   final ImagePicker _picker = ImagePicker();
-
-  // --- LÓGICA DE AÇÕES ATUALIZADA ---
 
   Future<void> _showDeleteConfirmation(BuildContext context, CatalogoItem item) async {
     final catalogoService = context.read<CatalogoService>();
@@ -235,8 +233,29 @@ class _CatalogoPageState extends State<CatalogoPage> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                
+                // ✅ LÓGICA PARA CAPTURAR E PRINTAR O ERRO
                 if (snapshot.hasError) {
-                  return Center(child: Text("Erro ao carregar catálogo: ${snapshot.error}"));
+                  final error = snapshot.error;
+                  print("================================================================");
+                  print("====== 🔍 ERRO DETALHADO DO FIREBASE - CATÁLOGO 🔍 ======");
+                  print("================================================================");
+                  print("TIPO DO ERRO: ${error.runtimeType}");
+                  if (error is FirebaseException) {
+                    print("CÓDIGO: ${error.code}");
+                    print("MENSAGEM COMPLETA: ${error.message}"); // <<--- O LINK ESTARÁ AQUI!
+                  } else {
+                    print("ERRO (OUTRO TIPO): $error");
+                  }
+                  print("================================================================");
+                  
+                  return Center(child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Text(
+                      "Erro ao carregar catálogo. Verifique o console de debug para mais detalhes.\n\nErro: ${snapshot.error}", 
+                      textAlign: TextAlign.center,
+                    ),
+                  ));
                 }
                 
                 final itens = snapshot.data ?? [];
