@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-
 import 'package:siga/Model/pedidos.dart';
 import 'package:siga/Service/auth_service.dart';
 import 'package:siga/Service/pedidos_service.dart';
 
-// ✅ TelefoneInputFormatter mantido, pois é uma excelente implementação.
+// O seu TelefoneInputFormatter foi mantido, pois é uma excelente implementação.
 class TelefoneInputFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
@@ -50,20 +49,19 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
   late TextEditingController _nomeController;
   late TextEditingController _telefoneController;
   late TextEditingController _observacoesController;
-  late String _status; // ✅ O estado agora é uma String
+  late String _status;
   late List<Map<String, TextEditingController>> _itens;
 
   @override
   void initState() {
     super.initState();
     final p = widget.pedido;
-    
-    // ✅ INICIALIZAÇÃO ATUALIZADA para o novo modelo Pedido
+
     _nomeController = TextEditingController(text: p.cliente['nome'] ?? '');
     _telefoneController = TextEditingController(text: _formatInitial(p.cliente['telefone'] ?? ''));
     _observacoesController = TextEditingController(text: p.observacoes);
-    _status = p.status; // Armazena a String do status
-    
+    _status = p.status;
+
     _itens = p.itens.map((item) => {
       'nome': TextEditingController(text: item.nome),
       'preco': TextEditingController(text: item.preco.toStringAsFixed(2)),
@@ -72,8 +70,7 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     _itemFormKeys.addAll(List.generate(_itens.length, (_) => GlobalKey<FormState>()));
   }
 
-  // --- MÉTODOS AUXILIARES (sem grandes mudanças) ---
-  
+  // Seus métodos auxiliares foram mantidos.
   String _formatInitial(String digits) {
     if (digits.isEmpty) return '';
     return TelefoneInputFormatter().formatEditUpdate(TextEditingValue.empty, TextEditingValue(text: digits)).text;
@@ -101,7 +98,7 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     super.dispose();
   }
 
-  // --- LÓGICA DE SALVAR TOTALMENTE REFEITA ---
+  // Sua lógica de salvar foi mantida.
   Future<void> _save() async {
     bool isClienteValid = _formKeyCliente.currentState!.validate();
     bool allItensValid = true;
@@ -114,7 +111,6 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
       return;
     }
 
-    // 1. Acessamos os serviços e dados de autenticação
     final pedidoService = context.read<PedidoService>();
     final authService = context.read<AuthService>();
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -126,14 +122,12 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
       return;
     }
 
-    // 2. Montamos a lista de itens atualizada
     final updatedItens = _itens.map((item) => Item(
       nome: item['nome']!.text,
       preco: double.tryParse(item['preco']!.text.replaceAll(',', '.')) ?? 0.0,
       quantidade: int.tryParse(item['quantidade']!.text) ?? 0,
     )).toList();
 
-    // 3. ✅ Criamos um MAPA contendo apenas os dados a serem atualizados
     final dadosParaAtualizar = {
       'cliente': {
         'nome': _nomeController.text.trim(),
@@ -147,22 +141,33 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
 
     final funcionarioAudit = {'uid': funcionario.uid, 'nome': funcionario.nome};
 
-    // 4. Chamamos o serviço para editar o pedido
     try {
       await pedidoService.editarPedido(
         pedidoId: widget.pedido.id,
         dadosParaAtualizar: dadosParaAtualizar,
         funcionarioQueAtualizou: funcionarioAudit,
       );
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Pedido #${widget.pedido.numeroPedido} atualizado com sucesso!')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Pedido #${widget.pedido.numeroPedido} atualizado com sucesso!')));
       navigator.pop();
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Erro ao salvar alterações: $e')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao salvar alterações: $e')));
     }
+  }
+
+  // --- FUNÇÃO HELPER PARA ESTILO DE INPUT ---
+  InputDecoration _inputDecoration(BuildContext context, String label, {IconData? icon}) {
+    final theme = Theme.of(context);
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: icon != null ? Icon(icon) : null,
+      filled: true,
+      // Corrigindo o fundo para usar uma cor do tema que se adapta.
+      fillColor: theme.colorScheme.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    ).applyDefaults(theme.inputDecorationTheme);
   }
 
   @override
@@ -199,7 +204,7 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
     );
   }
 
-  // --- SEÇÕES DO FORMULÁRIO (com pequenas adaptações) ---
+  // --- SEÇÕES DO FORMULÁRIO ---
 
   Widget _buildSectionCard({required String title, required Widget child}) {
     return Card(
@@ -228,13 +233,16 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
           children: [
             TextFormField(
               controller: _nomeController,
-              decoration: const InputDecoration(labelText: 'Nome', prefixIcon: Icon(LucideIcons.user)),
+              // CORREÇÃO: Aplicando estilo para o texto ser legível
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              decoration: _inputDecoration(context, 'Nome', icon: LucideIcons.user),
               validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _telefoneController,
-              decoration: const InputDecoration(labelText: 'Telefone', prefixIcon: Icon(LucideIcons.phone)),
+              style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              decoration: _inputDecoration(context, 'Telefone', icon: LucideIcons.phone),
               keyboardType: TextInputType.phone,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly, TelefoneInputFormatter()],
               validator: (v) => v!.replaceAll(RegExp(r'\D'), '').length < 10 ? 'Número inválido' : null,
@@ -270,16 +278,18 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
         children: [
           TextFormField(
             controller: _observacoesController,
-            decoration: const InputDecoration(labelText: 'Observações', prefixIcon: Icon(LucideIcons.messageSquare)),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            decoration: _inputDecoration(context, 'Observações', icon: LucideIcons.messageSquare),
             maxLines: 3,
           ),
           const SizedBox(height: 16),
-          // ✅ Dropdown de Status agora usa a variável _status (String)
           DropdownButtonFormField<String>(
             value: _status,
-            decoration: const InputDecoration(labelText: 'Status do Pedido', prefixIcon: Icon(LucideIcons.tag)),
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+            decoration: _inputDecoration(context, 'Status do Pedido', icon: LucideIcons.tag),
             items: EstadoPedido.values.map((e) => DropdownMenuItem(value: e.label, child: Text(e.label))).toList(),
             onChanged: (v) => setState(() => _status = v!),
+            dropdownColor: Theme.of(context).colorScheme.surface, // Garante que o menu suspenso também tenha a cor certa
           ),
         ],
       ),
@@ -310,15 +320,16 @@ class _PedidoDetailsPageState extends State<PedidoDetailsPage> {
               ),
               TextFormField(
                 controller: _itens[index]['nome'],
-                decoration: const InputDecoration(labelText: 'Nome do Item'),
+                style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                decoration: _inputDecoration(context, 'Nome do Item'),
                 validator: (v) => v!.isEmpty ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
-                  Expanded(child: TextFormField(controller: _itens[index]['preco'], decoration: const InputDecoration(labelText: 'Preço', prefixText: 'R\$ '), keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: (v) => (double.tryParse(v!.replaceAll(',', '.')) ?? 0) <= 0 ? 'Inválido' : null)),
+                  Expanded(child: TextFormField(controller: _itens[index]['preco'], style: TextStyle(color: Theme.of(context).colorScheme.onSurface), decoration: _inputDecoration(context, 'Preço').copyWith(prefixText: 'R\$ '), keyboardType: const TextInputType.numberWithOptions(decimal: true), validator: (v) => (double.tryParse(v!.replaceAll(',', '.')) ?? 0) <= 0 ? 'Inválido' : null)),
                   const SizedBox(width: 8),
-                  Expanded(child: TextFormField(controller: _itens[index]['quantidade'], decoration: const InputDecoration(labelText: 'Qtd.'), keyboardType: TextInputType.number, validator: (v) => (int.tryParse(v!) ?? 0) <= 0 ? 'Inválido' : null)),
+                  Expanded(child: TextFormField(controller: _itens[index]['quantidade'], style: TextStyle(color: Theme.of(context).colorScheme.onSurface), decoration: _inputDecoration(context, 'Qtd.'), keyboardType: TextInputType.number, validator: (v) => (int.tryParse(v!) ?? 0) <= 0 ? 'Inválido' : null)),
                 ],
               ),
             ],

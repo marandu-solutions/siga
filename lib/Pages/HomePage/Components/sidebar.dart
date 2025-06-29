@@ -1,13 +1,12 @@
-// lib/widgets/sidebar.dart (ou onde seu arquivo estiver)
+// lib/Pages/HomePage/Components/sidebar.dart
 
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 
+// O caminho para o seu AuthService pode precisar de ajuste
 import '../../../Service/auth_service.dart';
 
-
-// ✅ CONVERTIDO PARA STATELESSWIDGET: Mais simples e performático.
 class Sidebar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
@@ -18,19 +17,18 @@ class Sidebar extends StatelessWidget {
     required this.onItemSelected,
   });
 
-  // Lista de itens de navegação (nenhuma mudança necessária aqui)
+  // CORREÇÃO: A lista agora reflete a nossa arquitetura final de 5 seções,
+  // espelhando perfeitamente a BottomNavBar.
   static const List<Map<String, dynamic>> _navItems = [
+    {'icon': LucideIcons.home, 'label': 'Início'},
     {'icon': LucideIcons.receipt, 'label': 'Pedidos'},
-    {'icon': LucideIcons.messageCircle, 'label': 'Atendimento'},
-    {'icon': LucideIcons.siren, 'label': 'Alerta'},
-    {'icon': LucideIcons.archive, 'label': 'Estoque'}, // Exemplo: Adicionando Estoque
-    {'icon': LucideIcons.layoutGrid, 'label': 'Catálogo'},
-    {'icon': LucideIcons.star, 'label': 'Feedbacks'},
+    {'icon': LucideIcons.messageSquare, 'label': 'Atendimento'},
+    {'icon': LucideIcons.barChart3, 'label': 'Gestão'},
+    {'icon': LucideIcons.settings, 'label': 'Configurações'},
   ];
 
-  // ✅ MÉTODO DE LOGOUT ATUALIZADO
+  // A sua lógica de logout já é excelente e foi mantida.
   void _performLogout(BuildContext context) {
-    // Apenas diz ao serviço para deslogar. O AuthWrapper cuidará do resto.
     context.read<AuthService>().signOut();
   }
 
@@ -39,37 +37,27 @@ class Sidebar extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
 
-    // ✅ Usamos um Consumer para "ouvir" o AuthService e reconstruir a UI quando ele mudar.
+    // O Consumer garante que a UI será reconstruída quando o usuário logar/deslogar.
     return Consumer<AuthService>(
       builder: (context, authService, child) {
-
-        // Se o funcionário ainda não carregou, mostramos um estado de carregamento.
+        // Enquanto os dados do funcionário não carregam, exibe um placeholder.
         if (authService.funcionarioLogado == null) {
           return const Drawer(child: Center(child: CircularProgressIndicator()));
         }
 
-        // ✅ Pegamos os dados reativamente do serviço.
         final userName = authService.funcionarioLogado!.nome;
         final userEmail = authService.funcionarioLogado!.email;
         final tt = theme.textTheme;
 
         return Drawer(
           backgroundColor: cs.surface,
+          elevation: 2,
+          width: 280, // Largura fixa para a sidebar
           child: Column(
             children: [
-              // 1. HEADER AGORA USA OS DADOS REATIVOS
               UserAccountsDrawerHeader(
-                accountName: Text(
-                  userName,
-                  style: tt.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: cs.onPrimary,
-                  ),
-                ),
-                accountEmail: Text(
-                  userEmail,
-                  style: tt.bodyMedium?.copyWith(color: cs.onPrimary.withOpacity(0.8)),
-                ),
+                accountName: Text(userName, style: tt.titleMedium?.copyWith(fontWeight: FontWeight.bold, color: cs.onPrimary)),
+                accountEmail: Text(userEmail, style: tt.bodyMedium?.copyWith(color: cs.onPrimary.withOpacity(0.8))),
                 currentAccountPicture: CircleAvatar(
                   backgroundColor: cs.onPrimary,
                   child: Text(
@@ -77,12 +65,10 @@ class Sidebar extends StatelessWidget {
                     style: tt.headlineMedium?.copyWith(color: cs.primary),
                   ),
                 ),
-                decoration: BoxDecoration(
-                  color: cs.primary,
-                ),
+                decoration: BoxDecoration(color: cs.primary),
               ),
 
-              // Gera a lista de itens (nenhuma mudança na lógica do loop)
+              // Loop para criar os itens de navegação
               for (int i = 0; i < _navItems.length; i++)
                 _buildNavItem(
                   context: context,
@@ -93,19 +79,16 @@ class Sidebar extends StatelessWidget {
 
               const Spacer(),
 
-              // 2. BOTÃO SAIR AGORA CHAMA O NOVO MÉTODO DE LOGOUT
+              // Botão de Sair
               const Divider(thickness: 1, indent: 16, endIndent: 16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
                 child: ListTile(
                   leading: Icon(LucideIcons.logOut, color: cs.error),
-                  title: Text(
-                    'Sair',
-                    style: tt.labelLarge?.copyWith(color: cs.error, fontWeight: FontWeight.bold),
-                  ),
+                  title: Text('Sair', style: tt.labelLarge?.copyWith(color: cs.error, fontWeight: FontWeight.bold)),
                   hoverColor: cs.error.withOpacity(0.1),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  onTap: () => _performLogout(context), // Chama a nova função
+                  onTap: () => _performLogout(context),
                 ),
               ),
               const SizedBox(height: 10),
@@ -116,7 +99,7 @@ class Sidebar extends StatelessWidget {
     );
   }
 
-  // O método auxiliar agora precisa do BuildContext para acessar o tema.
+  /// Constrói cada item da lista de navegação.
   Widget _buildNavItem({
     required BuildContext context,
     required IconData icon,
@@ -138,17 +121,12 @@ class Sidebar extends StatelessWidget {
           ),
         ),
         selected: isSelected,
-        selectedTileColor: cs.primaryContainer.withOpacity(0.5),
+        selectedTileColor: cs.primary.withOpacity(0.1),
         selectedColor: cs.primary,
         iconColor: cs.onSurfaceVariant,
         textColor: cs.onSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        onTap: () {
-          onItemSelected(index);
-          if (Scaffold.of(context).isDrawerOpen) {
-            Navigator.pop(context);
-          }
-        },
+        onTap: () => onItemSelected(index),
       ),
     );
   }

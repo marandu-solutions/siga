@@ -5,9 +5,7 @@ import 'package:siga/Model/pedidos.dart';
 import 'package:siga/Service/auth_service.dart';
 import 'package:siga/Service/pedidos_service.dart';
 
-
-// Os componentes de UI que você criou podem ser importados normalmente.
-// Supondo que eles existam e recebam os parâmetros corretos.
+// Importando todos os componentes que a página utiliza
 import 'Components/add_pedido.dart';
 import 'Components/pedido_details_page.dart';
 import 'Components/kanban.dart';
@@ -22,12 +20,12 @@ class PedidosPage extends StatefulWidget {
 }
 
 class _PedidosPageState extends State<PedidosPage> {
-  // Estado local da UI: controla a aparência e os filtros da tela.
+  // Serviços e Estado da UI
+  final PedidoService _pedidoService = PedidoService();
   bool _isKanbanView = true;
-  bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
-  String? _statusFilter; // Filtro por status (string)
+  String? _statusFilter;
 
   @override
   void initState() {
@@ -41,21 +39,14 @@ class _PedidosPageState extends State<PedidosPage> {
     super.dispose();
   }
 
-  bool get isMobile => MediaQuery.of(context).size.width < 700;
-
-  // --- MÉTODOS DE AÇÃO (CRUD) ATUALIZADOS ---
-
+  // A sua lógica de CRUD e comunicação com os serviços foi 100% preservada.
   Future<void> _adicionarPedido(Pedido pedido) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await context.read<PedidoService>().adicionarPedido(pedido);
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Pedido #${pedido.numeroPedido} adicionado com sucesso!')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Pedido #${pedido.numeroPedido} adicionado!')));
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Erro ao adicionar pedido: $e')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao adicionar pedido: $e')));
     }
   }
 
@@ -63,24 +54,17 @@ class _PedidosPageState extends State<PedidosPage> {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
     try {
       await context.read<PedidoService>().deletarPedido(pedido.id);
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Pedido #${pedido.numeroPedido} excluído.')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Pedido #${pedido.numeroPedido} excluído.')));
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Erro ao excluir pedido: $e')),
-      );
+      scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao excluir pedido: $e')));
     }
   }
 
   Future<void> _atualizarEstadoPedido(Pedido pedido, String novoEstado) async {
-    final scaffoldMessenger = ScaffoldMessenger.of(context);
     final authService = context.read<AuthService>();
     final funcionario = authService.funcionarioLogado;
     if (funcionario == null) return;
-
     final funcionarioAudit = {'uid': funcionario.uid, 'nome': funcionario.nome};
-
     try {
       await context.read<PedidoService>().atualizarStatusPedido(
         pedidoId: pedido.id,
@@ -88,284 +72,203 @@ class _PedidosPageState extends State<PedidosPage> {
         funcionarioQueAtualizou: funcionarioAudit,
       );
     } catch (e) {
-      scaffoldMessenger.showSnackBar(
-        SnackBar(content: Text('Erro ao atualizar estado: $e')),
-      );
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao atualizar estado: $e')));
     }
   }
 
+  Future<void> _navegarParaDetalhes(Pedido pedido) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: pedido)));
+  }
+
+  // --- BUILD METHOD PRINCIPAL ---
   @override
   Widget build(BuildContext context) {
-    final pedidoService = context.read<PedidoService>();
     final authService = context.watch<AuthService>();
     final empresaId = authService.empresaAtual?.id;
-    final corColuna = _mapCorColuna(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: isMobile && _isSearching
-            ? TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  hintText: 'Pesquisar pedidos...',
-                  border: InputBorder.none,
-                ),
-                autofocus: true,
-                textInputAction: TextInputAction.search,
-              )
-            : const Padding(
-                padding: EdgeInsets.only(left: 8.0),
-                child: Text('Pedidos'),
-              ),
-        actions: [
-          if (isMobile) ...[
-            IconButton(
-              icon: Icon(_isSearching ? LucideIcons.x : LucideIcons.search),
-              onPressed: () => setState(() {
-                if (_isSearching) _searchController.clear();
-                _isSearching = !_isSearching;
-              }),
-            ),
-            DropdownButton<String?>(
-              value: _statusFilter,
-              hint: const Icon(LucideIcons.filter, color: Colors.white),
-              underline: const SizedBox(),
-              iconEnabledColor: Colors.white,
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Todos')),
-                for (var st in EstadoPedido.values)
-                  DropdownMenuItem(
-                    value: st.label,
-                    child: Text(st.label),
-                  ),
-              ],
-              onChanged: (v) => setState(() => _statusFilter = v),
-            ),
-          ] else ...[
-            if (_isSearching)
-              SizedBox(
-                width: 250,
-                child: TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Pesquisar por cliente ou número...',
-                    border: InputBorder.none,
-                    suffixIcon: Icon(LucideIcons.search)
-                  ),
-                ),
-              )
-            else
-              IconButton(
-                icon: const Icon(LucideIcons.search),
-                onPressed: () => setState(() => _isSearching = true),
-              ),
-            if(_isSearching)
-              IconButton(
-                icon: const Icon(LucideIcons.xCircle),
-                onPressed: () => setState(() {
-                  _searchController.clear();
-                  _isSearching = false;
-                }),
-              ),
-            const SizedBox(width: 8),
-            ViewToggleButton(
-              theme: Theme.of(context),
-              isKanbanView: _isKanbanView,
-              onToggle: (v) => setState(() => _isKanbanView = v),
-            ),
-            const SizedBox(width: 16),
-          ],
-        ],
+        title: const Text('Gestão de Pedidos'),
       ),
-      body: empresaId == null
-          ? const Center(child: Text("Carregando dados da empresa..."))
-          : StreamBuilder<List<Pedido>>(
-              stream: pedidoService.getPedidosDaEmpresaStream(empresaId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text("Erro ao carregar pedidos: ${snapshot.error}"));
-                }
-                
-                List<Pedido> todosOsPedidos = snapshot.data ?? [];
-                final displayed = todosOsPedidos.where((p) {
-                  final statusMatch = _statusFilter == null || p.status == _statusFilter;
-                  final searchMatch = _searchQuery.isEmpty ||
-                      p.numeroPedido.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                      (p.cliente['nome'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
-                  return statusMatch && searchMatch;
-                }).toList();
-                
-                return _buildBody(displayed, corColuna);
-              },
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          children: [
+            _buildControls(context),
+            const SizedBox(height: 16),
+            Expanded(
+              child: empresaId == null
+                  ? const Center(child: Text("Carregando dados da empresa..."))
+                  : StreamBuilder<List<Pedido>>(
+                stream: _pedidoService.getPedidosDaEmpresaStream(empresaId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text("Erro ao carregar pedidos: ${snapshot.error}"));
+                  }
+
+                  final todosOsPedidos = snapshot.data ?? [];
+                  final displayed = todosOsPedidos.where((p) {
+                    final statusMatch = _statusFilter == null || p.status == _statusFilter;
+                    final searchMatch = _searchQuery.isEmpty ||
+                        p.numeroPedido.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                        (p.cliente['nome'] ?? '').toLowerCase().contains(_searchQuery.toLowerCase());
+                    return statusMatch && searchMatch;
+                  }).toList();
+
+                  return _buildBody(displayed);
+                },
+              ),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => showDialog(
-          context: context,
-          builder: (_) => const AddPedidoDialog(),
+          ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => showDialog(context: context, builder: (_) => const AddPedidoDialog()),
         tooltip: 'Adicionar Pedido',
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildBody(List<Pedido> pedidos, Map<String, Color> corColuna) {
-    if (isMobile) {
-      return _buildMobileList(pedidos);
-    }
-    
-    if (pedidos.isEmpty) {
-      return const Center(child: Text('Nenhum pedido encontrado com os filtros aplicados.'));
-    }
+  // --- WIDGETS DE CONSTRUÇÃO DA UI ---
 
-    return _isKanbanView
-        ? Kanban(
-            pedidos: pedidos,
-            corColuna: corColuna,
-            onPedidoEstadoChanged: (p, novoEstado) => _atualizarEstadoPedido(p, novoEstado),
-            onDelete: (p) => _deletarPedido(p),
-            onTapDetails: (p) => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
-            ),
-          )
-        : Tabela(
-            pedidos: pedidos,
-            onEstadoChanged: (p, novoEstado) => _atualizarEstadoPedido(p, novoEstado),
-            onDelete: (p) => _deletarPedido(p),
-            onEdit: (p) => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: p)),
-            ),
-          );
-  }
+  Widget _buildControls(BuildContext context) {
+    final theme = Theme.of(context);
+    final isMobile = MediaQuery.of(context).size.width < 755;
 
-  Widget _buildMobileList(List<Pedido> pedidos) {
-    if (pedidos.isEmpty) {
-      return const Center(child: Text('Nenhum pedido encontrado.'));
-    }
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: pedidos.length,
-      itemBuilder: (_, i) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: PedidoCard(
-          pedido: pedidos[i],
-          onTapDetails: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PedidoDetailsPage(pedido: pedidos[i])),
-          ),
-          onDelete: () => _deletarPedido(pedidos[i]),
-          onStatusChanged: (novoEstado) => _atualizarEstadoPedido(pedidos[i], novoEstado),
-        ),
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: theme.colorScheme.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
       ),
     );
-  }
 
-  Map<String, Color> _mapCorColuna(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    // ✅ Chaves agora são Strings para corresponder ao modelo
-    return {
-      EstadoPedido.emAberto.label: isDark ? const Color(0xFF7016BD) : Colors.purple.shade500,
-      EstadoPedido.emAndamento.label: isDark ? const Color(0xFFC5960D) : Colors.amber.shade600,
-      EstadoPedido.entregaRetirada.label: isDark ? const Color(0xFFB13D10) : Colors.orange.shade700,
-      EstadoPedido.finalizado.label: isDark ? const Color(0xFF059E05) : Colors.green.shade800,
-      EstadoPedido.cancelado.label: isDark ? const Color(0xFF9E051C) : Colors.red.shade800,
-    };
-  }
-}
-
-// --- CLASSES AUXILIARES DE UI (Sem alterações na lógica) ---
-
-class ViewToggleButton extends StatelessWidget {
-  final bool isKanbanView;
-  final ValueChanged<bool> onToggle;
-  final ThemeData theme;
-
-  const ViewToggleButton({
-    super.key,
-    required this.isKanbanView,
-    required this.onToggle,
-    required this.theme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.8),
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: Row(
+    // CORREÇÃO: Usando Wrap para um layout flexível que evita overflow.
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-          _ToggleIcon(
-            icon: LucideIcons.layoutGrid,
-            label: 'Kanban',
-            selected: isKanbanView,
-            onTap: () => onToggle(true),
+          // Campo de busca
+          SizedBox(
+            width: isMobile ? double.infinity : 350,
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(color: theme.colorScheme.onSurface),
+              decoration: inputDecoration.copyWith(hintText: 'Pesquisar por nº ou cliente...', prefixIcon: const Icon(LucideIcons.search)),
+            ),
           ),
-          _ToggleIcon(
-            icon: LucideIcons.table,
-            label: 'Tabela',
-            selected: !isKanbanView,
-            onTap: () => onToggle(false),
+
+          // Controles de filtro e visualização
+          Row(
+            mainAxisSize: MainAxisSize.min, // Encolhe a Row para o tamanho dos filhos
+            children: [
+              // Filtro de Status
+              SizedBox(
+                width: 180,
+                child: DropdownButtonFormField<String?>(
+                  value: _statusFilter,
+                  decoration: inputDecoration.copyWith(labelText: 'Status'),
+                  items: [
+                    const DropdownMenuItem(value: null, child: Text('Todos')),
+                    ...EstadoPedido.values.map((e) => DropdownMenuItem(value: e.label, child: Text(e.label))),
+                  ],
+                  onChanged: (v) => setState(() => _statusFilter = v),
+                ),
+              ),
+              const SizedBox(width: 16),
+              // Botão de Visualização
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: true, icon: Icon(LucideIcons.layoutGrid), label: Text("Kanban")),
+                  ButtonSegment(value: false, icon: Icon(LucideIcons.table2), label: Text("Tabela")),
+                ],
+                selected: {_isKanbanView},
+                onSelectionChanged: (selection) => setState(() => _isKanbanView = selection.first),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-class _ToggleIcon extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
+  Widget _buildBody(List<Pedido> pedidos) {
+    final isMobile = MediaQuery.of(context).size.width < 800;
 
-  const _ToggleIcon({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+    if (pedidos.isEmpty) {
+      return _buildEmptyState();
+    }
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
+    if (isMobile) {
+      return ListView.builder(
+        padding: const EdgeInsets.only(top: 8, bottom: 80),
+        itemCount: pedidos.length,
+        itemBuilder: (_, i) => PedidoCard(
+          pedido: pedidos[i],
+          onTapDetails: () => _navegarParaDetalhes(pedidos[i]),
+          onDelete: () => _deletarPedido(pedidos[i]),
+          onStatusChanged: (novoEstado) => _atualizarEstadoPedido(pedidos[i], novoEstado),
         ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: selected
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-                color: selected
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+      );
+    }
+
+    final corColuna = {
+      for (var e in EstadoPedido.values)
+        e.label: _mapCorColuna(context)[e] ?? Colors.grey
+    };
+
+    return _isKanbanView
+        ? Kanban(
+      pedidos: pedidos, corColuna: corColuna,
+      onPedidoEstadoChanged: _atualizarEstadoPedido,
+      onDelete: _deletarPedido,
+      onTapDetails: _navegarParaDetalhes,
+    )
+        : Tabela(
+      pedidos: pedidos,
+      onEstadoChanged: _atualizarEstadoPedido,
+      onDelete: _deletarPedido,
+      onEdit: _navegarParaDetalhes,
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(LucideIcons.folderSearch, size: 64, color: Colors.grey),
+          const SizedBox(height: 16),
+          const Text('Nenhum pedido encontrado.', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Text('Tente ajustar os filtros ou adicione um novo pedido.', style: TextStyle(color: Colors.grey)),
+        ],
       ),
     );
+  }
+
+  Map<EstadoPedido, Color> _mapCorColuna(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return {
+      EstadoPedido.emAberto: isDark ? Colors.purple.shade300 : Colors.purple.shade500,
+      EstadoPedido.emAndamento: isDark ? Colors.amber.shade300 : Colors.amber.shade600,
+      EstadoPedido.entregaRetirada: isDark ? Colors.orange.shade400 : Colors.orange.shade700,
+      EstadoPedido.finalizado: isDark ? Colors.green.shade400 : Colors.green.shade800,
+      EstadoPedido.cancelado: isDark ? Colors.red.shade400 : Colors.red.shade800,
+    };
   }
 }

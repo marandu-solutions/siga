@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:siga/Model/pedidos.dart';
 
-
+// As assinaturas dos callbacks estão corretas.
+typedef PedidoEstadoCallback = void Function(Pedido pedido, String novoEstado);
+typedef PedidoCallback = void Function(Pedido pedido);
 
 class Tabela extends StatefulWidget {
   final List<Pedido> pedidos;
-  // ✅ Callback atualizado para passar uma String de status
-  final Function(Pedido pedido, String novoEstado) onEstadoChanged;
-  final Function(Pedido pedido) onDelete;
-  final Function(Pedido pedido) onEdit;
+  final PedidoEstadoCallback onEstadoChanged;
+  final PedidoCallback onDelete;
+  final PedidoCallback onEdit;
 
   const Tabela({
     super.key,
@@ -24,19 +26,8 @@ class Tabela extends StatefulWidget {
 }
 
 class _TabelaState extends State<Tabela> {
-  // ❌ REMOVIDO: A lógica de filtro e busca agora é da PedidosPage.
-  // final TextEditingController _searchController = TextEditingController();
-  // EstadoPedido? _filtroEstado;
-
-  // ✅ O estado da ordenação é local e mantido aqui.
   int _sortColumnIndex = 2; // Padrão: ordenar por data de entrega
   bool _sortAscending = true;
-
-  @override
-  void dispose() {
-    // _searchController.dispose();
-    super.dispose();
-  }
 
   void _onSort(int columnIndex, bool ascending) {
     setState(() {
@@ -48,9 +39,8 @@ class _TabelaState extends State<Tabela> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final tt = theme.textTheme;
 
-    // ✅ A ordenação é aplicada na lista recebida.
+    // A lógica de ordenação foi mantida, pois está perfeita.
     List<Pedido> pedidosProcessados = List.from(widget.pedidos);
     pedidosProcessados.sort((a, b) {
       int comparison = 0;
@@ -64,41 +54,25 @@ class _TabelaState extends State<Tabela> {
     });
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // ❌ REMOVIDO: O cabeçalho com título e controles agora está na PedidosPage.
-        // Text("Gestão de Pedidos", ...),
-        // _buildControls(context),
-        
+        // O cabeçalho da tabela.
+        _buildHeader(theme),
+        const SizedBox(height: 8),
+        // O corpo da tabela.
         Expanded(
-          child: Container(
-            width: double.infinity, // Garante que o container ocupe toda a largura
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.3),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              children: [
-                _buildHeader(theme),
-                Expanded(
-                  child: pedidosProcessados.isEmpty
-                      ? const Center(child: Text('Nenhum pedido encontrado.'))
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-                          itemCount: pedidosProcessados.length,
-                          itemBuilder: (context, index) {
-                            final pedido = pedidosProcessados[index];
-                            return _PedidoDataRow(
-                              pedido: pedido,
-                              onDelete: () => widget.onDelete(pedido),
-                              onEdit: () => widget.onEdit(pedido),
-                              onEstadoChanged: (novoEstado) => widget.onEstadoChanged(pedido, novoEstado),
-                            );
-                          },
-                        ),
-                ),
-              ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: ListView.builder(
+              itemCount: pedidosProcessados.length,
+              itemBuilder: (context, index) {
+                final pedido = pedidosProcessados[index];
+                return _PedidoDataRow(
+                  pedido: pedido,
+                  onDelete: () => widget.onDelete(pedido),
+                  onEdit: () => widget.onEdit(pedido),
+                  onEstadoChanged: (novoEstado) => widget.onEstadoChanged(pedido, novoEstado),
+                );
+              },
             ),
           ),
         ),
@@ -110,8 +84,9 @@ class _TabelaState extends State<Tabela> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(bottom: BorderSide(color: theme.dividerColor)),
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: theme.dividerColor)
       ),
       child: Row(
         children: [
@@ -155,6 +130,8 @@ class _HeaderCell extends StatelessWidget {
               const SizedBox(width: 4),
               if (isSorted)
                 Icon(state._sortAscending ? Icons.arrow_downward : Icons.arrow_upward, size: 16)
+              else
+                Icon(Icons.unfold_more, size: 16, color: theme.colorScheme.onSurfaceVariant)
             ],
           ),
         ),
@@ -167,7 +144,6 @@ class _PedidoDataRow extends StatelessWidget {
   final Pedido pedido;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
-  // ✅ Callback agora recebe uma String
   final ValueChanged<String> onEstadoChanged;
 
   const _PedidoDataRow({
@@ -177,9 +153,33 @@ class _PedidoDataRow extends StatelessWidget {
     required this.onEstadoChanged,
   });
 
+  // Função de confirmação para o delete
+  Future<void> _showDeleteConfirmation(BuildContext context) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Confirmar exclusão"),
+        content: Text("Deseja realmente excluir o pedido #${pedido.numeroPedido}?"),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text("Cancelar")),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text("Excluir"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      onDelete();
+    }
+  }
+
   Color _getStatusColor(BuildContext context, String statusLabel) {
-    final status = EstadoPedido.fromString(statusLabel); // Converte para o enum para a lógica
+    final status = EstadoPedido.fromString(statusLabel);
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    // Lógica de cores...
     switch (status) {
       case EstadoPedido.emAberto: return isDark ? Colors.purple.shade300 : Colors.purple.shade700;
       case EstadoPedido.emAndamento: return isDark ? Colors.amber.shade300 : Colors.amber.shade800;
@@ -193,83 +193,67 @@ class _PedidoDataRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final currencyFormatter = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    // ✅ Pega a cor baseada na String de status
     final statusColor = _getStatusColor(context, pedido.status);
 
     return Card(
       elevation: 1,
       margin: const EdgeInsets.only(bottom: 8),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: IntrinsicHeight(
-        child: Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: Padding(padding: const EdgeInsets.all(16), child: Text(pedido.numeroPedido, style: const TextStyle(fontWeight: FontWeight.bold))),
-            ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              flex: 3,
-              child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // ✅ Acessa o nome do cliente pelo mapa
-                Text(pedido.cliente['nome'] ?? 'Cliente sem nome'), 
-                // ✅ Usa o campo 'total' do pedido
-                Text(currencyFormatter.format(pedido.total), style: theme.textTheme.bodySmall)
-              ])),
-            ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              flex: 2,
-              // ✅ Usa o Timestamp do Firestore, convertendo para DateTime
-              child: Padding(padding: const EdgeInsets.all(16), child: Text(DateFormat('dd/MM/yy').format(pedido.dataEntregaPrevista.toDate()))),
-            ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              flex: 2,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    pedido.status, // ✅ Exibe a String de status diretamente
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.labelMedium?.copyWith(color: statusColor, fontWeight: FontWeight.bold),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onEdit, // O toque na linha inteira abre a edição
+        hoverColor: theme.colorScheme.primary.withOpacity(0.05),
+        child: IntrinsicHeight(
+          child: Row(
+            children: [
+              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.all(16), child: Text('#${pedido.numeroPedido}', style: const TextStyle(fontWeight: FontWeight.bold)))),
+              const VerticalDivider(width: 1),
+              Expanded(flex: 3, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(pedido.cliente['nome'] ?? 'Cliente'), Text(currencyFormatter.format(pedido.total), style: theme.textTheme.bodySmall)]))),
+              const VerticalDivider(width: 1),
+              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.all(16), child: Text(DateFormat('dd/MM/yy').format(pedido.dataEntregaPrevista.toDate())))),
+              const VerticalDivider(width: 1),
+              Expanded(
+                flex: 2,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                    child: Text(pedido.status, textAlign: TextAlign.center, style: theme.textTheme.labelMedium?.copyWith(color: statusColor, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ),
-            ),
-            const VerticalDivider(width: 1),
-            Expanded(
-              flex: 1,
-              child: PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert),
-                onSelected: (value) {
-                  if (value == 'edit') {
-                    onEdit();
-                  } else if (value == 'delete') {
-                    onDelete();
-                  } else {
-                    // Se não for 'edit' nem 'delete', é um status.
-                    onEstadoChanged(value);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Editar')),
-                  const PopupMenuDivider(),
-                  // ✅ O menu de status agora é gerado a partir do enum, mas passa a String
-                  ...EstadoPedido.values.where((st) => st.label != pedido.status).map((st) => 
-                    PopupMenuItem(value: st.label, child: Text('Mover para "${st.label}"'))
-                  ),
-                  const PopupMenuDivider(),
-                  PopupMenuItem(value: 'delete', child: Text('Excluir', style: TextStyle(color: theme.colorScheme.error))),
-                ],
+              const VerticalDivider(width: 1),
+              Expanded(
+                flex: 1,
+                child: PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  tooltip: "Mais ações",
+                  // CORREÇÃO: O menu de status agora é gerado corretamente
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'edit', child: ListTile(leading: Icon(LucideIcons.edit), title: Text('Editar'))),
+                    const PopupMenuDivider(),
+                    const PopupMenuItem(enabled: false, child: Text('Mover para:', style: TextStyle(fontWeight: FontWeight.bold))),
+                    ...EstadoPedido.values.where((st) => st.label != pedido.status).map((st) =>
+                        PopupMenuItem(value: st.label, child: Text(st.label))
+                    ),
+                    const PopupMenuDivider(),
+                    PopupMenuItem(value: 'delete', child: ListTile(leading: Icon(LucideIcons.trash2, color: theme.colorScheme.error), title: Text('Excluir', style: TextStyle(color: theme.colorScheme.error)))),
+                  ],
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      onEdit();
+                    } else if (value == 'delete') {
+                      _showDeleteConfirmation(context);
+                    } else {
+                      // Se não for 'edit' nem 'delete', é uma string de status.
+                      onEstadoChanged(value);
+                    }
+                  },
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

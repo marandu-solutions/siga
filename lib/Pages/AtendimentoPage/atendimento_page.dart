@@ -4,14 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:siga/Model/atendimento.dart';
-
+import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:siga/Pages/AtendimentoPage/Components/chat_page.dart';
 import 'package:siga/Pages/AtendimentoPage/Components/contato_card.dart';
 import 'package:siga/Service/atendimento_service.dart';
 import 'package:siga/Service/auth_service.dart';
 
-// Este enum ainda é útil para a lógica da UI, como ordenação de colunas e filtros.
+// O seu enum original.
 enum EstadoAtendimento {
   emAberto,
   emAndamento,
@@ -19,19 +19,17 @@ enum EstadoAtendimento {
 
   String get label {
     switch (this) {
-      case EstadoAtendimento.emAberto: return 'Em Aberto';
-      case EstadoAtendimento.emAndamento: return 'Em Andamento';
-      case EstadoAtendimento.finalizado: return 'Finalizado';
+      case EstadoAtendimento.emAberto:
+        return 'Em Aberto';
+      case EstadoAtendimento.emAndamento:
+        return 'Em Andamento';
+      case EstadoAtendimento.finalizado:
+        return 'Finalizado';
     }
   }
 
   static EstadoAtendimento fromString(String value) {
-    switch (value) {
-      case 'Em Aberto': return EstadoAtendimento.emAberto;
-      case 'Em Andamento': return EstadoAtendimento.emAndamento;
-      case 'Finalizado': return EstadoAtendimento.finalizado;
-      default: return EstadoAtendimento.emAberto;
-    }
+    return values.firstWhere((e) => e.label == value, orElse: () => emAberto);
   }
 }
 
@@ -43,36 +41,20 @@ class AtendimentoPage extends StatefulWidget {
 }
 
 class _AtendimentoPageState extends State<AtendimentoPage> {
-  // --- ESTADO LOCAL DA UI (SEM ALTERAÇÕES) ---
-  final Map<String, bool> isSearching = {};
-  final Map<String, TextEditingController> searchControllers = {};
-  final Map<String, Color> headerColor = {
-    EstadoAtendimento.emAberto.label: Colors.purple.shade500,
-    EstadoAtendimento.emAndamento.label: Colors.amber.shade600,
-    EstadoAtendimento.finalizado.label: Colors.green.shade700,
-  };
+  // --- ESTADO LOCAL DA UI ---
   final ScrollController _scrollController = ScrollController();
-  final _mobileSearchController = TextEditingController();
-  bool _isMobileSearching = false;
-  String? _mobileFilter;
+  final _searchController = TextEditingController();
+  String? _statusFilter;
 
   @override
   void initState() {
     super.initState();
-    for (var estado in EstadoAtendimento.values) {
-      final label = estado.label;
-      isSearching[label] = false;
-      searchControllers[label] = TextEditingController();
-    }
-    _mobileSearchController.addListener(() => setState(() {}));
+    _searchController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
-    for (var ctrl in searchControllers.values) {
-      ctrl.dispose();
-    }
-    _mobileSearchController.dispose();
+    _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -95,6 +77,15 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       return;
     }
 
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: cs.surfaceVariant.withOpacity(0.5),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+    );
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -104,11 +95,26 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: nomeController, decoration: const InputDecoration(labelText: 'Nome do Cliente')),
+              // Aplicando o estilo e a cor do texto
+              TextField(
+                controller: nomeController,
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'Nome do Cliente'),
+              ),
               const SizedBox(height: 16),
-              TextField(controller: telefoneController, decoration: const InputDecoration(labelText: 'Telefone'), keyboardType: TextInputType.phone, inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)]),
+              TextField(
+                controller: telefoneController,
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'Telefone'),
+                keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(11)],
+              ),
               const SizedBox(height: 16),
-              TextField(controller: fotoController, decoration: const InputDecoration(labelText: 'URL da Foto (opcional)')),
+              TextField(
+                controller: fotoController,
+                style: TextStyle(color: cs.onSurface),
+                decoration: inputDecoration.copyWith(labelText: 'URL da Foto (opcional)'),
+              ),
             ],
           ),
         ),
@@ -131,9 +137,8 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
                   status: EstadoAtendimento.emAberto.label,
                   updatedAt: Timestamp.now(),
                 );
-                
+
                 try {
-                  // ✅ Chama o serviço para adicionar o atendimento ao Firestore
                   await atendimentoService.adicionarAtendimento(novoAtendimento);
                   scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Atendimento criado com sucesso!')));
                   navigator.pop();
@@ -171,7 +176,7 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     }
   }
 
-  Color _getStatusColor(BuildContext context, String statusLabel) {
+  Color _getStatusColor(String statusLabel) {
     final estado = EstadoAtendimento.fromString(statusLabel);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     switch (estado) {
@@ -183,33 +188,51 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isMobile = width < 900;
-    
     final authService = context.watch<AuthService>();
     final atendimentoService = context.read<AtendimentoService>();
     final empresaId = authService.empresaAtual?.id;
 
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      body: empresaId == null
-          ? const Center(child: Text("Carregando dados da empresa..."))
-          : StreamBuilder<List<Atendimento>>(
-              stream: atendimentoService.getAtendimentosDaEmpresaStream(empresaId),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text("Erro ao carregar atendimentos: ${snapshot.error}"));
-                }
-                final todosAtendimentos = snapshot.data ?? [];
+      appBar: AppBar(
+        title: const Text('Atendimentos'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          children: [
+            // 1. BARRA DE FERRAMENTAS DEDICADA E CORRIGIDA
+            _buildControls(),
+            const SizedBox(height: 16),
+            Expanded(
+              child: empresaId == null
+                  ? const Center(child: Text("Carregando..."))
+                  : StreamBuilder<List<Atendimento>>(
+                stream: atendimentoService.getAtendimentosDaEmpresaStream(empresaId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text("Erro: ${snapshot.error}"));
+                  }
 
-                return isMobile
-                    ? _buildMobileList(todosAtendimentos)
-                    : _buildDesktopKanban(todosAtendimentos);
-              },
+                  final todosAtendimentos = snapshot.data ?? [];
+                  final searchQuery = _searchController.text.toLowerCase();
+                  final filteredList = todosAtendimentos.where((atendimento) {
+                    final searchMatch = searchQuery.isEmpty ||
+                        atendimento.nomeCliente.toLowerCase().contains(searchQuery) ||
+                        atendimento.telefoneCliente.contains(searchQuery);
+                    final filterMatch = _statusFilter == null || atendimento.status == _statusFilter;
+                    return searchMatch && filterMatch;
+                  }).toList();
+
+                  return _buildBody(filteredList);
+                },
+              ),
             ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         tooltip: 'Novo Atendimento',
         child: const Icon(Icons.add),
@@ -218,88 +241,100 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     );
   }
 
-  // --- WIDGETS DE UI (com as devidas adaptações) ---
+  // --- WIDGETS DE UI ---
+
+  Widget _buildControls() {
+    final theme = Theme.of(context);
+
+    // Estilo que será usado pelos campos de controle
+    final inputDecoration = InputDecoration(
+      filled: true,
+      fillColor: theme.colorScheme.surface,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: theme.colorScheme.outline.withOpacity(0.5)),
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      // 2. Usando WRAP para um layout que quebra a linha e evita overflow
+      child: Wrap(
+        spacing: 16,
+        runSpacing: 16,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          // Campo de busca
+          SizedBox(
+            width: 350, // Uma largura base para o campo de busca
+            child: TextField(
+              controller: _searchController,
+              style: TextStyle(color: theme.colorScheme.onSurface),
+              decoration: inputDecoration.copyWith(
+                hintText: 'Pesquisar por cliente ou telefone...',
+                prefixIcon: const Icon(LucideIcons.search),
+              ),
+            ),
+          ),
+
+          // Filtro de Status
+          SizedBox(
+            width: 200, // Largura base para o filtro
+            child: DropdownButtonFormField<String?>(
+              value: _statusFilter,
+              decoration: inputDecoration.copyWith(labelText: 'Status'),
+              items: [
+                const DropdownMenuItem(value: null, child: Text('Todos')),
+                ...EstadoAtendimento.values.map((e) => DropdownMenuItem(value: e.label, child: Text(e.label))),
+              ],
+              onChanged: (v) => setState(() => _statusFilter = v),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  Widget _buildBody(List<Atendimento> atendimentos) {
+    final isMobile = MediaQuery.of(context).size.width < 900;
+
+    if (atendimentos.isEmpty) {
+      return const Center(child: Text('Nenhum atendimento encontrado.'));
+    }
+
+    // A lógica de qual view mostrar permanece a mesma
+    return isMobile
+        ? _buildMobileList(atendimentos)
+        : _buildDesktopKanban(atendimentos);
+  }
 
   Widget _buildMobileList(List<Atendimento> atendimentos) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    
-    final filteredList = atendimentos.where((atendimento) {
-      final search = _mobileSearchController.text.toLowerCase();
-      final filter = _mobileFilter;
-      final matchSearch = atendimento.nomeCliente.toLowerCase().contains(search) || atendimento.telefoneCliente.contains(search);
-      final matchFilter = filter == null || atendimento.status == filter;
-      return matchSearch && matchFilter;
-    }).toList();
-    filteredList.sort((a, b) => EstadoAtendimento.fromString(a.status).index.compareTo(EstadoAtendimento.fromString(b.status).index));
+    atendimentos.sort((a, b) => EstadoAtendimento.fromString(a.status).index.compareTo(EstadoAtendimento.fromString(b.status).index));
 
-    return Column(
-      children: [
-        AppBar(
-          title: _isMobileSearching
-              ? TextField(
-                  controller: _mobileSearchController,
-                  autofocus: true,
-                  style: TextStyle(color: cs.onSurface),
-                  decoration: InputDecoration(
-                      hintText: 'Pesquisar...',
-                      border: InputBorder.none,
-                      hintStyle: TextStyle(color: cs.onSurfaceVariant)
-                  ),
-                )
-              : const Text('Atendimentos'),
-          actions: [
-            IconButton(
-              icon: Icon(_isMobileSearching ? Icons.close : Icons.search),
-              onPressed: () => setState(() {
-                _isMobileSearching = !_isMobileSearching;
-                if (!_isMobileSearching) _mobileSearchController.clear();
-              }),
-            ),
-            if (!_isMobileSearching)
-              PopupMenuButton<String?>(
-                icon: const Icon(Icons.filter_list),
-                onSelected: (novoFiltro) => setState(() => _mobileFilter = novoFiltro),
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: null, child: Text('Todos os Status')),
-                  ...EstadoAtendimento.values.map((estado) => PopupMenuItem(value: estado.label, child: Text(estado.label))),
-                ],
-              ),
-          ],
-        ),
-        Expanded(
-          child: filteredList.isEmpty
-              ? const Center(child: Text('Nenhum atendimento encontrado.'))
-              : ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: filteredList.length,
-                  separatorBuilder: (context, index) => const Divider(height: 1, indent: 80),
-                  itemBuilder: (context, index) {
-                    final atendimento = filteredList[index];
-                    return _AtendimentoTile(
-                      atendimento: atendimento,
-                      statusColor: _getStatusColor(context, atendimento.status),
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(
-                        nome: atendimento.nomeCliente,
-                        numero: atendimento.telefoneCliente,
-                        fotoUrl: atendimento.fotoUrl ?? '',
-                      ))),
-                      onStatusChanged: (novoEstado) => _atualizarEstado(atendimento, novoEstado),
-                    );
-                  },
-                ),
-        ),
-      ],
+    return ListView.separated(
+      padding: const EdgeInsets.only(top: 8, bottom: 80),
+      itemCount: atendimentos.length,
+      separatorBuilder: (context, index) => const Divider(height: 1, indent: 80),
+      itemBuilder: (context, index) {
+        final atendimento = atendimentos[index];
+        return _AtendimentoTile(
+          atendimento: atendimento,
+          onStatusChanged: (novoEstado) => _atualizarEstado(atendimento, novoEstado),
+        );
+      },
     );
   }
 
   Widget _buildDesktopKanban(List<Atendimento> atendimentos) {
     final estados = EstadoAtendimento.values.map((e) => e.label).toList();
     final cols = { for (var estadoLabel in estados) estadoLabel: atendimentos.where((a) => a.status == estadoLabel).toList() };
-    final totalWidth = MediaQuery.of(context).size.width;
-    const horizontalPadding = 48.0;
-    final colCount = cols.length;
-    final colWidth = (totalWidth - horizontalPadding) / colCount;
 
     return Listener(
       onPointerSignal: (sig) {
@@ -312,10 +347,10 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
         child: SingleChildScrollView(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(vertical: 8),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: cols.entries.map((e) => SizedBox(width: colWidth, child: _buildColumn(e.key, e.value))).toList(),
+            children: cols.entries.map((e) => _buildColumn(e.key, e.value)).toList(),
           ),
         ),
       ),
@@ -323,62 +358,42 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
   }
 
   Widget _buildColumn(String estadoLabel, List<Atendimento> items) {
-    final searching = isSearching[estadoLabel]!;
-    final text = searchControllers[estadoLabel]!.text.toLowerCase();
-    final filtered = items.where((a) => a.nomeCliente.toLowerCase().contains(text) || a.telefoneCliente.contains(text)).toList();
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12.0),
+    final theme = Theme.of(context);
+    return Container(
+      width: 300,
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(color: theme.colorScheme.surfaceVariant.withOpacity(0.3), borderRadius: BorderRadius.circular(16)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            decoration: BoxDecoration(color: headerColor[estadoLabel]!.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
             child: Row(children: [
-              Expanded(child: searching ? _buildSearchField(estadoLabel) : Text(estadoLabel, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: headerColor[estadoLabel]))),
-              if (!searching) IconButton(icon: Icon(Icons.search, color: headerColor[estadoLabel]), onPressed: () => setState(() => isSearching[estadoLabel] = true)),
+              Container(width: 10, height: 10, decoration: BoxDecoration(color: _getStatusColor(estadoLabel), shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Expanded(child: Text(estadoLabel, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))),
+              Text('${items.length}', style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             ]),
           ),
-          const SizedBox(height: 10),
+          const Divider(height: 1),
           Expanded(
             child: DragTarget<Atendimento>(
               onWillAcceptWithDetails: (details) => details.data.status != estadoLabel,
               onAcceptWithDetails: (details) => _atualizarEstado(details.data, estadoLabel),
               builder: (context, cand, rej) => Container(
-                decoration: BoxDecoration(color: Theme.of(context).colorScheme.surfaceContainerHighest, borderRadius: BorderRadius.circular(12), border: Border.all(color: cand.isNotEmpty ? Theme.of(context).colorScheme.primary : Colors.transparent, width: 2)),
-                padding: const EdgeInsets.all(8),
-                child: filtered.isEmpty
-                    ? Center(child: Text("Arraste um card para cá", style: Theme.of(context).textTheme.bodySmall))
-                    : ListView.separated(
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, i) => _buildDraggable(filtered[i]),
-                      ),
+                decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), border: Border.all(color: cand.isNotEmpty ? theme.colorScheme.primary : Colors.transparent, width: 2)),
+                child: items.isEmpty
+                    ? Center(child: Text("Arraste um card para cá", style: theme.textTheme.bodySmall))
+                    : ListView.builder(
+                  padding: const EdgeInsets.all(8),
+                  itemCount: items.length,
+                  itemBuilder: (context, i) => _buildDraggable(items[i]),
+                ),
               ),
             ),
           ),
         ],
       ),
-    );
-  }
-  
-  Widget _buildSearchField(String estadoLabel) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    return TextField(
-      controller: searchControllers[estadoLabel],
-      style: TextStyle(color: cs.onSurface),
-      decoration: InputDecoration(
-        hintText: 'Pesquisar...',
-        hintStyle: TextStyle(color: cs.onSurfaceVariant),
-        filled: true,
-        isDense: true,
-        fillColor: cs.surface,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-        suffixIcon: IconButton(icon: Icon(Icons.close, color: cs.onSurfaceVariant, size: 20), onPressed: () => setState(() { isSearching[estadoLabel] = false; searchControllers[estadoLabel]!.clear(); })),
-      ),
-      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -387,18 +402,20 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
       data: a,
       feedback: Material(color: Colors.transparent, child: Opacity(opacity: 0.85, child: SizedBox(width: 280, child: ContatoCard(
         nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
-        onEstadoChanged: (novo) {/* no-op no feedback */},
+        onEstadoChanged: (novo) {},
       )))),
       childWhenDragging: Opacity(opacity: 0.4, child: ContatoCard(
         nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
         onEstadoChanged: (novo) => _atualizarEstado(a, novo),
       )),
-      child: GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage(nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? ''))),
-        child: ContatoCard(
-          nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
-          onEstadoChanged: (novo) => _atualizarEstado(a, novo),
-        ),
+      child: ContatoCard(
+        nome: a.nomeCliente, numero: a.telefoneCliente, fotoUrl: a.fotoUrl ?? '', status: a.status,
+        onEstadoChanged: (novo) => _atualizarEstado(a, novo),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ChatPage(
+          nome: a.nomeCliente,
+          numero: a.telefoneCliente,
+          fotoUrl: a.fotoUrl ?? '',
+        ))),
       ),
     );
   }
@@ -406,54 +423,48 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
 
 class _AtendimentoTile extends StatelessWidget {
   final Atendimento atendimento;
-  final Color statusColor;
-  final VoidCallback onTap;
   final ValueChanged<String> onStatusChanged;
 
   const _AtendimentoTile({
     required this.atendimento,
-    required this.statusColor,
-    required this.onTap,
     required this.onStatusChanged,
   });
+
+  Color _getStatusColor(BuildContext context, String statusLabel) {
+    final estado = EstadoAtendimento.fromString(statusLabel);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    switch (estado) {
+      case EstadoAtendimento.emAberto: return isDark ? Colors.purple.shade300 : Colors.purple.shade700;
+      case EstadoAtendimento.emAndamento: return isDark ? Colors.amber.shade300 : Colors.amber.shade800;
+      case EstadoAtendimento.finalizado: return isDark ? Colors.green.shade400 : Colors.green.shade800;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final statusColor = _getStatusColor(context, atendimento.status);
     final bool hasImage = atendimento.fotoUrl != null && atendimento.fotoUrl!.isNotEmpty;
 
     return ListTile(
-      onTap: onTap,
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(
+        nome: atendimento.nomeCliente,
+        numero: atendimento.telefoneCliente,
+        fotoUrl: atendimento.fotoUrl ?? '',
+      ))),
       leading: CircleAvatar(
         radius: 28,
         backgroundImage: hasImage ? NetworkImage(atendimento.fotoUrl!) : null,
         onBackgroundImageError: hasImage ? (_, __) {} : null,
         child: !hasImage ? const Icon(Icons.person, size: 30) : null,
       ),
-      title: Text(
-        atendimento.nomeCliente,
-        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        'Toque para ver a conversa...',
-        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      title: Text(atendimento.nomeCliente, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: const Text('Toque para ver a conversa...', style: TextStyle(overflow: TextOverflow.ellipsis)),
       trailing: PopupMenuButton<String>(
         icon: Icon(Icons.more_vert, color: statusColor),
         tooltip: 'Mudar status',
         onSelected: onStatusChanged,
-        itemBuilder: (BuildContext context) {
-          return EstadoAtendimento.values.map((estado) {
-            return PopupMenuItem<String>(
-              value: estado.label,
-              child: Text(estado.label),
-            );
-          }).toList();
-        },
+        itemBuilder: (BuildContext context) => EstadoAtendimento.values.map((estado) => PopupMenuItem<String>(value: estado.label, child: Text(estado.label))).toList(),
       ),
     );
   }
