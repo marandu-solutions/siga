@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart';
 
-// Importando os componentes que você já separou em outros arquivos
 import 'Components/metric_card.dart';
 import 'Components/perfomance_line_chart.dart';
 
-// --- ENUM PARA O FILTRO DE PERÍODO ---
-enum PeriodoFiltro { hoje, semana, mes, ano }
 
-// ===================================================================
-// =================== PÁGINA PRINCIPAL DO DASHBOARD =================
-// ===================================================================
+enum PeriodoFiltro { hoje, semana, mes }
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
@@ -29,11 +23,13 @@ class _DashboardPageState extends State<DashboardPage> {
       setState(() {
         _selectedPeriod = newSelection.first;
       });
+      // No app real, você chamaria a lógica para recarregar os dados
+      // com base no novo período selecionado.
     }
   }
 
-  // A função de navegação agora está aqui apenas como exemplo futuro,
-  // mas não é mais chamada pelos cards.
+  // Função de placeholder para navegação.
+  // No app real, isso usaria o seu sistema de navegação (Ex: Provider, GoRouter).
   void _navigateToPage(String pageName) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Navegando para a página de $pageName...')),
@@ -43,58 +39,57 @@ class _DashboardPageState extends State<DashboardPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDesktop = MediaQuery.of(context).size.width > 950;
+    // Um ponto de quebra mais adequado para layouts de 2 colunas.
+    final isDesktop = MediaQuery.of(context).size.width > 1100;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(isDesktop ? 24 : 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildHeader(context, isDesktop),
-            const SizedBox(height: 24),
-            isDesktop ? _buildDesktopBody() : _buildMobileBody(),
-          ],
-        ),
+      // Usar um CustomScrollView permite misturar widgets normais e listas
+      // de forma mais eficiente e performática.
+      body: CustomScrollView(
+        slivers: [
+          SliverAppBar(
+            title: const Text("Painel de Controle"),
+            pinned: true,
+            backgroundColor: theme.colorScheme.background.withOpacity(0.8),
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            expandedHeight: 120,
+            flexibleSpace: FlexibleSpaceBar(
+              background: _buildHeader(),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: isDesktop ? 24 : 16),
+              // O corpo do dashboard se adapta ao tamanho da tela.
+              child: isDesktop
+                  ? _buildDesktopBody()
+                  : _buildMobileBody(),
+            ),
+          ),
+        ],
       ),
     );
   }
 
   // --- WIDGETS DE CONSTRUÇÃO PRINCIPAIS ---
 
-  Widget _buildHeader(BuildContext context, bool isDesktop) {
-    final theme = Theme.of(context);
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Painel de Controle",
-              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              "Visão geral do seu negócio em tempo real.",
-              style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
+  Widget _buildHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 80, 16, 0),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: SegmentedButton<PeriodoFiltro>(
+          selected: {_selectedPeriod},
+          onSelectionChanged: _onPeriodChanged,
+          segments: const [
+            ButtonSegment(value: PeriodoFiltro.hoje, label: Text('Hoje')),
+            ButtonSegment(value: PeriodoFiltro.semana, label: Text('Semana')),
+            ButtonSegment(value: PeriodoFiltro.mes, label: Text('Mês')),
           ],
         ),
-        if (isDesktop)
-          SegmentedButton<PeriodoFiltro>(
-            selected: {_selectedPeriod},
-            onSelectionChanged: _onPeriodChanged,
-            segments: const [
-              ButtonSegment(value: PeriodoFiltro.hoje, label: Text('Hoje')),
-              ButtonSegment(value: PeriodoFiltro.semana, label: Text('Semana')),
-              ButtonSegment(value: PeriodoFiltro.mes, label: Text('Mês')),
-              ButtonSegment(value: PeriodoFiltro.ano, label: Text('Ano')),
-            ],
-          ),
-      ],
+      ),
     );
   }
 
@@ -102,10 +97,10 @@ class _DashboardPageState extends State<DashboardPage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Coluna principal com gráficos e lista de ações
         Expanded(
           flex: 3,
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.start,
             children: [
               _buildMetricCards(),
               const SizedBox(height: 24),
@@ -116,6 +111,7 @@ class _DashboardPageState extends State<DashboardPage> {
           ),
         ),
         const SizedBox(width: 24),
+        // Coluna lateral com atividade recente
         Expanded(
           flex: 2,
           child: _buildRecentActivityCard(),
@@ -127,19 +123,6 @@ class _DashboardPageState extends State<DashboardPage> {
   Widget _buildMobileBody() {
     return Column(
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: SegmentedButton<PeriodoFiltro>(
-            selected: {_selectedPeriod},
-            onSelectionChanged: _onPeriodChanged,
-            segments: const [
-              ButtonSegment(value: PeriodoFiltro.hoje, label: Text('Hoje')),
-              ButtonSegment(value: PeriodoFiltro.semana, label: Text('Semana')),
-              ButtonSegment(value: PeriodoFiltro.mes, label: Text('Mês')),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
         _buildMetricCards(),
         const SizedBox(height: 24),
         _buildPerformanceChartCard(),
@@ -154,15 +137,15 @@ class _DashboardPageState extends State<DashboardPage> {
   // --- WIDGETS DE SEÇÃO DO DASHBOARD ---
 
   Widget _buildMetricCards() {
-    // CORREÇÃO: Removido o parâmetro `onTap` das chamadas do MetricCard.
+    // Agora os cards são interativos
     return Wrap(
       spacing: 16,
       runSpacing: 16,
-      children: const [
-        MetricCard(icon: LucideIcons.dollarSign, number: 'R\$ 1.250,75', label: 'Vendas'),
-        MetricCard(icon: LucideIcons.trendingUp, number: 'R\$ 480,30', label: 'Lucro Est.'),
-        MetricCard(icon: LucideIcons.receipt, number: '42', label: 'Pedidos'),
-        MetricCard(icon: LucideIcons.users, number: '8', label: 'Novos Clientes'),
+      children: [
+        MetricCard(icon: LucideIcons.dollarSign, number: 'R\$ 1.250,75', label: 'Vendas', onTap: () => _navigateToPage('Relatórios')),
+        MetricCard(icon: LucideIcons.trendingUp, number: 'R\$ 480,30', label: 'Lucro Est.', onTap: () => _navigateToPage('Relatórios')),
+        MetricCard(icon: LucideIcons.receipt, number: '42', label: 'Pedidos', onTap: () => _navigateToPage('Pedidos')),
+        MetricCard(icon: LucideIcons.users, number: '8', label: 'Novos Clientes', onTap: () => _navigateToPage('Clientes')),
       ],
     );
   }

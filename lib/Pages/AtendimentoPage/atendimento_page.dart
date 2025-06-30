@@ -336,24 +336,31 @@ class _AtendimentoPageState extends State<AtendimentoPage> {
     final estados = EstadoAtendimento.values.map((e) => e.label).toList();
     final cols = { for (var estadoLabel in estados) estadoLabel: atendimentos.where((a) => a.status == estadoLabel).toList() };
 
-    return Listener(
-      onPointerSignal: (sig) {
-        if (sig is PointerScrollEvent) {
-          _scrollController.jumpTo((_scrollController.offset + sig.scrollDelta.dy).clamp(_scrollController.position.minScrollExtent, _scrollController.position.maxScrollExtent));
-        }
-      },
-      child: ScrollConfiguration(
-        behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse}),
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: cols.entries.map((e) => _buildColumn(e.key, e.value)).toList(),
+    return Column(
+      children: [
+        Expanded(
+          child: Listener(
+            onPointerSignal: (sig) {
+              if (sig is PointerScrollEvent) {
+                _scrollController.jumpTo((_scrollController.offset + sig.scrollDelta.dy).clamp(_scrollController.position.minScrollExtent, _scrollController.position.maxScrollExtent));
+              }
+            },
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(dragDevices: {PointerDeviceKind.touch, PointerDeviceKind.mouse}),
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                child: Row(
+                  // ✅ CORREÇÃO: Alinhamento alterado para 'stretch' para preencher a tela.
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: cols.entries.map((e) => _buildColumn(e.key, e.value)).toList(),
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 

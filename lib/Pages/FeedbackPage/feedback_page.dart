@@ -45,6 +45,17 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
         return;
     }
 
+    final inputDecoration = InputDecoration(
+      filled: true,
+      // Usando uma cor do tema que contrasta com o fundo do diálogo
+      fillColor: cs.surfaceContainerHighest,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      labelStyle: TextStyle(color: cs.onSurfaceVariant),
+    );
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
@@ -54,7 +65,6 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Usamos um FutureBuilder para carregar a lista de pedidos sob demanda.
               FutureBuilder<List<Pedido>>(
                 future: pedidoService.getPedidosDaEmpresaStream(empresaId).first,
                 builder: (context, snapshot) {
@@ -62,7 +72,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                     return const Center(child: CircularProgressIndicator());
                   }
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const Text("Nenhum pedido encontrado para adicionar feedback.");
+                    return const Text("Nenhum pedido para adicionar feedback.");
                   }
                   final pedidos = snapshot.data ?? [];
                   return ValueListenableBuilder<Pedido?>(
@@ -71,16 +81,17 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                       hint: const Text('Selecione um Pedido'),
                       isExpanded: true,
                       value: sel,
+                      // Estilo para o texto do item selecionado e do menu
+                      style: TextStyle(color: cs.onSurface),
+                      decoration: inputDecoration.copyWith(
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+                      ),
+                      dropdownColor: cs.surfaceContainerHighest, // Cor do fundo do menu
                       items: pedidos.map((p) => DropdownMenuItem(
                         value: p,
                         child: Text('#${p.numeroPedido} - ${p.cliente['nome']}', overflow: TextOverflow.ellipsis),
                       )).toList(),
                       onChanged: (v) => selectedPedido.value = v,
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: cs.surface,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                      ),
                     ),
                   );
                 },
@@ -88,13 +99,8 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
               const SizedBox(height: 16),
               TextField(
                 controller: controller,
-                style: TextStyle(color: cs.onSurface),
-                decoration: InputDecoration(
-                  labelText: 'Mensagem',
-                  filled: true,
-                  fillColor: cs.surface,
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                ),
+                style: TextStyle(color: cs.onSurface), // Cor do texto digitado
+                decoration: inputDecoration.copyWith(labelText: 'Mensagem'),
                 maxLines: 3,
               ),
               const SizedBox(height: 12),
@@ -117,7 +123,6 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
               final pedido = selectedPedido.value;
               final msg = controller.text.trim();
               if (pedido != null && msg.isNotEmpty) {
-                // ✅ Objeto agora é do tipo 'FeedbackModel'
                 final feedback = FeedbackModel(
                   id: '',
                   pedidoId: pedido.id,
@@ -127,7 +132,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                   data: Timestamp.now(),
                   nomeCliente: pedido.cliente['nome'] ?? 'Cliente',
                 );
-                
+
                 final scaffoldMessenger = ScaffoldMessenger.of(context);
                 final navigator = Navigator.of(context);
 
@@ -136,7 +141,7 @@ class _FeedbacksPageState extends State<FeedbacksPage> {
                   scaffoldMessenger.showSnackBar(const SnackBar(content: Text('Feedback adicionado com sucesso!')));
                   navigator.pop();
                 } catch (e) {
-                   scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao adicionar feedback: $e')));
+                  scaffoldMessenger.showSnackBar(SnackBar(content: Text('Erro ao adicionar feedback: $e')));
                 }
               }
             },

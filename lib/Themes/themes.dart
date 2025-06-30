@@ -1,6 +1,11 @@
+// lib/Themes/themes.dart
+
 import 'package:flutter/material.dart';
 
 class AppThemes {
+  // ===================================================================
+  // SEU TEMA CLARO - NENHUMA ALTERAÇÃO NECESSÁRIA AQUI
+  // ===================================================================
   static final ThemeData lightTheme = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme(
@@ -36,6 +41,9 @@ class AppThemes {
     filledButtonTheme: _filledButtonTheme,
   );
 
+  // ===================================================================
+  // SEU TEMA ESCURO - COM A CORREÇÃO APLICADA
+  // ===================================================================
   static final ThemeData darkTheme = ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
@@ -67,10 +75,28 @@ class AppThemes {
       bodyColor: Colors.grey.shade100,
       displayColor: Colors.grey.shade100,
     ),
-    inputDecorationTheme: _inputDecorationTheme,
+    //
+    // ======================= ✅ CORREÇÃO APLICADA AQUI =======================
+    // Usamos .copyWith() para pegar o tema base de input e apenas alterar
+    // as propriedades necessárias para o modo escuro.
+    //
+    inputDecorationTheme: _inputDecorationTheme.copyWith(
+      fillColor: Colors.grey.shade800,
+      labelStyle: TextStyle(color: Colors.grey.shade400),
+      prefixIconColor: Colors.grey.shade400,
+      // Também ajustamos a cor da borda padrão para o modo escuro
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide(color: Colors.grey.shade700),
+      ),
+    ),
     filledButtonTheme: _filledButtonTheme,
   );
 
+
+  // ===================================================================
+  // DEFINIÇÕES BASE - NENHUMA ALTERAÇÃO NECESSÁRIA AQUI
+  // ===================================================================
   static const TextTheme _textTheme = TextTheme(
     titleLarge: TextStyle(
       fontSize: 28,
@@ -92,6 +118,7 @@ class AppThemes {
     ),
   );
 
+  // Esta é a decoração base, usada principalmente pelo tema claro.
   static final InputDecorationTheme _inputDecorationTheme = InputDecorationTheme(
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(12),
@@ -103,9 +130,8 @@ class AppThemes {
     ),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     filled: true,
-    fillColor: const Color(0xFFECEFF1),
+    fillColor: const Color(0xFFECEFF1), // Cor de fundo para o MODO CLARO
   );
-
 
   static final FilledButtonThemeData _filledButtonTheme = FilledButtonThemeData(
     style: FilledButton.styleFrom(
